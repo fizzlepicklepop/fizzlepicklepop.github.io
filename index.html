@@ -2,12 +2,13 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Dynamic Data List</title>
+  <title>Dynamic Data List - Dark Mode</title>
   <style>
-    /* Global styles for a modern look */
+    /* Dark mode styles */
     body {
       font-family: Arial, sans-serif;
-      background-color: #f2f2f2;
+      background-color: #121212;
+      color: #e0e0e0;
       margin: 0;
       padding: 20px;
     }
@@ -18,12 +19,13 @@
     h1 {
       text-align: center;
       margin-bottom: 30px;
+      color: #ffffff;
     }
     /* Card style for each list entry */
     .card {
-      background-color: white;
+      background-color: #1e1e1e;
       border-radius: 8px;
-      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.5);
       margin-bottom: 20px;
       display: flex;
       align-items: center;
@@ -40,14 +42,15 @@
     .card-title {
       font-size: 1.5em;
       margin: 0;
-    }
-    .card-description {
-      margin: 10px 0;
-      color: #555;
+      color: #ffffff;
     }
     .card a {
       text-decoration: none;
-      color: #007BFF;
+      color: #bb86fc;
+      font-weight: bold;
+    }
+    .card-links a {
+      margin-right: 15px;
     }
   </style>
 </head>
@@ -62,45 +65,58 @@
     // Provided GitHub username and repository:
     const GITHUB_USERNAME = "fizzlepicklepop";
     const GITHUB_REPO = "fizzlepicklepop.github.io";
-    // Folder within your repository containing the data files:
-    const DATA_FOLDER = "data";
+    // Folders within your repository:
+    const MAPS_FOLDER = "data/maps";
+    const GAMETYPES_FOLDER = "data/gametypes";
     
-    // GitHub API URL for listing the contents of the data folder:
-    const API_URL = `https://api.github.com/repos/${GITHUB_USERNAME}/${GITHUB_REPO}/contents/${DATA_FOLDER}`;
-
+    // GitHub API URLs:
+    const MAPS_API_URL = `https://api.github.com/repos/${GITHUB_USERNAME}/${GITHUB_REPO}/contents/${MAPS_FOLDER}`;
+    const GAMETYPES_API_URL = `https://api.github.com/repos/${GITHUB_USERNAME}/${GITHUB_REPO}/contents/${GAMETYPES_FOLDER}`;
+    
     // Helper function to fetch text from a given URL.
     async function fetchText(url) {
       const res = await fetch(url);
       return res.text();
     }
-
+    
     async function loadFiles() {
       try {
-        // Fetch the list of files from the data folder via GitHub API.
-        const response = await fetch(API_URL);
-        const files = await response.json();
+        // Fetch files from the maps folder.
+        const mapsResponse = await fetch(MAPS_API_URL);
+        const mapFiles = await mapsResponse.json();
         
-        // Group files by their base name (e.g., "example" from "example.mvar", "example.png", "example.txt")
+        // Fetch files from the gametypes folder.
+        const gametypesResponse = await fetch(GAMETYPES_API_URL);
+        const gametypesFiles = await gametypesResponse.json();
+        
+        // Build a dictionary for gametypes files keyed by filename.
+        const gametypesDict = {};
+        gametypesFiles.forEach(file => {
+          gametypesDict[file.name] = file;
+        });
+        
+        // Group files from the maps folder by their base name.
+        // Example: "level1.mvar", "level1.png", and "level1.txt" will be grouped together.
         const groups = {};
-        files.forEach(file => {
+        mapFiles.forEach(file => {
           const parts = file.name.split('.');
-          if (parts.length < 2) return;  // Skip if there is no extension.
+          if (parts.length < 2) return;  // Skip files with no extension.
           const ext = parts.pop().toLowerCase();
           const base = parts.join('.');
           if (!groups[base]) groups[base] = {};
           groups[base][ext] = file;
         });
-
+        
         const fileListContainer = document.getElementById("file-list");
-        // For each group that includes a .mvar file, build a card.
+        // For each group that includes an .mvar file, build a card.
         for (const base in groups) {
-          if (!groups[base].mvar) continue; // Only list groups that contain a .mvar file.
+          if (!groups[base].mvar) continue; // Only process groups with an .mvar file.
           
           const group = groups[base];
           const card = document.createElement("div");
           card.className = "card";
           
-          // If a .png file exists, add it as the thumbnail.
+          // Add thumbnail if a .png exists.
           if (group.png) {
             const img = document.createElement("img");
             img.src = group.png.download_url;
@@ -117,25 +133,39 @@
           title.textContent = base;
           contentDiv.appendChild(title);
           
-          // If a .txt file exists, fetch its content to use as a description.
-          if (group.txt) {
-            const desc = document.createElement("p");
-            desc.className = "card-description";
-            fetchText(group.txt.download_url).then(text => {
-              desc.textContent = text;
-            }).catch(() => {
-              desc.textContent = "";
-            });
-            contentDiv.appendChild(desc);
-          }
+          // Create download links container.
+          const linksDiv = document.createElement("div");
+          linksDiv.className = "card-links";
           
           // Download link for the .mvar file.
-          const downloadLink = document.createElement("a");
-          downloadLink.href = group.mvar.download_url;
-          downloadLink.textContent = "Download .mvar";
-          downloadLink.download = group.mvar.name;
-          contentDiv.appendChild(downloadLink);
+          const mvarLink = document.createElement("a");
+          mvarLink.href = group.mvar.download_url;
+          mvarLink.textContent = "Download .mvar";
+          mvarLink.download = group.mvar.name;
+          mvarLink.style.marginRight = "10px";
+          linksDiv.appendChild(mvarLink);
           
+          // If a .txt file exists, use its first line to look up a gametype file.
+          if (group.txt) {
+            const gametypeLink = document.createElement("a");
+            gametypeLink.textContent = "Download Gametype";
+            // Fetch the .txt file and use its first line as the gametype filename.
+            fetchText(group.txt.download_url).then(text => {
+              const firstLine = text.split('\n')[0].trim();
+              if (gametypesDict[firstLine]) {
+                gametypeLink.href = gametypesDict[firstLine].download_url;
+                gametypeLink.download = gametypesDict[firstLine].name;
+              } else {
+                gametypeLink.textContent = "Gametype file not found";
+                gametypeLink.href = "#";
+              }
+            }).catch(() => {
+              gametypeLink.textContent = "Error loading gametype file";
+            });
+            linksDiv.appendChild(gametypeLink);
+          }
+          
+          contentDiv.appendChild(linksDiv);
           card.appendChild(contentDiv);
           fileListContainer.appendChild(card);
         }
@@ -144,7 +174,7 @@
         document.getElementById("file-list").textContent = "Error loading files.";
       }
     }
-
+    
     // Run the function to load files when the page loads.
     loadFiles();
   </script>
