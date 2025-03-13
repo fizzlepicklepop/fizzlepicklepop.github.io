@@ -78,23 +78,37 @@
     // Helper function to fetch text from a given URL.
     async function fetchText(url) {
       const res = await fetch(url);
+      if (!res.ok) throw new Error("Network response was not ok for " + url);
       return res.text();
     }
     
     async function loadFiles() {
       try {
         // Fetch the placeholder image info.
+        let placeholderDownloadURL = "";
         const placeholderResponse = await fetch(PLACEHOLDER_API_URL);
-        const placeholderData = await placeholderResponse.json();
-        const placeholderDownloadURL = placeholderData.download_url;
+        if (placeholderResponse.ok) {
+          const placeholderData = await placeholderResponse.json();
+          placeholderDownloadURL = placeholderData.download_url;
+        } else {
+          console.error("Failed to fetch placeholder image from:", PLACEHOLDER_API_URL);
+        }
         
         // Fetch files from the maps folder.
         const mapsResponse = await fetch(MAPS_API_URL);
+        if (!mapsResponse.ok) {
+          throw new Error("Failed to fetch maps folder from: " + MAPS_API_URL);
+        }
         const mapFiles = await mapsResponse.json();
+        console.log("Map Files:", mapFiles);
         
         // Fetch files from the gametypes folder.
         const gametypesResponse = await fetch(GAMETYPES_API_URL);
+        if (!gametypesResponse.ok) {
+          throw new Error("Failed to fetch gametypes folder from: " + GAMETYPES_API_URL);
+        }
         const gametypesFiles = await gametypesResponse.json();
+        console.log("Gametypes Files:", gametypesFiles);
         
         // Build a dictionary for gametypes files keyed by filename.
         const gametypesDict = {};
@@ -112,12 +126,16 @@
           if (!groups[base]) groups[base] = {};
           groups[base][ext] = file;
         });
+        console.log("Grouped Files:", groups);
         
         const fileListContainer = document.getElementById("file-list");
+        
         // For each group that includes an .mvar file, build a card.
+        let foundItem = false;
         for (const base in groups) {
           if (!groups[base].mvar) continue; // Only process groups with an .mvar file.
           
+          foundItem = true;
           const group = groups[base];
           const card = document.createElement("div");
           card.className = "card";
@@ -158,4 +176,37 @@
             const gametypeLink = document.createElement("a");
             gametypeLink.textContent = "Download Gametype";
             fetchText(group.txt.download_url).then(text => {
-              const firstLine = tex
+              const firstLine = text.split('\n')[0].trim();
+              if (gametypesDict[firstLine]) {
+                gametypeLink.href = gametypesDict[firstLine].download_url;
+                gametypeLink.download = gametypesDict[firstLine].name;
+              } else {
+                gametypeLink.textContent = "Gametype file not found";
+                gametypeLink.href = "#";
+              }
+            }).catch(err => {
+              console.error("Error fetching .txt for", base, err);
+              gametypeLink.textContent = "Error loading gametype file";
+            });
+            linksDiv.appendChild(gametypeLink);
+          }
+          
+          contentDiv.appendChild(linksDiv);
+          card.appendChild(contentDiv);
+          fileListContainer.appendChild(card);
+        }
+        
+        if (!foundItem) {
+          fileListContainer.textContent = "No .mvar files found in the maps folder.";
+        }
+      } catch (error) {
+        console.error("Error loading files:", error);
+        document.getElementById("file-list").textContent = "Error loading files.";
+      }
+    }
+    
+    // Run the function to load files when the page loads.
+    loadFiles();
+  </script>
+</body>
+</html>
