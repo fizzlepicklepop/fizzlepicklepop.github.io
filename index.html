@@ -14,28 +14,33 @@
       padding: 20px;
     }
     
-    /* Fixed sidebar on the left */
+    /* Fixed sidebar on the left that takes full usable height */
     .sidebar {
       position: fixed;
       top: 20px;
       left: 20px;
       width: 220px;
+      height: calc(100vh - 40px); /* full vertical height minus top/bottom padding */
       background: rgba(255, 255, 255, 0.2);
       backdrop-filter: blur(10px);
       border: 1px solid rgba(255, 255, 255, 0.3);
       border-radius: 10px;
       padding: 20px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
       z-index: 1000;
     }
-    .sidebar ul {
+    
+    .sidebar .menu {
       list-style: none;
       padding: 0;
       margin: 0;
     }
-    .sidebar li {
+    .sidebar .menu li {
       margin-bottom: 15px;
     }
-    .sidebar a {
+    .sidebar .menu a, .sidebar .footer a {
       color: #fff;
       text-decoration: none;
       font-size: 1.1em;
@@ -44,14 +49,20 @@
       border-radius: 5px;
       background: rgba(255, 255, 255, 0.1);
     }
-    .sidebar a.active,
-    .sidebar a:hover {
+    .sidebar .menu a.active,
+    .sidebar .menu a:hover,
+    .sidebar .footer a:hover {
       background: rgba(255, 255, 255, 0.3);
     }
     
-    /* Content area shifted right to avoid overlap with sidebar */
+    /* Footer section for the All option */
+    .sidebar .footer {
+      margin-top: auto;
+    }
+    
+    /* Content area shifted right to add padding between it and the sidebar */
     .content {
-      margin-left: 260px;  /* Sidebar width (220px) + extra margin */
+      margin-left: 260px;  /* 220px sidebar + 40px gap */
       padding: 20px;
       background: rgba(255, 255, 255, 0.2);
       backdrop-filter: blur(10px);
@@ -100,13 +111,15 @@
 <body>
   <!-- Fixed Sidebar -->
   <div class="sidebar">
-    <ul>
-      <li><a href="#" data-category="all" class="active">All</a></li>
-      <li><a href="#" data-category="halor">Halo Reach</a></li>
+    <ul class="menu">
+      <li><a href="#" data-category="halor" class="active">Halo Reach</a></li>
       <li><a href="#" data-category="halo2a">Halo 2 Anniversary</a></li>
       <li><a href="#" data-category="halo3">Halo 3</a></li>
       <li><a href="#" data-category="halo4">Halo 4</a></li>
     </ul>
+    <div class="footer">
+      <a href="#" data-category="all">All</a>
+    </div>
   </div>
   
   <!-- Content Area -->
@@ -119,8 +132,8 @@
     const GITHUB_REPO = "fizzlepicklepop.github.io";
     const ASSETS_FOLDER = "data/assets";
     
-    // Current category; default is "all"
-    let currentCategory = "all";
+    // Current category; default is "halor"
+    let currentCategory = "halor";
     
     // Main loader: routes based on category.
     function loadFiles(category) {
@@ -155,22 +168,23 @@
           console.error("Failed to fetch placeholder image from:", PLACEHOLDER_API_URL);
         }
         
-        // Fetch maps and gametypes.
+        // Fetch files from the maps folder.
         const mapsResponse = await fetch(MAPS_API_URL);
         if (!mapsResponse.ok) {
-          throw new Error("Failed to fetch maps from: " + MAPS_API_URL);
+          throw new Error("Failed to fetch maps folder from: " + MAPS_API_URL);
         }
         const mapFiles = await mapsResponse.json();
         console.log("Map Files:", mapFiles);
         
+        // Fetch files from the gametypes folder.
         const gametypesResponse = await fetch(GAMETYPES_API_URL);
         if (!gametypesResponse.ok) {
-          throw new Error("Failed to fetch gametypes from: " + GAMETYPES_API_URL);
+          throw new Error("Failed to fetch gametypes folder from: " + GAMETYPES_API_URL);
         }
         const gametypesFiles = await gametypesResponse.json();
         console.log("Gametypes Files:", gametypesFiles);
         
-        // Build dictionary of gametype files.
+        // Build a dictionary for gametype files.
         const gametypesDict = {};
         gametypesFiles.forEach(file => {
           gametypesDict[file.name] = file;
@@ -180,7 +194,7 @@
         const groups = {};
         mapFiles.forEach(file => {
           const parts = file.name.split('.');
-          if (parts.length < 2) return;
+          if (parts.length < 2) return;  // Skip files without an extension.
           const ext = parts.pop().toLowerCase();
           const base = parts.join('.');
           if (!groups[base]) groups[base] = {};
@@ -189,16 +203,19 @@
         console.log("Grouped Files:", groups);
         
         const fileListContainer = document.getElementById("file-list");
-        fileListContainer.innerHTML = "";
+        fileListContainer.innerHTML = ""; // Clear previous content
+        
+        // For each group that includes an .mvar file, build a card.
         let foundItem = false;
         for (const base in groups) {
           if (!groups[base].mvar) continue;
+          
           foundItem = true;
           const group = groups[base];
           const card = document.createElement("div");
           card.className = "card";
           
-          // Use image if available; otherwise placeholder.
+          // Add thumbnail: use the .png if available; otherwise, use the placeholder.
           const img = document.createElement("img");
           img.src = group.png ? group.png.download_url : placeholderDownloadURL;
           img.alt = base;
@@ -225,7 +242,7 @@
           mvarLink.style.marginRight = "10px";
           linksDiv.appendChild(mvarLink);
           
-          // If .txt exists, process it for gametype filename and description.
+          // If a .txt file exists, process it for gametype filename and description.
           if (group.txt) {
             fetchText(group.txt.download_url).then(text => {
               const lines = text.split('\n');
@@ -275,7 +292,6 @@
     async function loadAllFiles() {
       const categories = ["halor", "halo2a", "halo3", "halo4"];
       try {
-        // Fetch files from each category's maps folder.
         const fetchPromises = categories.map(cat => {
           const apiUrl = `https://api.github.com/repos/${GITHUB_USERNAME}/${GITHUB_REPO}/contents/data/${cat}/maps`;
           return fetch(apiUrl)
@@ -303,7 +319,7 @@
           filteredFiles.forEach(file => {
             const card = document.createElement("div");
             card.className = "card";
-            // In "All" view, we skip the image.
+            // In "All" view, skip the image.
             const contentDiv = document.createElement("div");
             contentDiv.className = "card-content";
             
@@ -314,7 +330,7 @@
             title.textContent = baseName;
             contentDiv.appendChild(title);
             
-            // Display which subfolder (game) the file came from.
+            // Display which subfolder the file came from.
             const sourceInfo = document.createElement("p");
             sourceInfo.className = "card-description";
             let sourceText = "";
@@ -352,6 +368,7 @@
     document.querySelectorAll(".sidebar a").forEach(link => {
       link.addEventListener("click", function(e) {
         e.preventDefault();
+        // Remove active class from all sidebar links.
         document.querySelectorAll(".sidebar a").forEach(l => l.classList.remove("active"));
         this.classList.add("active");
         const selectedCategory = this.getAttribute("data-category");
