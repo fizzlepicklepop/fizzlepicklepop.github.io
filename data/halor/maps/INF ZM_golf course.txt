@@ -1,2 +1,1 @@
-
-?4	Oakley HiDefINF - zm_golf courseplay with "zm_outbreak" or "zm_alpha"mvarp(&T??
+?4	Oakley HiDefINF - zm_golf courseplay with "zm_outbreak" or "zm_alpha"

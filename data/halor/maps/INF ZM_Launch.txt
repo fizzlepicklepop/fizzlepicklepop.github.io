@@ -1,2 +1,1 @@
-
-?.d	XerbaseINF: ZM_Launch8-16 players. Use with infection gametype ZM_Outbreakmvarp(%E?s
+?.d	XerbaseINF: ZM_Launch8-16 players. Use with infection gametype ZM_Outbreak
