@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <title>Halo MCC custom files</title>
   <style>
-    /* Base background and typography */
+    /* Base styling */
     body {
       font-family: Arial, sans-serif;
       background: url('data/assets/background.png') no-repeat center center fixed;
@@ -14,7 +14,7 @@
       padding: 20px;
     }
     
-    /* Fixed Sidebar: takes full vertical space with 20px padding at top and bottom */
+    /* Fixed sidebar styling */
     .sidebar {
       position: fixed;
       top: 20px;
@@ -23,7 +23,7 @@
       width: 220px;
       background: rgba(255, 255, 255, 0.2);
       backdrop-filter: blur(10px);
-      border: 1px solid rgba(255, 255, 255, 0.3);
+      border: 1px solid rgba(255,255,255,0.3);
       border-radius: 10px;
       padding: 20px;
       display: flex;
@@ -31,17 +31,16 @@
       justify-content: space-between;
       z-index: 1000;
     }
-    /* Container for menu items */
-    .menu {
+    .sidebar .menu {
       list-style: none;
       padding: 0;
       margin: 0;
     }
-    .menu li {
+    .sidebar .menu li {
       margin-bottom: 15px;
     }
-    .menu a,
-    .footer a {
+    .sidebar .menu a,
+    .sidebar .footer a {
       color: #fff;
       text-decoration: none;
       font-size: 1.1em;
@@ -50,12 +49,12 @@
       border-radius: 5px;
       background: rgba(255, 255, 255, 0.1);
     }
-    .menu a.active,
-    .menu a:hover,
-    .footer a:hover {
+    .sidebar .menu a.active,
+    .sidebar .menu a:hover,
+    .sidebar .footer a:hover {
       background: rgba(255, 255, 255, 0.3);
     }
-    /* Search container: placed just above the footer ("All" button) */
+    /* Search container anchored just above the footer */
     .search-container {
       margin-bottom: 10px;
     }
@@ -68,27 +67,27 @@
       background: rgba(255, 255, 255, 0.1);
       color: #fff;
     }
-    .footer {
+    .sidebar .footer {
       margin-top: 10px;
       margin-bottom: 20px;
     }
     
-    /* Content area with left margin (to clear sidebar) and right margin for breathing room */
+    /* Content area styling */
     .content {
       margin-left: 320px;  /* Sidebar (220px) + gap */
       margin-right: 120px;
       padding: 20px;
       background: rgba(255, 255, 255, 0.15);
       backdrop-filter: blur(10px);
-      border: 1px solid rgba(255, 255, 255, 0.3);
+      border: 1px solid rgba(255,255,255,0.3);
       border-radius: 10px;
     }
     
-    /* Card style for list items */
+    /* Card styling for each list item */
     .card {
       background: rgba(255, 255, 255, 0.15);
       backdrop-filter: blur(10px);
-      border: 1px solid rgba(255, 255, 255, 0.3);
+      border: 1px solid rgba(255,255,255,0.3);
       border-radius: 10px;
       margin-bottom: 20px;
       display: flex;
@@ -112,7 +111,7 @@
       margin: 5px 0;
       color: #e0e0e0;
     }
-    /* Download links in a darker blue */
+    /* Download links in darker blue */
     .card a {
       text-decoration: none;
       color: #0056b3;
@@ -132,7 +131,7 @@
       <li><a href="#" data-category="halo3">Halo 3</a></li>
       <li><a href="#" data-category="halo4">Halo 4</a></li>
     </ul>
-    <!-- Search container placed just above the footer -->
+    <!-- Search container anchored just above the footer -->
     <div class="search-container">
       <input type="text" id="search-input" placeholder="Search custom files..." />
     </div>
@@ -151,6 +150,7 @@
     const GITHUB_REPO = "fizzlepicklepop.github.io";
     const ASSETS_FOLDER = "data/assets";
     
+    // Default category is "halor"
     let currentCategory = "halor";
     
     // Load files based on category selection.
@@ -163,9 +163,21 @@
       }
     }
     
-    // Real-time search filtering.
+    // Search event: if query is non-empty, always load all items and then filter.
     document.getElementById("search-input").addEventListener("input", function() {
-      const query = this.value.toLowerCase();
+      const query = this.value.trim().toLowerCase();
+      if (query !== "") {
+        loadAllFiles().then(() => {
+          filterCards(query);
+        });
+      } else {
+        // If search cleared, reload the currently selected category.
+        loadFiles(currentCategory);
+      }
+    });
+    
+    // Filter displayed cards based on query.
+    function filterCards(query) {
       const cards = document.querySelectorAll("#file-list .card");
       cards.forEach(card => {
         if (card.textContent.toLowerCase().includes(query)) {
@@ -174,7 +186,7 @@
           card.style.display = "none";
         }
       });
-    });
+    }
     
     async function loadCategoryFiles(category) {
       const MAPS_API_URL = `https://api.github.com/repos/${GITHUB_USERNAME}/${GITHUB_REPO}/contents/data/${category}/maps`;
@@ -182,7 +194,6 @@
       const LINKS_API_URL = `https://api.github.com/repos/${GITHUB_USERNAME}/${GITHUB_REPO}/contents/data/${category}/link.txt`;
       const PLACEHOLDER_API_URL = `https://api.github.com/repos/${GITHUB_USERNAME}/${GITHUB_REPO}/contents/${ASSETS_FOLDER}/placeholder.png`;
       
-      // Build mapping from mvar file names to gametype file names using link.txt.
       let linkMapping = {};
       try {
         const linksResponse = await fetch(LINKS_API_URL);
@@ -207,7 +218,6 @@
       }
       
       try {
-        // Fetch placeholder image.
         let placeholderDownloadURL = "";
         const placeholderResponse = await fetch(PLACEHOLDER_API_URL);
         if (placeholderResponse.ok) {
@@ -217,7 +227,6 @@
           console.error("Failed to fetch placeholder image from:", PLACEHOLDER_API_URL);
         }
         
-        // Fetch map files.
         const mapsResponse = await fetch(MAPS_API_URL);
         if (!mapsResponse.ok) {
           throw new Error("Failed to fetch maps folder from: " + MAPS_API_URL);
@@ -225,7 +234,6 @@
         const mapFiles = await mapsResponse.json();
         console.log("Map Files:", mapFiles);
         
-        // Fetch gametype files.
         const gametypesResponse = await fetch(GAMETYPES_API_URL);
         if (!gametypesResponse.ok) {
           throw new Error("Failed to fetch gametypes folder from: " + GAMETYPES_API_URL);
@@ -233,13 +241,11 @@
         const gametypesFiles = await gametypesResponse.json();
         console.log("Gametypes Files:", gametypesFiles);
         
-        // Build dictionary for gametype files.
         const gametypesDict = {};
         gametypesFiles.forEach(file => {
           gametypesDict[file.name] = file;
         });
         
-        // Group map files by base name.
         const groups = {};
         mapFiles.forEach(file => {
           const parts = file.name.split('.');
@@ -262,7 +268,6 @@
           const card = document.createElement("div");
           card.className = "card";
           
-          // Add image thumbnail.
           const img = document.createElement("img");
           img.src = group.png ? group.png.download_url : placeholderDownloadURL;
           img.alt = base;
@@ -271,16 +276,15 @@
           const contentDiv = document.createElement("div");
           contentDiv.className = "card-content";
           
-          // Title (mvar filename) on top.
+          // Title on top.
           const title = document.createElement("h2");
           title.className = "card-title";
           title.textContent = base;
           contentDiv.appendChild(title);
           
-          // Create a container for descriptions.
+          // Container for descriptions.
           const descContainer = document.createElement("div");
-          
-          // Map description: from .txt file (first line), prepended with "Map: ".
+          // Map description from .txt file.
           if (group.txt) {
             fetch(group.txt.download_url)
               .then(response => {
@@ -300,11 +304,10 @@
               .catch(err => console.error("Error fetching map .txt for", base, err));
           }
           
-          // Create container for download links.
+          // Container for download links.
           const linksDiv = document.createElement("div");
           linksDiv.className = "card-links";
           
-          // Download link for the mvar file ("Download Map").
           const mvarLink = document.createElement("a");
           mvarLink.href = group.mvar.download_url;
           mvarLink.textContent = "Download Map";
@@ -312,7 +315,7 @@
           mvarLink.style.marginRight = "10px";
           linksDiv.appendChild(mvarLink);
           
-          // If a gametype mapping exists...
+          // If gametype mapping exists.
           if (linkMapping[group.mvar.name]) {
             const gametypeFileName = linkMapping[group.mvar.name];
             const gametypeLink = document.createElement("a");
@@ -326,7 +329,6 @@
             }
             linksDiv.appendChild(gametypeLink);
             
-            // Fetch gametype description from corresponding .txt file and prepend with "Gametype: "
             const gametypeTxtName = gametypeFileName.replace(/\.bin$/, '.txt');
             if (gametypesDict[gametypeTxtName]) {
               fetch(gametypesDict[gametypeTxtName].download_url)
@@ -344,7 +346,6 @@
             }
           }
           
-          // Append description container above the download links.
           contentDiv.appendChild(descContainer);
           contentDiv.appendChild(linksDiv);
           card.appendChild(contentDiv);
