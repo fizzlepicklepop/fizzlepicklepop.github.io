@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Glassy Aero Data List</title>
+  <title>Halo MCC custom files</title>
   <style>
     /* Glassy aero style for the background */
     body {
@@ -54,14 +54,25 @@
     .sidebar .footer a:hover {
       background: rgba(255, 255, 255, 0.3);
     }
+    .sidebar .search-container {
+      margin-bottom: 20px;
+    }
+    .sidebar .search-container input {
+      width: 100%;
+      padding: 8px;
+      border: none;
+      border-radius: 5px;
+      background: rgba(255, 255, 255, 0.2);
+      color: #fff;
+    }
     .sidebar .footer {
       margin-top: 20px;
       margin-bottom: 20px;
     }
     
-    /* Content area with extra right margin */
+    /* Content area with left and right margins */
     .content {
-      margin-left: 320px;
+      margin-left: 320px;  /* Sidebar (220px) + gap */
       margin-right: 120px;
       padding: 20px;
       background: rgba(255, 255, 255, 0.15);
@@ -70,7 +81,7 @@
       border-radius: 10px;
     }
     
-    /* Card style for each list entry (glassy style) */
+    /* Card style for each list entry */
     .card {
       background: rgba(255, 255, 255, 0.15);
       backdrop-filter: blur(10px);
@@ -91,11 +102,11 @@
     }
     .card-title {
       font-size: 1.5em;
-      margin: 0;
+      margin: 0 0 10px 0;
       color: #fff;
     }
     .card-description {
-      margin: 10px 0;
+      margin: 5px 0;
       color: #e0e0e0;
     }
     /* Download links in darker blue */
@@ -118,6 +129,9 @@
       <li><a href="#" data-category="halo3">Halo 3</a></li>
       <li><a href="#" data-category="halo4">Halo 4</a></li>
     </ul>
+    <div class="search-container">
+      <input type="text" id="search-input" placeholder="Search custom files..." />
+    </div>
     <div class="footer">
       <a href="#" data-category="all">All</a>
     </div>
@@ -144,6 +158,19 @@
         loadCategoryFiles(category);
       }
     }
+    
+    // Add search functionality: filter displayed cards as user types.
+    document.getElementById("search-input").addEventListener("input", function() {
+      const query = this.value.toLowerCase();
+      const cards = document.querySelectorAll("#file-list .card");
+      cards.forEach(card => {
+        if (card.textContent.toLowerCase().includes(query)) {
+          card.style.display = "";
+        } else {
+          card.style.display = "none";
+        }
+      });
+    });
     
     async function loadCategoryFiles(category) {
       const MAPS_API_URL = `https://api.github.com/repos/${GITHUB_USERNAME}/${GITHUB_REPO}/contents/data/${category}/maps`;
@@ -246,12 +273,10 @@
           title.textContent = base;
           contentDiv.appendChild(title);
           
-          // Create containers for descriptions and download links.
+          // Container for descriptions.
           const descContainer = document.createElement("div");
-          const linksDiv = document.createElement("div");
-          linksDiv.className = "card-links";
           
-          // Map description from .txt file (if exists) - read first line.
+          // Map description from .txt file (if exists), read first line.
           if (group.txt) {
             fetch(group.txt.download_url)
               .then(response => {
@@ -270,6 +295,10 @@
               })
               .catch(err => console.error("Error fetching map .txt for", base, err));
           }
+          
+          // Container for download links.
+          const linksDiv = document.createElement("div");
+          linksDiv.className = "card-links";
           
           // Download link for the .mvar file, renamed.
           const mvarLink = document.createElement("a");
@@ -293,7 +322,7 @@
             }
             linksDiv.appendChild(gametypeLink);
             
-            // Now fetch gametype description from corresponding .txt file.
+            // Fetch gametype description from corresponding .txt file.
             const gametypeTxtName = gametypeFileName.replace(/\.bin$/, '.txt');
             if (gametypesDict[gametypeTxtName]) {
               fetch(gametypesDict[gametypeTxtName].download_url)
@@ -311,7 +340,7 @@
             }
           }
           
-          // Append the description container above the download links.
+          // Append description container above the download links.
           contentDiv.appendChild(descContainer);
           contentDiv.appendChild(linksDiv);
           card.appendChild(contentDiv);
@@ -399,7 +428,6 @@
       }
     }
     
-    // Sidebar event handling.
     document.querySelectorAll(".sidebar a").forEach(link => {
       link.addEventListener("click", function(e) {
         e.preventDefault();
