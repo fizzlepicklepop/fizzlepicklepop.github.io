@@ -1,151 +1,152 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Dynamic File List</title>
+  <meta charset="UTF-8">
+  <title>Dynamic Data List</title>
   <style>
+    /* Global styles for a modern look */
     body {
       font-family: Arial, sans-serif;
+      background-color: #f2f2f2;
       margin: 0;
       padding: 20px;
-      background-color: #f7f7f7;
+    }
+    .container {
+      max-width: 900px;
+      margin: 0 auto;
     }
     h1 {
       text-align: center;
+      margin-bottom: 30px;
     }
-    .container {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 20px;
-      justify-content: center;
-      margin-top: 20px;
-    }
+    /* Card style for each list entry */
     .card {
-      background-color: #fff;
+      background-color: white;
       border-radius: 8px;
-      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-      overflow: hidden;
-      width: 300px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+      margin-bottom: 20px;
       display: flex;
-      flex-direction: column;
-    }
-    .card img {
-      width: 100%;
-      height: auto;
-      object-fit: cover;
-    }
-    .card .content {
+      align-items: center;
       padding: 15px;
     }
-    .card .content h3 {
-      margin: 0 0 10px;
-      font-size: 1.25em;
+    .card img {
+      max-width: 120px;
+      border-radius: 4px;
+      margin-right: 20px;
     }
-    .card .content p {
+    .card-content {
+      flex: 1;
+    }
+    .card-title {
+      font-size: 1.5em;
       margin: 0;
+    }
+    .card-description {
+      margin: 10px 0;
       color: #555;
-      white-space: pre-wrap;
+    }
+    .card a {
+      text-decoration: none;
+      color: #007BFF;
     }
   </style>
 </head>
 <body>
-  <h1>My Dynamic List</h1>
-  <div class="container" id="listContainer">
-    <!-- Dynamically generated list items will appear here -->
+  <div class="container">
+    <h1>My Data List</h1>
+    <div id="file-list"></div>
   </div>
-
+  
   <script>
-    // Change these to match your GitHub repository details
-    const owner = "YourUsername"; // Your GitHub username
-    const repo = "YourRepo";      // Your repository name
-    const folder = "data";        // Folder within the repository containing the files
+    // *** Configuration ***
+    // Provided GitHub username and repository:
+    const GITHUB_USERNAME = "fizzlepicklepop";
+    const GITHUB_REPO = "fizzlepicklepop.github.io";
+    // Folder within your repository containing the data files:
+    const DATA_FOLDER = "data";
+    
+    // GitHub API URL for listing the contents of the data folder:
+    const API_URL = `https://api.github.com/repos/${GITHUB_USERNAME}/${GITHUB_REPO}/contents/${DATA_FOLDER}`;
 
-    // Construct the GitHub API URL to fetch the contents of the folder
-    const apiUrl = `https://api.github.com/repos/${owner}/${repo}/contents/${folder}`;
-
-    // Object to store grouped entries by base name
-    const entries = {};
-
-    // Fetch the folder's file list from the GitHub API
-    fetch(apiUrl)
-      .then(response => response.json())
-      .then(files => {
-        files.forEach(file => {
-          // Split file name to get the extension and the base name
-          const parts = file.name.split('.');
-          if (parts.length < 2) return; // Skip files without an extension
-          const ext = parts.pop().toLowerCase();
-          const baseName = parts.join('.');
-          
-          if (!entries[baseName]) {
-            entries[baseName] = {};
-          }
-          if (ext === "png") {
-            entries[baseName].image = file.download_url;
-          } else if (ext === "txt") {
-            entries[baseName].descriptionUrl = file.download_url;
-          }
-        });
-        renderEntries();
-      })
-      .catch(error => {
-        console.error("Error fetching files:", error);
-        document.getElementById('listContainer').innerHTML = "<p>Error loading list.</p>";
-      });
-
-    // Function to create and render the entry cards
-    function renderEntries() {
-      const container = document.getElementById('listContainer');
-      Object.keys(entries).forEach(key => {
-        const entry = entries[key];
-        
-        // Create card element
-        const card = document.createElement('div');
-        card.className = "card";
-        
-        // If an image exists for this entry, add it as a thumbnail
-        if (entry.image) {
-          const img = document.createElement('img');
-          img.src = entry.image;
-          img.alt = key;
-          card.appendChild(img);
-        }
-        
-        // Create a container for the title and description
-        const content = document.createElement('div');
-        content.className = "content";
-        
-        // Add title (the base file name)
-        const title = document.createElement('h3');
-        title.textContent = key;
-        content.appendChild(title);
-        
-        // Add a paragraph for the description; initially shows a loading message
-        const descriptionPara = document.createElement('p');
-        descriptionPara.textContent = "Loading description...";
-        content.appendChild(descriptionPara);
-        
-        card.appendChild(content);
-        container.appendChild(card);
-        
-        // If a .txt description exists, fetch its content and display it
-        if (entry.descriptionUrl) {
-          fetch(entry.descriptionUrl)
-            .then(response => response.text())
-            .then(text => {
-              descriptionPara.textContent = text;
-            })
-            .catch(err => {
-              console.error("Error fetching description for", key, err);
-              descriptionPara.textContent = "";
-            });
-        } else {
-          // Remove loading message if no description file exists
-          descriptionPara.textContent = "";
-        }
-      });
+    // Helper function to fetch text from a given URL.
+    async function fetchText(url) {
+      const res = await fetch(url);
+      return res.text();
     }
+
+    async function loadFiles() {
+      try {
+        // Fetch the list of files from the data folder via GitHub API.
+        const response = await fetch(API_URL);
+        const files = await response.json();
+        
+        // Group files by their base name (e.g., "example" from "example.mvar", "example.png", "example.txt")
+        const groups = {};
+        files.forEach(file => {
+          const parts = file.name.split('.');
+          if (parts.length < 2) return;  // Skip if there is no extension.
+          const ext = parts.pop().toLowerCase();
+          const base = parts.join('.');
+          if (!groups[base]) groups[base] = {};
+          groups[base][ext] = file;
+        });
+
+        const fileListContainer = document.getElementById("file-list");
+        // For each group that includes a .mvar file, build a card.
+        for (const base in groups) {
+          if (!groups[base].mvar) continue; // Only list groups that contain a .mvar file.
+          
+          const group = groups[base];
+          const card = document.createElement("div");
+          card.className = "card";
+          
+          // If a .png file exists, add it as the thumbnail.
+          if (group.png) {
+            const img = document.createElement("img");
+            img.src = group.png.download_url;
+            img.alt = base;
+            card.appendChild(img);
+          }
+          
+          const contentDiv = document.createElement("div");
+          contentDiv.className = "card-content";
+          
+          // Title derived from the base name.
+          const title = document.createElement("h2");
+          title.className = "card-title";
+          title.textContent = base;
+          contentDiv.appendChild(title);
+          
+          // If a .txt file exists, fetch its content to use as a description.
+          if (group.txt) {
+            const desc = document.createElement("p");
+            desc.className = "card-description";
+            fetchText(group.txt.download_url).then(text => {
+              desc.textContent = text;
+            }).catch(() => {
+              desc.textContent = "";
+            });
+            contentDiv.appendChild(desc);
+          }
+          
+          // Download link for the .mvar file.
+          const downloadLink = document.createElement("a");
+          downloadLink.href = group.mvar.download_url;
+          downloadLink.textContent = "Download .mvar";
+          downloadLink.download = group.mvar.name;
+          contentDiv.appendChild(downloadLink);
+          
+          card.appendChild(contentDiv);
+          fileListContainer.appendChild(card);
+        }
+      } catch (error) {
+        console.error("Error loading files:", error);
+        document.getElementById("file-list").textContent = "Error loading files.";
+      }
+    }
+
+    // Run the function to load files when the page loads.
+    loadFiles();
   </script>
 </body>
 </html>
