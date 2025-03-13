@@ -2,30 +2,33 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Dynamic Data List - Dark Mode</title>
+  <title>Glassy Aero Data List</title>
   <style>
-    /* Dark mode styles with background image */
+    /* Glassy aero translucent aesthetic */
     body {
       font-family: Arial, sans-serif;
       background: url('data/assets/background.png') no-repeat center center fixed;
       background-size: cover;
-      color: #e0e0e0;
+      color: #fff;
       margin: 0;
       padding: 20px;
     }
-    /* Container with semi-transparent overlay for readability */
+    /* Container for the list with translucent glass effect */
     .container {
       max-width: 900px;
       margin: 0 auto;
-      background-color: rgba(0, 0, 0, 0.5);
+      background: rgba(255, 255, 255, 0.2);
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(255, 255, 255, 0.3);
       padding: 20px;
-      border-radius: 8px;
+      border-radius: 10px;
     }
-    /* Card style for each list entry */
+    /* Glassy card style for each list entry */
     .card {
-      background-color: #1e1e1e;
-      border-radius: 8px;
-      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.5);
+      background: rgba(255, 255, 255, 0.2);
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(255, 255, 255, 0.3);
+      border-radius: 10px;
       margin-bottom: 20px;
       display: flex;
       align-items: center;
@@ -42,7 +45,11 @@
     .card-title {
       font-size: 1.5em;
       margin: 0;
-      color: #ffffff;
+      color: #fff;
+    }
+    .card-description {
+      margin: 10px 0;
+      color: #e0e0e0;
     }
     .card a {
       text-decoration: none;
@@ -170,24 +177,42 @@
           mvarLink.style.marginRight = "10px";
           linksDiv.appendChild(mvarLink);
           
-          // If a .txt file exists, use its first line to look up a gametype file.
+          // If a .txt file exists, process it to get gametype filename and description.
           if (group.txt) {
-            const gametypeLink = document.createElement("a");
-            gametypeLink.textContent = "Download Gametype";
             fetchText(group.txt.download_url).then(text => {
-              const firstLine = text.split('\n')[0].trim();
-              if (gametypesDict[firstLine]) {
-                gametypeLink.href = gametypesDict[firstLine].download_url;
-                gametypeLink.download = gametypesDict[firstLine].name;
+              const lines = text.split('\n');
+              // Use the first line as the gametype filename.
+              const gametypeFilename = lines[0].trim();
+              
+              // If there are additional lines, join them as the description.
+              if (lines.length > 1) {
+                const descriptionText = lines.slice(1).join('\n').trim();
+                if (descriptionText) {
+                  const descElem = document.createElement("p");
+                  descElem.className = "card-description";
+                  descElem.textContent = descriptionText;
+                  // Insert description above the download links.
+                  contentDiv.insertBefore(descElem, linksDiv);
+                }
+              }
+              
+              // Create download link for the gametype file.
+              const gametypeLink = document.createElement("a");
+              gametypeLink.textContent = "Download Gametype";
+              if (gametypesDict[gametypeFilename]) {
+                gametypeLink.href = gametypesDict[gametypeFilename].download_url;
+                gametypeLink.download = gametypesDict[gametypeFilename].name;
               } else {
                 gametypeLink.textContent = "Gametype file not found";
                 gametypeLink.href = "#";
               }
+              linksDiv.appendChild(gametypeLink);
             }).catch(err => {
               console.error("Error fetching .txt for", base, err);
+              const gametypeLink = document.createElement("a");
               gametypeLink.textContent = "Error loading gametype file";
+              linksDiv.appendChild(gametypeLink);
             });
-            linksDiv.appendChild(gametypeLink);
           }
           
           contentDiv.appendChild(linksDiv);
