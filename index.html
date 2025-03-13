@@ -21,7 +21,7 @@
       bottom: 20px;
       left: 20px;
       width: 220px;
-      background: rgba(255, 255, 255, 0.2);
+      background: rgba(255,255,255,0.2);
       backdrop-filter: blur(10px);
       border: 1px solid rgba(255,255,255,0.3);
       border-radius: 10px;
@@ -54,7 +54,7 @@
     .footer a:hover {
       background: rgba(255,255,255,0.3);
     }
-    /* Search container anchored immediately below the All button */
+    /* Footer contains the "All" button and the search bar (anchored just below the All button) */
     .footer {
       margin-top: 10px;
       margin-bottom: 20px;
@@ -74,7 +74,7 @@
     
     /* Content area styling */
     .content {
-      margin-left: 320px;  /* Sidebar (220px) + gap */
+      margin-left: 320px; /* 220px sidebar + 100px gap */
       margin-right: 120px;
       padding: 20px;
       background: rgba(255,255,255,0.15);
@@ -83,7 +83,7 @@
       border-radius: 10px;
     }
     
-    /* Card styling for each list entry */
+    /* Card styling */
     .card {
       background: rgba(255,255,255,0.15);
       backdrop-filter: blur(10px);
@@ -111,7 +111,6 @@
       margin: 5px 0;
       color: #e0e0e0;
     }
-    /* Download links in darker blue */
     .card a {
       text-decoration: none;
       color: #0056b3;
@@ -131,7 +130,6 @@
       <li><a href="#" data-category="halo3">Halo 3</a></li>
       <li><a href="#" data-category="halo4">Halo 4</a></li>
     </ul>
-    <!-- Footer with "All" button and search field below it -->
     <div class="footer">
       <a href="#" data-category="all">All</a>
       <div class="search-container">
@@ -149,9 +147,6 @@
     const GITHUB_USERNAME = "fizzlepicklepop";
     const GITHUB_REPO = "fizzlepicklepop.github.io";
     const ASSETS_FOLDER = "data/assets";
-    
-    // Default category (used when no search query)
-    let currentCategory = "halor";
     
     // Helper: load groups for one category.
     async function loadCategoryGroups(category) {
@@ -229,7 +224,6 @@
         groups[base][ext] = file;
       });
       
-      // Return an array of group objects (each with additional category and linkMapping)
       const groupArray = [];
       for (const base in groups) {
         if (groups[base].mvar) {
@@ -246,15 +240,14 @@
       return groupArray;
     }
     
-    // Load "All" groups by merging groups from all categories.
+    // Helper: load groups from all categories.
     async function loadAllGroups() {
       const categories = ["halor", "halo2a", "halo3", "halo4"];
       const results = await Promise.all(categories.map(cat => loadCategoryGroups(cat)));
-      // Flatten the array
       return results.flat();
     }
     
-    // Render given groups as cards.
+    // Render groups as cards.
     function renderGroups(groups) {
       const fileListContainer = document.getElementById("file-list");
       fileListContainer.innerHTML = "";
@@ -267,7 +260,6 @@
         const card = document.createElement("div");
         card.className = "card";
         
-        // Add image thumbnail.
         const img = document.createElement("img");
         img.src = group.png ? group.png.download_url : placeholderDownloadURL;
         img.alt = base;
@@ -276,15 +268,12 @@
         const contentDiv = document.createElement("div");
         contentDiv.className = "card-content";
         
-        // Title on top.
         const title = document.createElement("h2");
         title.className = "card-title";
         title.textContent = base;
         contentDiv.appendChild(title);
         
-        // Description container.
         const descContainer = document.createElement("div");
-        
         // Map description from .txt file.
         if (group.txt) {
           fetch(group.txt.download_url)
@@ -305,17 +294,10 @@
             .catch(err => console.error("Error fetching map .txt for", base, err));
         }
         
-        // If gametype mapping exists, add gametype description.
+        // If gametype mapping exists, fetch gametype description.
         if (linkMapping[group.mvar.name]) {
           const gametypeFileName = linkMapping[group.mvar.name];
           if (gametypesDict[gametypeFileName]) {
-            // Create gametype download link.
-            const gametypeLink = document.createElement("a");
-            gametypeLink.textContent = "Download Gametype";
-            gametypeLink.href = gametypesDict[gametypeFileName].download_url;
-            gametypeLink.download = gametypesDict[gametypeFileName].name;
-            // Append gametype link to links container later.
-            // Also fetch gametype description from corresponding .txt file.
             const gametypeTxtName = gametypeFileName.replace(/\.bin$/, '.txt');
             if (gametypesDict[gametypeTxtName]) {
               fetch(gametypesDict[gametypeTxtName].download_url)
@@ -336,11 +318,9 @@
         
         contentDiv.appendChild(descContainer);
         
-        // Create container for download links.
         const linksDiv = document.createElement("div");
         linksDiv.className = "card-links";
         
-        // mvar download link ("Download Map").
         const mvarLink = document.createElement("a");
         mvarLink.href = group.mvar.download_url;
         mvarLink.textContent = "Download Map";
@@ -348,7 +328,6 @@
         mvarLink.style.marginRight = "10px";
         linksDiv.appendChild(mvarLink);
         
-        // Gametype download link if mapping exists.
         if (linkMapping[group.mvar.name] && gametypesDict[linkMapping[group.mvar.name]]) {
           const gametypeLink = document.createElement("a");
           gametypeLink.textContent = "Download Gametype";
@@ -359,7 +338,6 @@
         
         contentDiv.appendChild(linksDiv);
         
-        // Append source info.
         const sourceInfo = document.createElement("p");
         sourceInfo.className = "card-description";
         let sourceText = "";
@@ -378,18 +356,20 @@
       });
     }
     
-    // Load "All" view by merging groups from all categories.
     async function loadAllFiles() {
-      const categories = ["halor", "halo2a", "halo3", "halo4"];
-      const results = await Promise.all(categories.map(cat => loadCategoryGroups(cat)));
-      const allGroups = results.flat();
-      renderGroups(allGroups);
+      const groups = await loadAllGroups();
+      renderGroups(groups);
     }
     
-    // Load files for a single category (non-All view) using the grouping method.
     async function loadCategoryFiles(category) {
       const groups = await loadCategoryGroups(category);
       renderGroups(groups);
+    }
+    
+    async function loadAllGroups() {
+      const categories = ["halor", "halo2a", "halo3", "halo4"];
+      const results = await Promise.all(categories.map(cat => loadCategoryGroups(cat)));
+      return results.flat();
     }
     
     // Sidebar event handling.
@@ -398,15 +378,20 @@
         e.preventDefault();
         document.querySelectorAll(".sidebar a").forEach(l => l.classList.remove("active"));
         this.classList.add("active");
-        // Clear search field when a category is clicked.
         document.getElementById("search-input").value = "";
         const selectedCategory = this.getAttribute("data-category");
         loadFiles(selectedCategory);
       });
     });
     
-    // Initial load.
-    loadFiles(currentCategory);
-  </script>
-</body>
-</html>
+    // Search functionality: if query non-empty, load All view then filter.
+    document.getElementById("search-input").addEventListener("input", function() {
+      const query = this.value.trim().toLowerCase();
+      if (query !== "") {
+        loadAllFiles().then(() => {
+          const cards = document.querySelectorAll("#file-list .card");
+          cards.forEach(card => {
+            if (card.textContent.toLowerCase().includes(query)) {
+              card.style.display = "";
+            } else {
+   
