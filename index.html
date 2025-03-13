@@ -60,10 +60,10 @@
       margin-bottom: 20px;
     }
     
-    /* Content area shifted right and padded on both left and right */
+    /* Content area shifted right and with right margin of 120px */
     .content {
       margin-left: 320px;  /* Sidebar (220px) + gap */
-      margin-right: 120px; /* Extra right padding */
+      margin-right: 120px;
       padding: 20px;
       background: rgba(255, 255, 255, 0.2);
       backdrop-filter: blur(10px);
@@ -99,10 +99,10 @@
       margin: 10px 0;
       color: #e0e0e0;
     }
-    /* Download links are now blue */
+    /* Download links use a darker blue */
     .card a {
       text-decoration: none;
-      color: #007bff;
+      color: #0056b3;
       font-weight: bold;
     }
     .card-links a {
@@ -255,15 +255,15 @@
           const linksDiv = document.createElement("div");
           linksDiv.className = "card-links";
           
-          // Download link for the .mvar file.
+          // Download link for the .mvar file renamed to "Download Map".
           const mvarLink = document.createElement("a");
           mvarLink.href = group.mvar.download_url;
-          mvarLink.textContent = "Download .mvar";
+          mvarLink.textContent = "Download Map";
           mvarLink.download = group.mvar.name;
           mvarLink.style.marginRight = "10px";
           linksDiv.appendChild(mvarLink);
           
-          // Add a gametype download link using the mapping from link.txt.
+          // Use linkMapping to establish gametype link.
           if (linkMapping[group.mvar.name]) {
             const gametypeFileName = linkMapping[group.mvar.name];
             const gametypeLink = document.createElement("a");
@@ -276,9 +276,26 @@
               gametypeLink.href = "#";
             }
             linksDiv.appendChild(gametypeLink);
+            
+            // Now read the file that has the same filename as the gametype but with .txt extension.
+            const gametypeTxtName = gametypeFileName.replace(/\.bin$/, '.txt');
+            if (gametypesDict[gametypeTxtName]) {
+              fetch(gametypesDict[gametypeTxtName].download_url)
+                .then(resp => {
+                  if (!resp.ok) throw new Error("Network response was not ok for " + gametypesDict[gametypeTxtName].download_url);
+                  return resp.text();
+                })
+                .then(text => {
+                  const gtDesc = document.createElement("p");
+                  gtDesc.className = "card-description";
+                  gtDesc.textContent = text;
+                  contentDiv.appendChild(gtDesc);
+                })
+                .catch(err => console.error("Error fetching gametype txt for", gametypeTxtName, err));
+            }
           }
           
-          // If a .txt file exists (with the same base name), read its first line as the description.
+          // If a .txt file exists (with the same base name as the mvar), read its first line as the description.
           if (group.txt) {
             fetch(group.txt.download_url)
               .then(response => {
@@ -345,7 +362,7 @@
           filteredFiles.forEach(file => {
             const card = document.createElement("div");
             card.className = "card";
-            // In "All" view, skip the image.
+            // In "All" view, we skip the image.
             const contentDiv = document.createElement("div");
             contentDiv.className = "card-content";
             
