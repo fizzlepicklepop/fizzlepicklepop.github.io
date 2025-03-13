@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <title>Glassy Aero Data List</title>
   <style>
-    /* Glassy aero style for the background */
+    /* Global glassy aero style with background image */
     body {
       font-family: Arial, sans-serif;
       background: url('data/assets/background.png') no-repeat center center fixed;
@@ -14,23 +14,18 @@
       padding: 20px;
     }
     
-    /* Main container with flex layout for sidebar and content */
-    .main-container {
-      display: flex;
-      max-width: 1200px;
-      margin: 0 auto;
+    /* Fixed sidebar styling on the left */
+    .sidebar {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 220px;
+      height: 100vh;
+      padding: 20px;
       background: rgba(255, 255, 255, 0.2);
       backdrop-filter: blur(10px);
-      border: 1px solid rgba(255, 255, 255, 0.3);
-      border-radius: 10px;
-      overflow: hidden;
-    }
-    
-    /* Sidebar styling */
-    .sidebar {
-      width: 220px;
-      padding: 20px;
       border-right: 1px solid rgba(255, 255, 255, 0.3);
+      box-sizing: border-box;
     }
     .sidebar ul {
       list-style-type: none;
@@ -54,10 +49,17 @@
       background: rgba(255, 255, 255, 0.3);
     }
     
-    /* Content area styling */
+    /* Content area offset to the right of the sidebar */
     .content {
-      flex: 1;
+      margin-left: 240px;
       padding: 20px;
+      /* Optional translucent container effect */
+      background: rgba(255, 255, 255, 0.2);
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(255, 255, 255, 0.3);
+      border-radius: 10px;
+      min-height: calc(100vh - 40px);
+      box-sizing: border-box;
     }
     
     /* Card style for each list entry (glassy style) */
@@ -67,10 +69,11 @@
       border: 1px solid rgba(255, 255, 255, 0.3);
       border-radius: 10px;
       margin-bottom: 20px;
+      padding: 15px;
       display: flex;
       align-items: center;
-      padding: 15px;
     }
+    /* In regular mode, the card shows an image */
     .card img {
       max-width: 120px;
       border-radius: 4px;
@@ -88,31 +91,34 @@
       margin: 10px 0;
       color: #e0e0e0;
     }
+    .card-info {
+      margin-top: 8px;
+      font-size: 0.9em;
+      color: #ccc;
+    }
     .card a {
       text-decoration: none;
       color: #bb86fc;
       font-weight: bold;
-    }
-    .card-links a {
       margin-right: 15px;
     }
   </style>
 </head>
 <body>
-  <div class="main-container">
-    <!-- Sidebar with category choices -->
-    <div class="sidebar">
-      <ul>
-        <li><a href="#" data-category="halor" class="active">Halo Reach</a></li>
-        <li><a href="#" data-category="halo2a">Halo 2 Anniversary</a></li>
-        <li><a href="#" data-category="halo3">Halo 3</a></li>
-        <li><a href="#" data-category="halo4">Halo 4</a></li>
-      </ul>
-    </div>
-    <!-- Content area where the list is populated -->
-    <div class="content">
-      <div id="file-list"></div>
-    </div>
+  <!-- Sidebar: fixed on the left -->
+  <div class="sidebar">
+    <ul>
+      <li><a href="#" data-category="all">All</a></li>
+      <li><a href="#" data-category="halor" class="active">Halo Reach</a></li>
+      <li><a href="#" data-category="halo2a">Halo 2 Anniversary</a></li>
+      <li><a href="#" data-category="halo3">Halo 3</a></li>
+      <li><a href="#" data-category="halo4">Halo 4</a></li>
+    </ul>
+  </div>
+  
+  <!-- Content area where the list is populated -->
+  <div class="content">
+    <div id="file-list"></div>
   </div>
   
   <script>
@@ -121,177 +127,224 @@
     const GITHUB_REPO = "fizzlepicklepop.github.io";
     const ASSETS_FOLDER = "data/assets";
     
-    // Global variable for current category; default is "halor" (Halo Reach)
+    // Global variable for current category; default is "halor"
     let currentCategory = "halor";
     
-    // Function to load files for a given category
+    // List of standard categories (subfolder names) for "all" mode
+    const standardCategories = ["halor", "halo2a", "halo3", "halo4"];
+    
+    // Function to load files for a given category.
+    // If category is "all", it fetches from all standard categories.
     async function loadFiles(category) {
       currentCategory = category;
+      const fileListContainer = document.getElementById("file-list");
+      fileListContainer.innerHTML = ""; // Clear previous content
       
-      // Construct API endpoints based on the selected category
-      const MAPS_API_URL = `https://api.github.com/repos/${GITHUB_USERNAME}/${GITHUB_REPO}/contents/data/${category}/maps`;
-      const GAMETYPES_API_URL = `https://api.github.com/repos/${GITHUB_USERNAME}/${GITHUB_REPO}/contents/data/${category}/gametypes`;
-      const PLACEHOLDER_API_URL = `https://api.github.com/repos/${GITHUB_USERNAME}/${GITHUB_REPO}/contents/${ASSETS_FOLDER}/placeholder.png`;
-      
-      // Helper function to fetch text from a URL.
+      // Helper function to fetch text.
       async function fetchText(url) {
         const res = await fetch(url);
         if (!res.ok) throw new Error("Network response was not ok for " + url);
         return res.text();
       }
       
-      try {
-        // Fetch the placeholder image info.
-        let placeholderDownloadURL = "";
-        const placeholderResponse = await fetch(PLACEHOLDER_API_URL);
-        if (placeholderResponse.ok) {
-          const placeholderData = await placeholderResponse.json();
-          placeholderDownloadURL = placeholderData.download_url;
-        } else {
-          console.error("Failed to fetch placeholder image from:", PLACEHOLDER_API_URL);
-        }
-        
-        // Fetch files from the maps folder.
-        const mapsResponse = await fetch(MAPS_API_URL);
-        if (!mapsResponse.ok) {
-          throw new Error("Failed to fetch maps folder from: " + MAPS_API_URL);
-        }
-        const mapFiles = await mapsResponse.json();
-        console.log("Map Files:", mapFiles);
-        
-        // Fetch files from the gametypes folder.
-        const gametypesResponse = await fetch(GAMETYPES_API_URL);
-        if (!gametypesResponse.ok) {
-          throw new Error("Failed to fetch gametypes folder from: " + GAMETYPES_API_URL);
-        }
-        const gametypesFiles = await gametypesResponse.json();
-        console.log("Gametypes Files:", gametypesFiles);
-        
-        // Build a dictionary for gametypes files keyed by filename.
-        const gametypesDict = {};
-        gametypesFiles.forEach(file => {
-          gametypesDict[file.name] = file;
-        });
-        
-        // Group files from the maps folder by their base name.
-        const groups = {};
-        mapFiles.forEach(file => {
-          const parts = file.name.split('.');
-          if (parts.length < 2) return;  // Skip files without an extension.
-          const ext = parts.pop().toLowerCase();
-          const base = parts.join('.');
-          if (!groups[base]) groups[base] = {};
-          groups[base][ext] = file;
-        });
-        console.log("Grouped Files:", groups);
-        
-        const fileListContainer = document.getElementById("file-list");
-        fileListContainer.innerHTML = ""; // Clear previous content
-        
-        // For each group that includes an .mvar file, build a card.
-        let foundItem = false;
-        for (const base in groups) {
-          if (!groups[base].mvar) continue;
-          
-          foundItem = true;
-          const group = groups[base];
-          const card = document.createElement("div");
-          card.className = "card";
-          
-          // Add thumbnail: use the .png if available; otherwise, use the placeholder.
-          const img = document.createElement("img");
-          img.src = group.png ? group.png.download_url : placeholderDownloadURL;
-          img.alt = base;
-          card.appendChild(img);
-          
-          const contentDiv = document.createElement("div");
-          contentDiv.className = "card-content";
-          
-          // Title derived from the base name.
-          const title = document.createElement("h2");
-          title.className = "card-title";
-          title.textContent = base;
-          contentDiv.appendChild(title);
-          
-          // Create a container for download links.
-          const linksDiv = document.createElement("div");
-          linksDiv.className = "card-links";
-          
-          // Download link for the .mvar file.
-          const mvarLink = document.createElement("a");
-          mvarLink.href = group.mvar.download_url;
-          mvarLink.textContent = "Download .mvar";
-          mvarLink.download = group.mvar.name;
-          mvarLink.style.marginRight = "10px";
-          linksDiv.appendChild(mvarLink);
-          
-          // If a .txt file exists, use it to obtain the gametype filename and description.
-          if (group.txt) {
-            fetchText(group.txt.download_url).then(text => {
-              const lines = text.split('\n');
-              // First line: gametype filename.
-              const gametypeFilename = lines[0].trim();
-              
-              // Description from line 2 onward.
-              if (lines.length > 1) {
-                const descriptionText = lines.slice(1).join('\n').trim();
-                if (descriptionText) {
-                  const descElem = document.createElement("p");
-                  descElem.className = "card-description";
-                  descElem.textContent = descriptionText;
-                  // Insert description above the download links.
-                  contentDiv.insertBefore(descElem, linksDiv);
-                }
+      // In "all" mode, combine files from all categories.
+      if (category === "all") {
+        let allFiles = [];
+        for (const cat of standardCategories) {
+          const MAPS_API_URL = `https://api.github.com/repos/${GITHUB_USERNAME}/${GITHUB_REPO}/contents/data/${cat}/maps`;
+          try {
+            const response = await fetch(MAPS_API_URL);
+            if (!response.ok) {
+              console.error("Failed to fetch from: " + MAPS_API_URL);
+              continue;
+            }
+            const files = await response.json();
+            files.forEach(file => {
+              const parts = file.name.split('.');
+              if (parts.length < 2) return;
+              const ext = parts.pop().toLowerCase();
+              if (ext === "mvar" || ext === "bin") {
+                // Save the file along with its category.
+                allFiles.push({ file, category: cat });
               }
-              
-              // Create download link for the gametype file.
-              const gametypeLink = document.createElement("a");
-              gametypeLink.textContent = "Download Gametype";
-              if (gametypesDict[gametypeFilename]) {
-                gametypeLink.href = gametypesDict[gametypeFilename].download_url;
-                gametypeLink.download = gametypesDict[gametypeFilename].name;
-              } else {
-                gametypeLink.textContent = "Gametype file not found";
-                gametypeLink.href = "#";
-              }
-              linksDiv.appendChild(gametypeLink);
-            }).catch(err => {
-              console.error("Error fetching .txt for", base, err);
-              const gametypeLink = document.createElement("a");
-              gametypeLink.textContent = "Error loading gametype file";
-              linksDiv.appendChild(gametypeLink);
             });
+          } catch (err) {
+            console.error("Error fetching from " + MAPS_API_URL, err);
+          }
+        }
+        
+        // For each file in allFiles, create a card without an image.
+        if (allFiles.length === 0) {
+          fileListContainer.textContent = "No .mvar or .bin files found in any category.";
+        } else {
+          allFiles.forEach(item => {
+            const card = document.createElement("div");
+            card.className = "card";
+            // In "all" mode, we do not add an image.
+            const contentDiv = document.createElement("div");
+            contentDiv.className = "card-content";
+            
+            // Title from file name.
+            const title = document.createElement("h2");
+            title.className = "card-title";
+            title.textContent = item.file.name;
+            contentDiv.appendChild(title);
+            
+            // Display category info.
+            const info = document.createElement("div");
+            info.className = "card-info";
+            info.textContent = "Category: " + item.category;
+            contentDiv.appendChild(info);
+            
+            // Download link.
+            const downloadLink = document.createElement("a");
+            downloadLink.href = item.file.download_url;
+            downloadLink.textContent = "Download";
+            downloadLink.download = item.file.name;
+            contentDiv.appendChild(downloadLink);
+            
+            card.appendChild(contentDiv);
+            fileListContainer.appendChild(card);
+          });
+        }
+      } else {
+        // Normal mode: fetch maps and gametypes from a specific category.
+        const MAPS_API_URL = `https://api.github.com/repos/${GITHUB_USERNAME}/${GITHUB_REPO}/contents/data/${category}/maps`;
+        const GAMETYPES_API_URL = `https://api.github.com/repos/${GITHUB_USERNAME}/${GITHUB_REPO}/contents/data/${category}/gametypes`;
+        const PLACEHOLDER_API_URL = `https://api.github.com/repos/${GITHUB_USERNAME}/${GITHUB_REPO}/contents/${ASSETS_FOLDER}/placeholder.png`;
+        
+        try {
+          // Fetch the placeholder image info.
+          let placeholderDownloadURL = "";
+          const placeholderResponse = await fetch(PLACEHOLDER_API_URL);
+          if (placeholderResponse.ok) {
+            const placeholderData = await placeholderResponse.json();
+            placeholderDownloadURL = placeholderData.download_url;
+          } else {
+            console.error("Failed to fetch placeholder from:", PLACEHOLDER_API_URL);
           }
           
-          contentDiv.appendChild(linksDiv);
-          card.appendChild(contentDiv);
-          fileListContainer.appendChild(card);
+          // Fetch files from the maps folder.
+          const mapsResponse = await fetch(MAPS_API_URL);
+          if (!mapsResponse.ok) throw new Error("Failed to fetch maps from: " + MAPS_API_URL);
+          const mapFiles = await mapsResponse.json();
+          console.log("Map Files:", mapFiles);
+          
+          // Fetch files from the gametypes folder.
+          const gametypesResponse = await fetch(GAMETYPES_API_URL);
+          if (!gametypesResponse.ok) throw new Error("Failed to fetch gametypes from: " + GAMETYPES_API_URL);
+          const gametypesFiles = await gametypesResponse.json();
+          console.log("Gametypes Files:", gametypesFiles);
+          
+          // Build a dictionary for gametypes keyed by filename.
+          const gametypesDict = {};
+          gametypesFiles.forEach(file => {
+            gametypesDict[file.name] = file;
+          });
+          
+          // Group files from the maps folder by base name.
+          const groups = {};
+          mapFiles.forEach(file => {
+            const parts = file.name.split('.');
+            if (parts.length < 2) return;
+            const ext = parts.pop().toLowerCase();
+            const base = parts.join('.');
+            if (!groups[base]) groups[base] = {};
+            groups[base][ext] = file;
+          });
+          console.log("Grouped Files:", groups);
+          
+          let foundItem = false;
+          for (const base in groups) {
+            if (!groups[base].mvar) continue;
+            foundItem = true;
+            const group = groups[base];
+            const card = document.createElement("div");
+            card.className = "card";
+            
+            // Add thumbnail: use .png if available; otherwise, use placeholder.
+            const img = document.createElement("img");
+            img.src = group.png ? group.png.download_url : placeholderDownloadURL;
+            img.alt = base;
+            card.appendChild(img);
+            
+            const contentDiv = document.createElement("div");
+            contentDiv.className = "card-content";
+            
+            // Title from base name.
+            const title = document.createElement("h2");
+            title.className = "card-title";
+            title.textContent = base;
+            contentDiv.appendChild(title);
+            
+            // Container for download links.
+            const linksDiv = document.createElement("div");
+            // Download link for the .mvar file.
+            const mvarLink = document.createElement("a");
+            mvarLink.href = group.mvar.download_url;
+            mvarLink.textContent = "Download .mvar";
+            mvarLink.download = group.mvar.name;
+            linksDiv.appendChild(mvarLink);
+            
+            // If a .txt file exists, use it for gametype lookup and description.
+            if (group.txt) {
+              fetchText(group.txt.download_url).then(text => {
+                const lines = text.split('\n');
+                const gametypeFilename = lines[0].trim();
+                if (lines.length > 1) {
+                  const descriptionText = lines.slice(1).join('\n').trim();
+                  if (descriptionText) {
+                    const descElem = document.createElement("p");
+                    descElem.className = "card-description";
+                    descElem.textContent = descriptionText;
+                    contentDiv.insertBefore(descElem, linksDiv);
+                  }
+                }
+                const gametypeLink = document.createElement("a");
+                gametypeLink.textContent = "Download Gametype";
+                if (gametypesDict[gametypeFilename]) {
+                  gametypeLink.href = gametypesDict[gametypeFilename].download_url;
+                  gametypeLink.download = gametypesDict[gametypeFilename].name;
+                } else {
+                  gametypeLink.textContent = "Gametype file not found";
+                  gametypeLink.href = "#";
+                }
+                linksDiv.appendChild(gametypeLink);
+              }).catch(err => {
+                console.error("Error fetching .txt for", base, err);
+                const errLink = document.createElement("a");
+                errLink.textContent = "Error loading gametype file";
+                linksDiv.appendChild(errLink);
+              });
+            }
+            
+            contentDiv.appendChild(linksDiv);
+            card.appendChild(contentDiv);
+            fileListContainer.appendChild(card);
+          }
+          
+          if (!foundItem) {
+            fileListContainer.textContent = "No .mvar files found in the maps folder.";
+          }
+        } catch (error) {
+          console.error("Error loading files:", error);
+          fileListContainer.textContent = "Error loading files.";
         }
-        
-        if (!foundItem) {
-          fileListContainer.textContent = "No .mvar files found in the maps folder.";
-        }
-      } catch (error) {
-        console.error("Error loading files:", error);
-        document.getElementById("file-list").textContent = "Error loading files.";
       }
     }
     
-    // Sidebar link event handling.
+    // Sidebar event handling.
     document.querySelectorAll(".sidebar a").forEach(link => {
       link.addEventListener("click", function(e) {
         e.preventDefault();
-        // Remove the active class from all sidebar links.
         document.querySelectorAll(".sidebar a").forEach(l => l.classList.remove("active"));
-        // Add the active class to the clicked link.
         this.classList.add("active");
-        // Load files for the selected category.
         const selectedCategory = this.getAttribute("data-category");
         loadFiles(selectedCategory);
       });
     });
     
-    // Initial load for the default category.
+    // Initial load for default category.
     loadFiles(currentCategory);
   </script>
 </body>
