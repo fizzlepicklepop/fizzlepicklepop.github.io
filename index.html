@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <title>Glassy Aero Data List</title>
   <style>
-    /* Glassy aero translucent aesthetic */
+    /* Glassy aero style for the background */
     body {
       font-family: Arial, sans-serif;
       background: url('data/assets/background.png') no-repeat center center fixed;
@@ -13,17 +13,54 @@
       margin: 0;
       padding: 20px;
     }
-    /* Container for the list with translucent glass effect */
-    .container {
-      max-width: 900px;
+    
+    /* Main container with flex layout for sidebar and content */
+    .main-container {
+      display: flex;
+      max-width: 1200px;
       margin: 0 auto;
       background: rgba(255, 255, 255, 0.2);
       backdrop-filter: blur(10px);
       border: 1px solid rgba(255, 255, 255, 0.3);
-      padding: 20px;
       border-radius: 10px;
+      overflow: hidden;
     }
-    /* Glassy card style for each list entry */
+    
+    /* Sidebar styling */
+    .sidebar {
+      width: 220px;
+      padding: 20px;
+      border-right: 1px solid rgba(255, 255, 255, 0.3);
+    }
+    .sidebar ul {
+      list-style-type: none;
+      padding: 0;
+      margin: 0;
+    }
+    .sidebar li {
+      margin-bottom: 15px;
+    }
+    .sidebar a {
+      color: #fff;
+      text-decoration: none;
+      font-size: 1.1em;
+      padding: 8px;
+      display: block;
+      border-radius: 5px;
+      background: rgba(255, 255, 255, 0.1);
+    }
+    .sidebar a.active,
+    .sidebar a:hover {
+      background: rgba(255, 255, 255, 0.3);
+    }
+    
+    /* Content area styling */
+    .content {
+      flex: 1;
+      padding: 20px;
+    }
+    
+    /* Card style for each list entry (glassy style) */
     .card {
       background: rgba(255, 255, 255, 0.2);
       backdrop-filter: blur(10px);
@@ -62,33 +99,47 @@
   </style>
 </head>
 <body>
-  <div class="container">
-    <div id="file-list"></div>
+  <div class="main-container">
+    <!-- Sidebar with category choices -->
+    <div class="sidebar">
+      <ul>
+        <li><a href="#" data-category="halor" class="active">Halo Reach</a></li>
+        <li><a href="#" data-category="halo2a">Halo 2 Anniversary</a></li>
+        <li><a href="#" data-category="halo3">Halo 3</a></li>
+        <li><a href="#" data-category="halo4">Halo 4</a></li>
+      </ul>
+    </div>
+    <!-- Content area where the list is populated -->
+    <div class="content">
+      <div id="file-list"></div>
+    </div>
   </div>
   
   <script>
     // *** Configuration ***
     const GITHUB_USERNAME = "fizzlepicklepop";
     const GITHUB_REPO = "fizzlepicklepop.github.io";
-    
-    // Folder paths:
-    const MAPS_FOLDER = "data/maps";
-    const GAMETYPES_FOLDER = "data/gametypes";
     const ASSETS_FOLDER = "data/assets";
     
-    // API endpoints:
-    const MAPS_API_URL = `https://api.github.com/repos/${GITHUB_USERNAME}/${GITHUB_REPO}/contents/${MAPS_FOLDER}`;
-    const GAMETYPES_API_URL = `https://api.github.com/repos/${GITHUB_USERNAME}/${GITHUB_REPO}/contents/${GAMETYPES_FOLDER}`;
-    const PLACEHOLDER_API_URL = `https://api.github.com/repos/${GITHUB_USERNAME}/${GITHUB_REPO}/contents/${ASSETS_FOLDER}/placeholder.png`;
+    // Global variable for current category; default is "halor" (Halo Reach)
+    let currentCategory = "halor";
     
-    // Helper function to fetch text from a given URL.
-    async function fetchText(url) {
-      const res = await fetch(url);
-      if (!res.ok) throw new Error("Network response was not ok for " + url);
-      return res.text();
-    }
-    
-    async function loadFiles() {
+    // Function to load files for a given category
+    async function loadFiles(category) {
+      currentCategory = category;
+      
+      // Construct API endpoints based on the selected category
+      const MAPS_API_URL = `https://api.github.com/repos/${GITHUB_USERNAME}/${GITHUB_REPO}/contents/data/${category}/maps`;
+      const GAMETYPES_API_URL = `https://api.github.com/repos/${GITHUB_USERNAME}/${GITHUB_REPO}/contents/data/${category}/gametypes`;
+      const PLACEHOLDER_API_URL = `https://api.github.com/repos/${GITHUB_USERNAME}/${GITHUB_REPO}/contents/${ASSETS_FOLDER}/placeholder.png`;
+      
+      // Helper function to fetch text from a URL.
+      async function fetchText(url) {
+        const res = await fetch(url);
+        if (!res.ok) throw new Error("Network response was not ok for " + url);
+        return res.text();
+      }
+      
       try {
         // Fetch the placeholder image info.
         let placeholderDownloadURL = "";
@@ -126,7 +177,7 @@
         const groups = {};
         mapFiles.forEach(file => {
           const parts = file.name.split('.');
-          if (parts.length < 2) return;  // Skip files with no extension.
+          if (parts.length < 2) return;  // Skip files without an extension.
           const ext = parts.pop().toLowerCase();
           const base = parts.join('.');
           if (!groups[base]) groups[base] = {};
@@ -135,24 +186,21 @@
         console.log("Grouped Files:", groups);
         
         const fileListContainer = document.getElementById("file-list");
+        fileListContainer.innerHTML = ""; // Clear previous content
         
         // For each group that includes an .mvar file, build a card.
         let foundItem = false;
         for (const base in groups) {
-          if (!groups[base].mvar) continue; // Only process groups with an .mvar file.
+          if (!groups[base].mvar) continue;
           
           foundItem = true;
           const group = groups[base];
           const card = document.createElement("div");
           card.className = "card";
           
-          // Add thumbnail: use the .png if available, otherwise use the placeholder.
+          // Add thumbnail: use the .png if available; otherwise, use the placeholder.
           const img = document.createElement("img");
-          if (group.png) {
-            img.src = group.png.download_url;
-          } else {
-            img.src = placeholderDownloadURL;
-          }
+          img.src = group.png ? group.png.download_url : placeholderDownloadURL;
           img.alt = base;
           card.appendChild(img);
           
@@ -165,7 +213,7 @@
           title.textContent = base;
           contentDiv.appendChild(title);
           
-          // Create container for download links.
+          // Create a container for download links.
           const linksDiv = document.createElement("div");
           linksDiv.className = "card-links";
           
@@ -177,14 +225,14 @@
           mvarLink.style.marginRight = "10px";
           linksDiv.appendChild(mvarLink);
           
-          // If a .txt file exists, process it to get gametype filename and description.
+          // If a .txt file exists, use it to obtain the gametype filename and description.
           if (group.txt) {
             fetchText(group.txt.download_url).then(text => {
               const lines = text.split('\n');
-              // Use the first line as the gametype filename.
+              // First line: gametype filename.
               const gametypeFilename = lines[0].trim();
               
-              // If there are additional lines, join them as the description.
+              // Description from line 2 onward.
               if (lines.length > 1) {
                 const descriptionText = lines.slice(1).join('\n').trim();
                 if (descriptionText) {
@@ -229,8 +277,22 @@
       }
     }
     
-    // Run the function to load files when the page loads.
-    loadFiles();
+    // Sidebar link event handling.
+    document.querySelectorAll(".sidebar a").forEach(link => {
+      link.addEventListener("click", function(e) {
+        e.preventDefault();
+        // Remove the active class from all sidebar links.
+        document.querySelectorAll(".sidebar a").forEach(l => l.classList.remove("active"));
+        // Add the active class to the clicked link.
+        this.classList.add("active");
+        // Load files for the selected category.
+        const selectedCategory = this.getAttribute("data-category");
+        loadFiles(selectedCategory);
+      });
+    });
+    
+    // Initial load for the default category.
+    loadFiles(currentCategory);
   </script>
 </body>
 </html>
