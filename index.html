@@ -51,7 +51,7 @@
     
     /* Content area with a left margin to avoid overlap with the sidebar */
     .content {
-      margin-left: 260px; /* Sidebar width (220px) + some extra margin */
+      margin-left: 260px; /* Sidebar width (220px) + extra margin */
       padding: 20px;
       background: rgba(255, 255, 255, 0.2);
       backdrop-filter: blur(10px);
@@ -131,7 +131,7 @@
       }
     }
     
-    // Loader for a specific category (shows images, description, gametype, etc.)
+    // Loader for a specific category.
     async function loadCategoryFiles(category) {
       const MAPS_API_URL = `https://api.github.com/repos/${GITHUB_USERNAME}/${GITHUB_REPO}/contents/data/${category}/maps`;
       const GAMETYPES_API_URL = `https://api.github.com/repos/${GITHUB_USERNAME}/${GITHUB_REPO}/contents/data/${category}/gametypes`;
@@ -144,7 +144,7 @@
       }
       
       try {
-        // Get placeholder image.
+        // Fetch placeholder image.
         let placeholderDownloadURL = "";
         const placeholderResponse = await fetch(PLACEHOLDER_API_URL);
         if (placeholderResponse.ok) {
@@ -158,19 +158,16 @@
         const mapsResponse = await fetch(MAPS_API_URL);
         if (!mapsResponse.ok) throw new Error("Failed to fetch maps from: " + MAPS_API_URL);
         const mapFiles = await mapsResponse.json();
-        console.log("Map Files:", mapFiles);
         
         const gametypesResponse = await fetch(GAMETYPES_API_URL);
         if (!gametypesResponse.ok) throw new Error("Failed to fetch gametypes from: " + GAMETYPES_API_URL);
         const gametypesFiles = await gametypesResponse.json();
-        console.log("Gametypes Files:", gametypesFiles);
         
+        // Build gametypes dictionary.
         const gametypesDict = {};
-        gametypesFiles.forEach(file => {
-          gametypesDict[file.name] = file;
-        });
+        gametypesFiles.forEach(file => { gametypesDict[file.name] = file; });
         
-        // Group files by base name.
+        // Group map files by base name.
         const groups = {};
         mapFiles.forEach(file => {
           const parts = file.name.split('.');
@@ -180,7 +177,6 @@
           if (!groups[base]) groups[base] = {};
           groups[base][ext] = file;
         });
-        console.log("Grouped Files:", groups);
         
         const fileListContainer = document.getElementById("file-list");
         fileListContainer.innerHTML = "";
@@ -228,7 +224,6 @@
                   contentDiv.insertBefore(descElem, linksDiv);
                 }
               }
-              
               const gametypeLink = document.createElement("a");
               gametypeLink.textContent = "Download Gametype";
               if (gametypesDict[gametypeFilename]) {
@@ -255,8 +250,8 @@
           fileListContainer.textContent = "No .mvar files found in the maps folder.";
         }
       } catch (error) {
-        console.error("Error loading files:", error);
-        document.getElementById("file-list").textContent = "Error loading files.";
+        console.error("Error loading category files:", error);
+        document.getElementById("file-list").textContent = "Error loading files: " + error.message;
       }
     }
     
@@ -278,7 +273,6 @@
         });
         const results = await Promise.all(fetchPromises);
         const allFiles = results.flat();
-        // Filter for .mvar and .bin files.
         const filteredFiles = allFiles.filter(file => {
           const ext = file.name.split('.').pop().toLowerCase();
           return ext === "mvar" || ext === "bin";
@@ -291,7 +285,6 @@
           filteredFiles.forEach(file => {
             const card = document.createElement("div");
             card.className = "card";
-            // In "All" view, no image is displayed.
             const contentDiv = document.createElement("div");
             contentDiv.className = "card-content";
             
@@ -302,7 +295,6 @@
             title.textContent = baseName;
             contentDiv.appendChild(title);
             
-            // Show source subfolder.
             const sourceInfo = document.createElement("p");
             sourceInfo.className = "card-description";
             let sourceText = "";
@@ -332,7 +324,7 @@
         }
       } catch (error) {
         console.error("Error loading all files:", error);
-        document.getElementById("file-list").textContent = "Error loading files.";
+        document.getElementById("file-list").textContent = "Error loading files: " + error.message;
       }
     }
     
