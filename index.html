@@ -62,16 +62,18 @@
   
   <script>
     // *** Configuration ***
-    // Provided GitHub username and repository:
     const GITHUB_USERNAME = "fizzlepicklepop";
     const GITHUB_REPO = "fizzlepicklepop.github.io";
-    // Folders within your repository:
+    
+    // Folder paths:
     const MAPS_FOLDER = "data/maps";
     const GAMETYPES_FOLDER = "data/gametypes";
+    const ASSETS_FOLDER = "data/assets";
     
-    // GitHub API URLs:
+    // API endpoints:
     const MAPS_API_URL = `https://api.github.com/repos/${GITHUB_USERNAME}/${GITHUB_REPO}/contents/${MAPS_FOLDER}`;
     const GAMETYPES_API_URL = `https://api.github.com/repos/${GITHUB_USERNAME}/${GITHUB_REPO}/contents/${GAMETYPES_FOLDER}`;
+    const PLACEHOLDER_API_URL = `https://api.github.com/repos/${GITHUB_USERNAME}/${GITHUB_REPO}/contents/${ASSETS_FOLDER}/placeholder.png`;
     
     // Helper function to fetch text from a given URL.
     async function fetchText(url) {
@@ -81,6 +83,11 @@
     
     async function loadFiles() {
       try {
+        // Fetch the placeholder image info.
+        const placeholderResponse = await fetch(PLACEHOLDER_API_URL);
+        const placeholderData = await placeholderResponse.json();
+        const placeholderDownloadURL = placeholderData.download_url;
+        
         // Fetch files from the maps folder.
         const mapsResponse = await fetch(MAPS_API_URL);
         const mapFiles = await mapsResponse.json();
@@ -96,7 +103,6 @@
         });
         
         // Group files from the maps folder by their base name.
-        // Example: "level1.mvar", "level1.png", and "level1.txt" will be grouped together.
         const groups = {};
         mapFiles.forEach(file => {
           const parts = file.name.split('.');
@@ -116,13 +122,15 @@
           const card = document.createElement("div");
           card.className = "card";
           
-          // Add thumbnail if a .png exists.
+          // Add thumbnail: use the .png if available, otherwise use the placeholder.
+          const img = document.createElement("img");
           if (group.png) {
-            const img = document.createElement("img");
             img.src = group.png.download_url;
-            img.alt = base;
-            card.appendChild(img);
+          } else {
+            img.src = placeholderDownloadURL;
           }
+          img.alt = base;
+          card.appendChild(img);
           
           const contentDiv = document.createElement("div");
           contentDiv.className = "card-content";
@@ -133,7 +141,7 @@
           title.textContent = base;
           contentDiv.appendChild(title);
           
-          // Create download links container.
+          // Create container for download links.
           const linksDiv = document.createElement("div");
           linksDiv.className = "card-links";
           
@@ -149,34 +157,5 @@
           if (group.txt) {
             const gametypeLink = document.createElement("a");
             gametypeLink.textContent = "Download Gametype";
-            // Fetch the .txt file and use its first line as the gametype filename.
             fetchText(group.txt.download_url).then(text => {
-              const firstLine = text.split('\n')[0].trim();
-              if (gametypesDict[firstLine]) {
-                gametypeLink.href = gametypesDict[firstLine].download_url;
-                gametypeLink.download = gametypesDict[firstLine].name;
-              } else {
-                gametypeLink.textContent = "Gametype file not found";
-                gametypeLink.href = "#";
-              }
-            }).catch(() => {
-              gametypeLink.textContent = "Error loading gametype file";
-            });
-            linksDiv.appendChild(gametypeLink);
-          }
-          
-          contentDiv.appendChild(linksDiv);
-          card.appendChild(contentDiv);
-          fileListContainer.appendChild(card);
-        }
-      } catch (error) {
-        console.error("Error loading files:", error);
-        document.getElementById("file-list").textContent = "Error loading files.";
-      }
-    }
-    
-    // Run the function to load files when the page loads.
-    loadFiles();
-  </script>
-</body>
-</html>
+              const firstLine = tex
