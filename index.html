@@ -14,26 +14,21 @@
       padding: 20px;
     }
     
-    /* Main container with flex layout for sidebar and content */
-    .main-container {
-      display: flex;
-      max-width: 1200px;
-      margin: 0 auto;
+    /* Fixed sidebar on the left */
+    .sidebar {
+      position: fixed;
+      top: 20px;
+      left: 20px;
+      width: 220px;
       background: rgba(255, 255, 255, 0.2);
       backdrop-filter: blur(10px);
       border: 1px solid rgba(255, 255, 255, 0.3);
       border-radius: 10px;
-      overflow: hidden;
-    }
-    
-    /* Sidebar styling */
-    .sidebar {
-      width: 220px;
       padding: 20px;
-      border-right: 1px solid rgba(255, 255, 255, 0.3);
+      z-index: 1000;
     }
     .sidebar ul {
-      list-style-type: none;
+      list-style: none;
       padding: 0;
       margin: 0;
     }
@@ -54,10 +49,14 @@
       background: rgba(255, 255, 255, 0.3);
     }
     
-    /* Content area styling */
+    /* Content area shifted right to avoid overlap with sidebar */
     .content {
-      flex: 1;
+      margin-left: 260px;  /* Sidebar width (220px) + extra margin */
       padding: 20px;
+      background: rgba(255, 255, 255, 0.2);
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(255, 255, 255, 0.3);
+      border-radius: 10px;
     }
     
     /* Card style for each list entry (glassy style) */
@@ -99,41 +98,46 @@
   </style>
 </head>
 <body>
-  <div class="main-container">
-    <!-- Sidebar with category choices -->
-    <div class="sidebar">
-      <ul>
-        <li><a href="#" data-category="halor" class="active">Halo Reach</a></li>
-        <li><a href="#" data-category="halo2a">Halo 2 Anniversary</a></li>
-        <li><a href="#" data-category="halo3">Halo 3</a></li>
-        <li><a href="#" data-category="halo4">Halo 4</a></li>
-      </ul>
-    </div>
-    <!-- Content area where the list is populated -->
-    <div class="content">
-      <div id="file-list"></div>
-    </div>
+  <!-- Fixed Sidebar -->
+  <div class="sidebar">
+    <ul>
+      <li><a href="#" data-category="all" class="active">All</a></li>
+      <li><a href="#" data-category="halor">Halo Reach</a></li>
+      <li><a href="#" data-category="halo2a">Halo 2 Anniversary</a></li>
+      <li><a href="#" data-category="halo3">Halo 3</a></li>
+      <li><a href="#" data-category="halo4">Halo 4</a></li>
+    </ul>
+  </div>
+  
+  <!-- Content Area -->
+  <div class="content">
+    <div id="file-list"></div>
   </div>
   
   <script>
-    // *** Configuration ***
     const GITHUB_USERNAME = "fizzlepicklepop";
     const GITHUB_REPO = "fizzlepicklepop.github.io";
     const ASSETS_FOLDER = "data/assets";
     
-    // Global variable for current category; default is "halor" (Halo Reach)
-    let currentCategory = "halor";
+    // Current category; default is "all"
+    let currentCategory = "all";
     
-    // Function to load files for a given category
-    async function loadFiles(category) {
+    // Main loader: routes based on category.
+    function loadFiles(category) {
       currentCategory = category;
-      
-      // Construct API endpoints based on the selected category
+      if (category === "all") {
+        loadAllFiles();
+      } else {
+        loadCategoryFiles(category);
+      }
+    }
+    
+    // Loader for a specific category.
+    async function loadCategoryFiles(category) {
       const MAPS_API_URL = `https://api.github.com/repos/${GITHUB_USERNAME}/${GITHUB_REPO}/contents/data/${category}/maps`;
       const GAMETYPES_API_URL = `https://api.github.com/repos/${GITHUB_USERNAME}/${GITHUB_REPO}/contents/data/${category}/gametypes`;
       const PLACEHOLDER_API_URL = `https://api.github.com/repos/${GITHUB_USERNAME}/${GITHUB_REPO}/contents/${ASSETS_FOLDER}/placeholder.png`;
       
-      // Helper function to fetch text from a URL.
       async function fetchText(url) {
         const res = await fetch(url);
         if (!res.ok) throw new Error("Network response was not ok for " + url);
@@ -141,7 +145,7 @@
       }
       
       try {
-        // Fetch the placeholder image info.
+        // Fetch the placeholder image.
         let placeholderDownloadURL = "";
         const placeholderResponse = await fetch(PLACEHOLDER_API_URL);
         if (placeholderResponse.ok) {
@@ -151,33 +155,32 @@
           console.error("Failed to fetch placeholder image from:", PLACEHOLDER_API_URL);
         }
         
-        // Fetch files from the maps folder.
+        // Fetch maps and gametypes.
         const mapsResponse = await fetch(MAPS_API_URL);
         if (!mapsResponse.ok) {
-          throw new Error("Failed to fetch maps folder from: " + MAPS_API_URL);
+          throw new Error("Failed to fetch maps from: " + MAPS_API_URL);
         }
         const mapFiles = await mapsResponse.json();
         console.log("Map Files:", mapFiles);
         
-        // Fetch files from the gametypes folder.
         const gametypesResponse = await fetch(GAMETYPES_API_URL);
         if (!gametypesResponse.ok) {
-          throw new Error("Failed to fetch gametypes folder from: " + GAMETYPES_API_URL);
+          throw new Error("Failed to fetch gametypes from: " + GAMETYPES_API_URL);
         }
         const gametypesFiles = await gametypesResponse.json();
         console.log("Gametypes Files:", gametypesFiles);
         
-        // Build a dictionary for gametypes files keyed by filename.
+        // Build dictionary of gametype files.
         const gametypesDict = {};
         gametypesFiles.forEach(file => {
           gametypesDict[file.name] = file;
         });
         
-        // Group files from the maps folder by their base name.
+        // Group map files by base name.
         const groups = {};
         mapFiles.forEach(file => {
           const parts = file.name.split('.');
-          if (parts.length < 2) return;  // Skip files without an extension.
+          if (parts.length < 2) return;
           const ext = parts.pop().toLowerCase();
           const base = parts.join('.');
           if (!groups[base]) groups[base] = {};
@@ -186,19 +189,16 @@
         console.log("Grouped Files:", groups);
         
         const fileListContainer = document.getElementById("file-list");
-        fileListContainer.innerHTML = ""; // Clear previous content
-        
-        // For each group that includes an .mvar file, build a card.
+        fileListContainer.innerHTML = "";
         let foundItem = false;
         for (const base in groups) {
           if (!groups[base].mvar) continue;
-          
           foundItem = true;
           const group = groups[base];
           const card = document.createElement("div");
           card.className = "card";
           
-          // Add thumbnail: use the .png if available; otherwise, use the placeholder.
+          // Use image if available; otherwise placeholder.
           const img = document.createElement("img");
           img.src = group.png ? group.png.download_url : placeholderDownloadURL;
           img.alt = base;
@@ -207,13 +207,13 @@
           const contentDiv = document.createElement("div");
           contentDiv.className = "card-content";
           
-          // Title derived from the base name.
+          // Title from base name.
           const title = document.createElement("h2");
           title.className = "card-title";
           title.textContent = base;
           contentDiv.appendChild(title);
           
-          // Create a container for download links.
+          // Container for download links.
           const linksDiv = document.createElement("div");
           linksDiv.className = "card-links";
           
@@ -225,26 +225,20 @@
           mvarLink.style.marginRight = "10px";
           linksDiv.appendChild(mvarLink);
           
-          // If a .txt file exists, use it to obtain the gametype filename and description.
+          // If .txt exists, process it for gametype filename and description.
           if (group.txt) {
             fetchText(group.txt.download_url).then(text => {
               const lines = text.split('\n');
-              // First line: gametype filename.
               const gametypeFilename = lines[0].trim();
-              
-              // Description from line 2 onward.
               if (lines.length > 1) {
                 const descriptionText = lines.slice(1).join('\n').trim();
                 if (descriptionText) {
                   const descElem = document.createElement("p");
                   descElem.className = "card-description";
                   descElem.textContent = descriptionText;
-                  // Insert description above the download links.
                   contentDiv.insertBefore(descElem, linksDiv);
                 }
               }
-              
-              // Create download link for the gametype file.
               const gametypeLink = document.createElement("a");
               gametypeLink.textContent = "Download Gametype";
               if (gametypesDict[gametypeFilename]) {
@@ -272,26 +266,100 @@
           fileListContainer.textContent = "No .mvar files found in the maps folder.";
         }
       } catch (error) {
-        console.error("Error loading files:", error);
-        document.getElementById("file-list").textContent = "Error loading files.";
+        console.error("Error loading category files:", error);
+        document.getElementById("file-list").textContent = "Error loading files: " + error.message;
       }
     }
     
-    // Sidebar link event handling.
+    // Loader for "All": lists every .mvar and .bin file from all subfolders.
+    async function loadAllFiles() {
+      const categories = ["halor", "halo2a", "halo3", "halo4"];
+      try {
+        // Fetch files from each category's maps folder.
+        const fetchPromises = categories.map(cat => {
+          const apiUrl = `https://api.github.com/repos/${GITHUB_USERNAME}/${GITHUB_REPO}/contents/data/${cat}/maps`;
+          return fetch(apiUrl)
+            .then(response => {
+              if (!response.ok) throw new Error("Failed to fetch from " + apiUrl);
+              return response.json();
+            })
+            .then(files => {
+              files.forEach(file => file.category = cat);
+              return files;
+            });
+        });
+        const results = await Promise.all(fetchPromises);
+        const allFiles = results.flat();
+        // Filter for .mvar and .bin files.
+        const filteredFiles = allFiles.filter(file => {
+          const ext = file.name.split('.').pop().toLowerCase();
+          return ext === "mvar" || ext === "bin";
+        });
+        const fileListContainer = document.getElementById("file-list");
+        fileListContainer.innerHTML = "";
+        if (filteredFiles.length === 0) {
+          fileListContainer.textContent = "No .mvar or .bin files found in all subfolders.";
+        } else {
+          filteredFiles.forEach(file => {
+            const card = document.createElement("div");
+            card.className = "card";
+            // In "All" view, we skip the image.
+            const contentDiv = document.createElement("div");
+            contentDiv.className = "card-content";
+            
+            const title = document.createElement("h2");
+            title.className = "card-title";
+            const parts = file.name.split('.');
+            const baseName = parts.slice(0, -1).join('.');
+            title.textContent = baseName;
+            contentDiv.appendChild(title);
+            
+            // Display which subfolder (game) the file came from.
+            const sourceInfo = document.createElement("p");
+            sourceInfo.className = "card-description";
+            let sourceText = "";
+            switch(file.category) {
+              case "halor": sourceText = "Halo Reach"; break;
+              case "halo2a": sourceText = "Halo 2 Anniversary"; break;
+              case "halo3": sourceText = "Halo 3"; break;
+              case "halo4": sourceText = "Halo 4"; break;
+              default: sourceText = file.category;
+            }
+            sourceInfo.textContent = "Source: " + sourceText;
+            contentDiv.appendChild(sourceInfo);
+            
+            const linksDiv = document.createElement("div");
+            linksDiv.className = "card-links";
+            const fileLink = document.createElement("a");
+            fileLink.href = file.download_url;
+            const ext = file.name.split('.').pop().toUpperCase();
+            fileLink.textContent = "Download " + ext;
+            fileLink.download = file.name;
+            linksDiv.appendChild(fileLink);
+            
+            contentDiv.appendChild(linksDiv);
+            card.appendChild(contentDiv);
+            fileListContainer.appendChild(card);
+          });
+        }
+      } catch (error) {
+        console.error("Error loading all files:", error);
+        document.getElementById("file-list").textContent = "Error loading files: " + error.message;
+      }
+    }
+    
+    // Sidebar event handling.
     document.querySelectorAll(".sidebar a").forEach(link => {
       link.addEventListener("click", function(e) {
         e.preventDefault();
-        // Remove the active class from all sidebar links.
         document.querySelectorAll(".sidebar a").forEach(l => l.classList.remove("active"));
-        // Add the active class to the clicked link.
         this.classList.add("active");
-        // Load files for the selected category.
         const selectedCategory = this.getAttribute("data-category");
         loadFiles(selectedCategory);
       });
     });
     
-    // Initial load for the default category.
+    // Initial load.
     loadFiles(currentCategory);
   </script>
 </body>
