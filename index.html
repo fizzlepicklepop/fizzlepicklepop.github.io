@@ -14,7 +14,7 @@
       padding: 20px;
     }
     
-    /* Fixed sidebar on the left that takes full vertical space minus equal padding at top and bottom */
+    /* Fixed sidebar on the left that takes full vertical space minus top and bottom padding */
     .sidebar {
       position: fixed;
       top: 20px;
@@ -25,7 +25,7 @@
       backdrop-filter: blur(10px);
       border: 1px solid rgba(255, 255, 255, 0.3);
       border-radius: 10px;
-      padding: 20px; /* equal padding on all sides */
+      padding: 20px;
       display: flex;
       flex-direction: column;
       justify-content: space-between;
@@ -56,14 +56,14 @@
       background: rgba(255, 255, 255, 0.3);
     }
     .sidebar .footer {
-      /* Ensure the footer has similar top and bottom margins */
       margin-top: 20px;
-      margin-bottom: 0;
+      margin-bottom: 20px;
     }
     
-    /* Content area shifted right to add extra gap between it and the sidebar */
+    /* Content area shifted right and padded on both left and right */
     .content {
-      margin-left: 320px;  /* Increased margin for more space between sidebar and content */
+      margin-left: 320px;  /* Sidebar (220px) + gap */
+      margin-right: 320px;
       padding: 20px;
       background: rgba(255, 255, 255, 0.2);
       backdrop-filter: blur(10px);
@@ -150,12 +150,31 @@
     async function loadCategoryFiles(category) {
       const MAPS_API_URL = `https://api.github.com/repos/${GITHUB_USERNAME}/${GITHUB_REPO}/contents/data/${category}/maps`;
       const GAMETYPES_API_URL = `https://api.github.com/repos/${GITHUB_USERNAME}/${GITHUB_REPO}/contents/data/${category}/gametypes`;
+      const LINKS_API_URL = `https://api.github.com/repos/${GITHUB_USERNAME}/${GITHUB_REPO}/contents/data/${category}/link.txt`;
       const PLACEHOLDER_API_URL = `https://api.github.com/repos/${GITHUB_USERNAME}/${GITHUB_REPO}/contents/${ASSETS_FOLDER}/placeholder.png`;
       
-      async function fetchText(url) {
-        const res = await fetch(url);
-        if (!res.ok) throw new Error("Network response was not ok for " + url);
-        return res.text();
+      // We'll build a mapping from mvar file names to gametype file names based on link.txt.
+      let linkMapping = {};
+      try {
+        const linksResponse = await fetch(LINKS_API_URL);
+        if (linksResponse.ok) {
+          const linksData = await linksResponse.json();
+          const linksText = await fetch(linksData.download_url).then(res => res.text());
+          const lines = linksText.split('\n');
+          lines.forEach(line => {
+            if (line.trim() === "") return;
+            const parts = line.split('\t');
+            if (parts.length >= 2) {
+              const mvarName = parts[0].trim();
+              const gametypeName = parts[1].trim();
+              linkMapping[mvarName] = gametypeName;
+            }
+          });
+        } else {
+          console.error("Failed to fetch link.txt from:", LINKS_API_URL);
+        }
+      } catch (err) {
+        console.error("Error fetching link.txt:", err);
       }
       
       try {
@@ -243,36 +262,19 @@
           mvarLink.style.marginRight = "10px";
           linksDiv.appendChild(mvarLink);
           
-          // If a .txt file exists, process it for gametype filename and description.
-          if (group.txt) {
-            fetchText(group.txt.download_url).then(text => {
-              const lines = text.split('\n');
-              const gametypeFilename = lines[0].trim();
-              if (lines.length > 1) {
-                const descriptionText = lines.slice(1).join('\n').trim();
-                if (descriptionText) {
-                  const descElem = document.createElement("p");
-                  descElem.className = "card-description";
-                  descElem.textContent = descriptionText;
-                  contentDiv.insertBefore(descElem, linksDiv);
-                }
-              }
-              const gametypeLink = document.createElement("a");
-              gametypeLink.textContent = "Download Gametype";
-              if (gametypesDict[gametypeFilename]) {
-                gametypeLink.href = gametypesDict[gametypeFilename].download_url;
-                gametypeLink.download = gametypesDict[gametypeFilename].name;
-              } else {
-                gametypeLink.textContent = "Gametype file not found";
-                gametypeLink.href = "#";
-              }
-              linksDiv.appendChild(gametypeLink);
-            }).catch(err => {
-              console.error("Error fetching .txt for", base, err);
-              const gametypeLink = document.createElement("a");
-              gametypeLink.textContent = "Error loading gametype file";
-              linksDiv.appendChild(gametypeLink);
-            });
+          // Use linkMapping to establish gametype link.
+          if (linkMapping[group.mvar.name]) {
+            const gametypeFileName = linkMapping[group.mvar.name];
+            const gametypeLink = document.createElement("a");
+            gametypeLink.textContent = "Download Gametype";
+            if (gametypesDict[gametypeFileName]) {
+              gametypeLink.href = gametypesDict[gametypeFileName].download_url;
+              gametypeLink.download = gametypesDict[gametypeFileName].name;
+            } else {
+              gametypeLink.textContent = "Gametype file not found";
+              gametypeLink.href = "#";
+            }
+            linksDiv.appendChild(gametypeLink);
           }
           
           contentDiv.appendChild(linksDiv);
