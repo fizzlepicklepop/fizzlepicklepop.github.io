@@ -20,27 +20,27 @@
       top: 20px;
       left: 20px;
       width: 220px;
-      height: calc(100vh - 40px); /* full vertical height minus top/bottom padding */
+      height: calc(100vh - 40px); /* full vertical height minus top/bottom margin */
       background: rgba(255, 255, 255, 0.2);
       backdrop-filter: blur(10px);
       border: 1px solid rgba(255, 255, 255, 0.3);
       border-radius: 10px;
-      padding: 20px;
+      padding: 20px; /* equal padding on all sides */
       display: flex;
       flex-direction: column;
-      justify-content: space-between;
-      z-index: 1000;
+      /* Remove justify-content: space-between and let the menu grow */
     }
-    
     .sidebar .menu {
       list-style: none;
       padding: 0;
       margin: 0;
+      flex-grow: 1;
     }
     .sidebar .menu li {
       margin-bottom: 15px;
     }
-    .sidebar .menu a, .sidebar .footer a {
+    .sidebar .menu a,
+    .sidebar .footer a {
       color: #fff;
       text-decoration: none;
       font-size: 1.1em;
@@ -54,15 +54,15 @@
     .sidebar .footer a:hover {
       background: rgba(255, 255, 255, 0.3);
     }
-    
-    /* Footer section for the All option */
     .sidebar .footer {
-      margin-top: auto;
+      /* Ensure bottom padding equals top padding */
+      margin-top: 20px;
+      margin-bottom: 20px;
     }
     
-    /* Content area shifted right to add extra padding between it and the sidebar */
+    /* Content area shifted right to add extra gap between it and the sidebar */
     .content {
-      margin-left: 320px;  /* Increased margin for more space between sidebar and content */
+      margin-left: 320px;  /* This creates ample space between the sidebar and the list */
       padding: 20px;
       background: rgba(255, 255, 255, 0.2);
       backdrop-filter: blur(10px);
@@ -319,7 +319,7 @@
           filteredFiles.forEach(file => {
             const card = document.createElement("div");
             card.className = "card";
-            // In "All" view, we skip the image.
+            // In "All" view, skip the image.
             const contentDiv = document.createElement("div");
             contentDiv.className = "card-content";
             
