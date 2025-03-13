@@ -65,7 +65,7 @@
       margin-left: 320px;  /* Sidebar (220px) + gap */
       margin-right: 120px;
       padding: 20px;
-      background: rgba(255, 255, 255, 0.2);
+      background: rgba(255, 255, 255, 0.15);
       backdrop-filter: blur(10px);
       border: 1px solid rgba(255, 255, 255, 0.3);
       border-radius: 10px;
@@ -73,7 +73,7 @@
     
     /* Card style for each list entry (glassy style) */
     .card {
-      background: rgba(255, 255, 255, 0.2);
+      background: rgba(255, 255, 255, 0.15);
       backdrop-filter: blur(10px);
       border: 1px solid rgba(255, 255, 255, 0.3);
       border-radius: 10px;
@@ -251,6 +251,28 @@
           title.textContent = base;
           contentDiv.appendChild(title);
           
+          // If a .txt file exists (with the same base name), read its first line as the map description.
+          if (group.txt) {
+            fetch(group.txt.download_url)
+              .then(response => {
+                if (!response.ok) throw new Error("Network response was not ok for " + group.txt.download_url);
+                return response.text();
+              })
+              .then(text => {
+                const lines = text.split('\n');
+                const descriptionText = lines[0].trim(); // Read from line 1
+                if (descriptionText) {
+                  const descElem = document.createElement("p");
+                  descElem.className = "card-description";
+                  descElem.textContent = "Map: " + descriptionText;
+                  contentDiv.insertBefore(descElem, contentDiv.firstChild);
+                }
+              })
+              .catch(err => {
+                console.error("Error fetching .txt for", base, err);
+              });
+          }
+          
           // Container for download links.
           const linksDiv = document.createElement("div");
           linksDiv.className = "card-links";
@@ -277,7 +299,7 @@
             }
             linksDiv.appendChild(gametypeLink);
             
-            // Now read the file that has the same filename as the gametype but with .txt extension.
+            // Now read the file that has the same filename as the gametype (but with a .txt extension)
             const gametypeTxtName = gametypeFileName.replace(/\.bin$/, '.txt');
             if (gametypesDict[gametypeTxtName]) {
               fetch(gametypesDict[gametypeTxtName].download_url)
@@ -288,33 +310,12 @@
                 .then(text => {
                   const gtDesc = document.createElement("p");
                   gtDesc.className = "card-description";
-                  gtDesc.textContent = text;
-                  contentDiv.appendChild(gtDesc);
+                  gtDesc.textContent = "Gametype: " + text;
+                  // Insert the gametype description above the download links.
+                  contentDiv.insertBefore(gtDesc, linksDiv);
                 })
                 .catch(err => console.error("Error fetching gametype txt for", gametypeTxtName, err));
             }
-          }
-          
-          // If a .txt file exists (with the same base name as the mvar), read its first line as the description.
-          if (group.txt) {
-            fetch(group.txt.download_url)
-              .then(response => {
-                if (!response.ok) throw new Error("Network response was not ok for " + group.txt.download_url);
-                return response.text();
-              })
-              .then(text => {
-                const lines = text.split('\n');
-                const descriptionText = lines[0].trim(); // Read from line 1
-                if (descriptionText) {
-                  const descElem = document.createElement("p");
-                  descElem.className = "card-description";
-                  descElem.textContent = descriptionText;
-                  contentDiv.insertBefore(descElem, linksDiv);
-                }
-              })
-              .catch(err => {
-                console.error("Error fetching .txt for", base, err);
-              });
           }
           
           contentDiv.appendChild(linksDiv);
