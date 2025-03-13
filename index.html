@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Dynamic File List</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 20px;
+      background-color: #f7f7f7;
+    }
+    h1 {
+      text-align: center;
+    }
+    .container {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 20px;
+      justify-content: center;
+      margin-top: 20px;
+    }
+    .card {
+      background-color: #fff;
+      border-radius: 8px;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      overflow: hidden;
+      width: 300px;
+      display: flex;
+      flex-direction: column;
+    }
+    .card img {
+      width: 100%;
+      height: auto;
+      object-fit: cover;
+    }
+    .card .content {
+      padding: 15px;
+    }
+    .card .content h3 {
+      margin: 0 0 10px;
+      font-size: 1.25em;
+    }
+    .card .content p {
+      margin: 0;
+      color: #555;
+      white-space: pre-wrap;
+    }
+  </style>
+</head>
+<body>
+  <h1>My Dynamic List</h1>
+  <div class="container" id="listContainer">
+    <!-- Dynamically generated list items will appear here -->
+  </div>
+
+  <script>
+    // Change these to match your GitHub repository details
+    const owner = "YourUsername"; // Your GitHub username
+    const repo = "YourRepo";      // Your repository name
+    const folder = "data";        // Folder within the repository containing the files
+
+    // Construct the GitHub API URL to fetch the contents of the folder
+    const apiUrl = `https://api.github.com/repos/${owner}/${repo}/contents/${folder}`;
+
+    // Object to store grouped entries by base name
+    const entries = {};
+
+    // Fetch the folder's file list from the GitHub API
+    fetch(apiUrl)
+      .then(response => response.json())
+      .then(files => {
+        files.forEach(file => {
+          // Split file name to get the extension and the base name
+          const parts = file.name.split('.');
+          if (parts.length < 2) return; // Skip files without an extension
+          const ext = parts.pop().toLowerCase();
+          const baseName = parts.join('.');
+          
+          if (!entries[baseName]) {
+            entries[baseName] = {};
+          }
+          if (ext === "png") {
+            entries[baseName].image = file.download_url;
+          } else if (ext === "txt") {
+            entries[baseName].descriptionUrl = file.download_url;
+          }
+        });
+        renderEntries();
+      })
+      .catch(error => {
+        console.error("Error fetching files:", error);
+        document.getElementById('listContainer').innerHTML = "<p>Error loading list.</p>";
+      });
+
+    // Function to create and render the entry cards
+    function renderEntries() {
+      const container = document.getElementById('listContainer');
+      Object.keys(entries).forEach(key => {
+        const entry = entries[key];
+        
+        // Create card element
+        const card = document.createElement('div');
+        card.className = "card";
+        
+        // If an image exists for this entry, add it as a thumbnail
+        if (entry.image) {
+          const img = document.createElement('img');
+          img.src = entry.image;
+          img.alt = key;
+          card.appendChild(img);
+        }
+        
+        // Create a container for the title and description
+        const content = document.createElement('div');
+        content.className = "content";
+        
+        // Add title (the base file name)
+        const title = document.createElement('h3');
+        title.textContent = key;
+        content.appendChild(title);
+        
+        // Add a paragraph for the description; initially shows a loading message
+        const descriptionPara = document.createElement('p');
+        descriptionPara.textContent = "Loading description...";
+        content.appendChild(descriptionPara);
+        
+        card.appendChild(content);
+        container.appendChild(card);
+        
+        // If a .txt description exists, fetch its content and display it
+        if (entry.descriptionUrl) {
+          fetch(entry.descriptionUrl)
+            .then(response => response.text())
+            .then(text => {
+              descriptionPara.textContent = text;
+            })
+            .catch(err => {
+              console.error("Error fetching description for", key, err);
+              descriptionPara.textContent = "";
+            });
+        } else {
+          // Remove loading message if no description file exists
+          descriptionPara.textContent = "";
+        }
+      });
+    }
+  </script>
+</body>
+</html>
