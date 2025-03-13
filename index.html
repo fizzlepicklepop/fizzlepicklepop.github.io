@@ -63,7 +63,7 @@
     /* Content area shifted right and padded on both left and right */
     .content {
       margin-left: 320px;  /* Sidebar (220px) + gap */
-      margin-right: 320px;
+      margin-right: 120px; /* Extra right padding */
       padding: 20px;
       background: rgba(255, 255, 255, 0.2);
       backdrop-filter: blur(10px);
@@ -99,9 +99,10 @@
       margin: 10px 0;
       color: #e0e0e0;
     }
+    /* Download links are now blue */
     .card a {
       text-decoration: none;
-      color: #bb86fc;
+      color: #007bff;
       font-weight: bold;
     }
     .card-links a {
@@ -153,7 +154,7 @@
       const LINKS_API_URL = `https://api.github.com/repos/${GITHUB_USERNAME}/${GITHUB_REPO}/contents/data/${category}/link.txt`;
       const PLACEHOLDER_API_URL = `https://api.github.com/repos/${GITHUB_USERNAME}/${GITHUB_REPO}/contents/${ASSETS_FOLDER}/placeholder.png`;
       
-      // We'll build a mapping from mvar file names to gametype file names based on link.txt.
+      // Build mapping from mvar file names to gametype file names using link.txt.
       let linkMapping = {};
       try {
         const linksResponse = await fetch(LINKS_API_URL);
@@ -262,7 +263,7 @@
           mvarLink.style.marginRight = "10px";
           linksDiv.appendChild(mvarLink);
           
-          // Use linkMapping to establish gametype link.
+          // Add a gametype download link using the mapping from link.txt.
           if (linkMapping[group.mvar.name]) {
             const gametypeFileName = linkMapping[group.mvar.name];
             const gametypeLink = document.createElement("a");
@@ -275,6 +276,28 @@
               gametypeLink.href = "#";
             }
             linksDiv.appendChild(gametypeLink);
+          }
+          
+          // If a .txt file exists (with the same base name), read its first line as the description.
+          if (group.txt) {
+            fetch(group.txt.download_url)
+              .then(response => {
+                if (!response.ok) throw new Error("Network response was not ok for " + group.txt.download_url);
+                return response.text();
+              })
+              .then(text => {
+                const lines = text.split('\n');
+                const descriptionText = lines[0].trim(); // Read from line 1
+                if (descriptionText) {
+                  const descElem = document.createElement("p");
+                  descElem.className = "card-description";
+                  descElem.textContent = descriptionText;
+                  contentDiv.insertBefore(descElem, linksDiv);
+                }
+              })
+              .catch(err => {
+                console.error("Error fetching .txt for", base, err);
+              });
           }
           
           contentDiv.appendChild(linksDiv);
@@ -322,7 +345,7 @@
           filteredFiles.forEach(file => {
             const card = document.createElement("div");
             card.className = "card";
-            // In "All" view, we skip the image.
+            // In "All" view, skip the image.
             const contentDiv = document.createElement("div");
             contentDiv.className = "card-content";
             
