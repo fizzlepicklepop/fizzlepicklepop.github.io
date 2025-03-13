@@ -133,7 +133,6 @@
     const GITHUB_REPO = "fizzlepicklepop.github.io";
     const ASSETS_FOLDER = "data/assets";
     
-    // Default category is "halor"
     let currentCategory = "halor";
     
     // Main loader: routes based on category.
@@ -146,7 +145,6 @@
       }
     }
     
-    // Loader for a specific category.
     async function loadCategoryFiles(category) {
       const MAPS_API_URL = `https://api.github.com/repos/${GITHUB_USERNAME}/${GITHUB_REPO}/contents/data/${category}/maps`;
       const GAMETYPES_API_URL = `https://api.github.com/repos/${GITHUB_USERNAME}/${GITHUB_REPO}/contents/data/${category}/gametypes`;
@@ -178,7 +176,7 @@
       }
       
       try {
-        // Fetch the placeholder image.
+        // Fetch placeholder image.
         let placeholderDownloadURL = "";
         const placeholderResponse = await fetch(PLACEHOLDER_API_URL);
         if (placeholderResponse.ok) {
@@ -188,7 +186,7 @@
           console.error("Failed to fetch placeholder image from:", PLACEHOLDER_API_URL);
         }
         
-        // Fetch files from the maps folder.
+        // Fetch maps.
         const mapsResponse = await fetch(MAPS_API_URL);
         if (!mapsResponse.ok) {
           throw new Error("Failed to fetch maps folder from: " + MAPS_API_URL);
@@ -196,7 +194,7 @@
         const mapFiles = await mapsResponse.json();
         console.log("Map Files:", mapFiles);
         
-        // Fetch files from the gametypes folder.
+        // Fetch gametypes.
         const gametypesResponse = await fetch(GAMETYPES_API_URL);
         if (!gametypesResponse.ok) {
           throw new Error("Failed to fetch gametypes folder from: " + GAMETYPES_API_URL);
@@ -204,7 +202,7 @@
         const gametypesFiles = await gametypesResponse.json();
         console.log("Gametypes Files:", gametypesFiles);
         
-        // Build a dictionary for gametype files.
+        // Build dictionary for gametype files.
         const gametypesDict = {};
         gametypesFiles.forEach(file => {
           gametypesDict[file.name] = file;
@@ -223,37 +221,37 @@
         console.log("Grouped Files:", groups);
         
         const fileListContainer = document.getElementById("file-list");
-        fileListContainer.innerHTML = ""; // Clear previous content
+        fileListContainer.innerHTML = "";
         
-        // For each group that includes an .mvar file, build a card.
         let foundItem = false;
         for (const base in groups) {
           if (!groups[base].mvar) continue;
-          
           foundItem = true;
           const group = groups[base];
           const card = document.createElement("div");
           card.className = "card";
           
-          // Add thumbnail: use the .png if available; otherwise, use the placeholder.
+          // Add thumbnail.
           const img = document.createElement("img");
           img.src = group.png ? group.png.download_url : placeholderDownloadURL;
           img.alt = base;
           card.appendChild(img);
           
-          // Create content container.
           const contentDiv = document.createElement("div");
           contentDiv.className = "card-content";
           
-          // Title (filename) on top.
+          // Title on top.
           const title = document.createElement("h2");
           title.className = "card-title";
           title.textContent = base;
           contentDiv.appendChild(title);
           
-          // Create a container for descriptions.
+          // Create containers for descriptions and download links.
           const descContainer = document.createElement("div");
-          // Append map description (if available) into descContainer.
+          const linksDiv = document.createElement("div");
+          linksDiv.className = "card-links";
+          
+          // Map description from .txt file (if exists) - read first line.
           if (group.txt) {
             fetch(group.txt.download_url)
               .then(response => {
@@ -262,7 +260,7 @@
               })
               .then(text => {
                 const lines = text.split('\n');
-                const mapDesc = lines[0].trim(); // Use line 1 for map description.
+                const mapDesc = lines[0].trim();
                 if (mapDesc) {
                   const mapDescElem = document.createElement("p");
                   mapDescElem.className = "card-description";
@@ -273,10 +271,17 @@
               .catch(err => console.error("Error fetching map .txt for", base, err));
           }
           
-          // If a gametype mapping exists, add gametype description.
+          // Download link for the .mvar file, renamed.
+          const mvarLink = document.createElement("a");
+          mvarLink.href = group.mvar.download_url;
+          mvarLink.textContent = "Download Map";
+          mvarLink.download = group.mvar.name;
+          mvarLink.style.marginRight = "10px";
+          linksDiv.appendChild(mvarLink);
+          
+          // If a gametype mapping exists, add gametype link and description.
           if (linkMapping[group.mvar.name]) {
             const gametypeFileName = linkMapping[group.mvar.name];
-            // Add gametype download link.
             const gametypeLink = document.createElement("a");
             gametypeLink.textContent = "Download Gametype";
             if (gametypesDict[gametypeFileName]) {
@@ -286,8 +291,9 @@
               gametypeLink.textContent = "Gametype file not found";
               gametypeLink.href = "#";
             }
-            // Append gametype link after descriptions.
-            // First, fetch gametype description from corresponding .txt file.
+            linksDiv.appendChild(gametypeLink);
+            
+            // Now fetch gametype description from corresponding .txt file.
             const gametypeTxtName = gametypeFileName.replace(/\.bin$/, '.txt');
             if (gametypesDict[gametypeTxtName]) {
               fetch(gametypesDict[gametypeTxtName].download_url)
@@ -300,43 +306,14 @@
                   gtDesc.className = "card-description";
                   gtDesc.textContent = "Gametype: " + text;
                   descContainer.appendChild(gtDesc);
-                  // Then append the gametype link.
-                  contentDiv.appendChild(descContainer);
-                  contentDiv.appendChild(linksDiv);
                 })
-                .catch(err => {
-                  console.error("Error fetching gametype txt for", gametypeTxtName, err);
-                  // Even if description fails, still append the link.
-                  contentDiv.appendChild(descContainer);
-                  contentDiv.appendChild(linksDiv);
-                });
-            } else {
-              // If no gametype description exists, append link directly.
-              descContainer.appendChild(gametypeLink);
-              contentDiv.appendChild(descContainer);
+                .catch(err => console.error("Error fetching gametype txt for", gametypeTxtName, err));
             }
-            // Append gametype link to linksDiv.
-            linksDiv.appendChild(gametypeLink);
-          } else {
-            // Append description container even if empty.
-            contentDiv.appendChild(descContainer);
           }
           
-          // Container for download links.
-          const linksDiv = document.createElement("div");
-          linksDiv.className = "card-links";
-          
-          // Download link for the .mvar file renamed to "Download Map".
-          const mvarLink = document.createElement("a");
-          mvarLink.href = group.mvar.download_url;
-          mvarLink.textContent = "Download Map";
-          mvarLink.download = group.mvar.name;
-          mvarLink.style.marginRight = "10px";
-          linksDiv.appendChild(mvarLink);
-          
-          // Append the links container at the end.
+          // Append the description container above the download links.
+          contentDiv.appendChild(descContainer);
           contentDiv.appendChild(linksDiv);
-          
           card.appendChild(contentDiv);
           fileListContainer.appendChild(card);
         }
@@ -350,7 +327,6 @@
       }
     }
     
-    // Loader for "All": lists every .mvar and .bin file from all subfolders.
     async function loadAllFiles() {
       const categories = ["halor", "halo2a", "halo3", "halo4"];
       try {
@@ -368,7 +344,6 @@
         });
         const results = await Promise.all(fetchPromises);
         const allFiles = results.flat();
-        // Filter for .mvar and .bin files.
         const filteredFiles = allFiles.filter(file => {
           const ext = file.name.split('.').pop().toLowerCase();
           return ext === "mvar" || ext === "bin";
@@ -381,7 +356,6 @@
           filteredFiles.forEach(file => {
             const card = document.createElement("div");
             card.className = "card";
-            // In "All" view, we skip the image.
             const contentDiv = document.createElement("div");
             contentDiv.className = "card-content";
             
@@ -392,7 +366,6 @@
             title.textContent = baseName;
             contentDiv.appendChild(title);
             
-            // Display which subfolder the file came from.
             const sourceInfo = document.createElement("p");
             sourceInfo.className = "card-description";
             let sourceText = "";
@@ -437,7 +410,6 @@
       });
     });
     
-    // Initial load.
     loadFiles(currentCategory);
   </script>
 </body>
