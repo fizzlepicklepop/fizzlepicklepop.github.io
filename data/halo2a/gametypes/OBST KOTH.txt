@@ -1,0 +1,1 @@
+OBST: KOTHA generic OBST gametype compatible with KOTH parkour maps.mpvr|(?

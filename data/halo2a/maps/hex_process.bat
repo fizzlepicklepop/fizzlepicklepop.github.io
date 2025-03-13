@@ -7,7 +7,12 @@ for %%F in (*.bin *.mvar) do (
     if /I "%%~nxF"=="%~nx0" (
         echo Skipping self file: %%~nxF
     ) else (
-        call :ProcessFile "%%~fF" "%%~dpnF.txt"
+        rem Define expected output filename.
+        if exist "%%~dpnF.txt" (
+            echo Skipping file %%~nxF: output file already exists.
+        ) else (
+            call :ProcessFile "%%~fF" "%%~dpnF.txt"
+        )
     )
 )
 echo Done.

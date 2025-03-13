@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <title>Halo MCC custom files</title>
   <style>
-    /* Glassy aero style for the background */
+    /* Base background and typography */
     body {
       font-family: Arial, sans-serif;
       background: url('data/assets/background.png') no-repeat center center fixed;
@@ -14,7 +14,7 @@
       padding: 20px;
     }
     
-    /* Fixed sidebar on the left */
+    /* Fixed Sidebar: takes full vertical space with 20px padding at top and bottom */
     .sidebar {
       position: fixed;
       top: 20px;
@@ -31,16 +31,17 @@
       justify-content: space-between;
       z-index: 1000;
     }
-    .sidebar .menu {
+    /* Container for menu items */
+    .menu {
       list-style: none;
       padding: 0;
       margin: 0;
     }
-    .sidebar .menu li {
+    .menu li {
       margin-bottom: 15px;
     }
-    .sidebar .menu a,
-    .sidebar .footer a {
+    .menu a,
+    .footer a {
       color: #fff;
       text-decoration: none;
       font-size: 1.1em;
@@ -49,28 +50,30 @@
       border-radius: 5px;
       background: rgba(255, 255, 255, 0.1);
     }
-    .sidebar .menu a.active,
-    .sidebar .menu a:hover,
-    .sidebar .footer a:hover {
+    .menu a.active,
+    .menu a:hover,
+    .footer a:hover {
       background: rgba(255, 255, 255, 0.3);
     }
-    .sidebar .search-container {
-      margin-bottom: 20px;
+    /* Search container: placed just above the footer ("All" button) */
+    .search-container {
+      margin-bottom: 10px;
     }
-    .sidebar .search-container input {
+    .search-container input {
       width: 100%;
       padding: 8px;
+      font-size: 1.1em;
       border: none;
       border-radius: 5px;
-      background: rgba(255, 255, 255, 0.2);
+      background: rgba(255, 255, 255, 0.1);
       color: #fff;
     }
-    .sidebar .footer {
-      margin-top: 20px;
+    .footer {
+      margin-top: 10px;
       margin-bottom: 20px;
     }
     
-    /* Content area with left and right margins */
+    /* Content area with left margin (to clear sidebar) and right margin for breathing room */
     .content {
       margin-left: 320px;  /* Sidebar (220px) + gap */
       margin-right: 120px;
@@ -81,7 +84,7 @@
       border-radius: 10px;
     }
     
-    /* Card style for each list entry */
+    /* Card style for list items */
     .card {
       background: rgba(255, 255, 255, 0.15);
       backdrop-filter: blur(10px);
@@ -109,7 +112,7 @@
       margin: 5px 0;
       color: #e0e0e0;
     }
-    /* Download links in darker blue */
+    /* Download links in a darker blue */
     .card a {
       text-decoration: none;
       color: #0056b3;
@@ -121,7 +124,7 @@
   </style>
 </head>
 <body>
-  <!-- Fixed Sidebar -->
+  <!-- Sidebar -->
   <div class="sidebar">
     <ul class="menu">
       <li><a href="#" data-category="halor" class="active">Halo Reach</a></li>
@@ -129,6 +132,7 @@
       <li><a href="#" data-category="halo3">Halo 3</a></li>
       <li><a href="#" data-category="halo4">Halo 4</a></li>
     </ul>
+    <!-- Search container placed just above the footer -->
     <div class="search-container">
       <input type="text" id="search-input" placeholder="Search custom files..." />
     </div>
@@ -149,7 +153,7 @@
     
     let currentCategory = "halor";
     
-    // Main loader: routes based on category.
+    // Load files based on category selection.
     function loadFiles(category) {
       currentCategory = category;
       if (category === "all") {
@@ -159,7 +163,7 @@
       }
     }
     
-    // Add search functionality: filter displayed cards as user types.
+    // Real-time search filtering.
     document.getElementById("search-input").addEventListener("input", function() {
       const query = this.value.toLowerCase();
       const cards = document.querySelectorAll("#file-list .card");
@@ -213,7 +217,7 @@
           console.error("Failed to fetch placeholder image from:", PLACEHOLDER_API_URL);
         }
         
-        // Fetch maps.
+        // Fetch map files.
         const mapsResponse = await fetch(MAPS_API_URL);
         if (!mapsResponse.ok) {
           throw new Error("Failed to fetch maps folder from: " + MAPS_API_URL);
@@ -221,7 +225,7 @@
         const mapFiles = await mapsResponse.json();
         console.log("Map Files:", mapFiles);
         
-        // Fetch gametypes.
+        // Fetch gametype files.
         const gametypesResponse = await fetch(GAMETYPES_API_URL);
         if (!gametypesResponse.ok) {
           throw new Error("Failed to fetch gametypes folder from: " + GAMETYPES_API_URL);
@@ -258,7 +262,7 @@
           const card = document.createElement("div");
           card.className = "card";
           
-          // Add thumbnail.
+          // Add image thumbnail.
           const img = document.createElement("img");
           img.src = group.png ? group.png.download_url : placeholderDownloadURL;
           img.alt = base;
@@ -267,16 +271,16 @@
           const contentDiv = document.createElement("div");
           contentDiv.className = "card-content";
           
-          // Title on top.
+          // Title (mvar filename) on top.
           const title = document.createElement("h2");
           title.className = "card-title";
           title.textContent = base;
           contentDiv.appendChild(title);
           
-          // Container for descriptions.
+          // Create a container for descriptions.
           const descContainer = document.createElement("div");
           
-          // Map description from .txt file (if exists), read first line.
+          // Map description: from .txt file (first line), prepended with "Map: ".
           if (group.txt) {
             fetch(group.txt.download_url)
               .then(response => {
@@ -296,11 +300,11 @@
               .catch(err => console.error("Error fetching map .txt for", base, err));
           }
           
-          // Container for download links.
+          // Create container for download links.
           const linksDiv = document.createElement("div");
           linksDiv.className = "card-links";
           
-          // Download link for the .mvar file, renamed.
+          // Download link for the mvar file ("Download Map").
           const mvarLink = document.createElement("a");
           mvarLink.href = group.mvar.download_url;
           mvarLink.textContent = "Download Map";
@@ -308,7 +312,7 @@
           mvarLink.style.marginRight = "10px";
           linksDiv.appendChild(mvarLink);
           
-          // If a gametype mapping exists, add gametype link and description.
+          // If a gametype mapping exists...
           if (linkMapping[group.mvar.name]) {
             const gametypeFileName = linkMapping[group.mvar.name];
             const gametypeLink = document.createElement("a");
@@ -322,7 +326,7 @@
             }
             linksDiv.appendChild(gametypeLink);
             
-            // Fetch gametype description from corresponding .txt file.
+            // Fetch gametype description from corresponding .txt file and prepend with "Gametype: "
             const gametypeTxtName = gametypeFileName.replace(/\.bin$/, '.txt');
             if (gametypesDict[gametypeTxtName]) {
               fetch(gametypesDict[gametypeTxtName].download_url)
@@ -336,7 +340,7 @@
                   gtDesc.textContent = "Gametype: " + text;
                   descContainer.appendChild(gtDesc);
                 })
-                .catch(err => console.error("Error fetching gametype txt for", gametypeTxtName, err));
+                .catch(err => console.error("Error fetching gametype .txt for", gametypeTxtName, err));
             }
           }
           
