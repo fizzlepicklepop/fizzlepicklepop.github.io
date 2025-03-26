@@ -1,410 +1,366 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>Halo MCC custom files</title>
-  <style>
-    /* Base styling */
-    body {
-      font-family: Arial, sans-serif;
-      background: url('data/assets/background.png') no-repeat center center fixed;
-      background-size: cover;
-      color: #fff;
-      margin: 0;
-      padding: 20px;
-    }
-    
-    /* Fixed sidebar styling */
-    .sidebar {
-      position: fixed;
-      top: 20px;
-      bottom: 20px;
-      left: 20px;
-      width: 220px;
-      background: rgba(255,255,255,0.2);
-      backdrop-filter: blur(10px);
-      border: 1px solid rgba(255,255,255,0.3);
-      border-radius: 10px;
-      padding: 20px;
-      display: flex;
-      flex-direction: column;
-      justify-content: space-between;
-      z-index: 1000;
-    }
-    .menu {
-      list-style: none;
-      padding: 0;
-      margin: 0;
-    }
-    .menu li {
-      margin-bottom: 15px;
-    }
-    .menu a,
-    .footer a {
-      color: #fff;
-      text-decoration: none;
-      font-size: 1.1em;
-      padding: 8px;
-      display: block;
-      border-radius: 5px;
-      background: rgba(255,255,255,0.1);
-    }
-    .menu a.active,
-    .menu a:hover,
-    .footer a:hover {
-      background: rgba(255,255,255,0.3);
-    }
-    /* Footer contains the All button and the search bar */
-    .footer {
-      margin-top: 10px;
-      margin-bottom: 20px;
-    }
-    .search-container {
-      margin-top: 10px;
-    }
-    .search-container input {
-      width: 100%;
-      padding: 8px;
-      font-size: 1.1em;
-      border: none;
-      border-radius: 5px;
-      background: rgba(255,255,255,0.1);
-      color: #fff;
-    }
-    
-    /* Content area styling */
-    .content {
-      margin-left: 320px;  /* Sidebar (220px) + gap */
-      margin-right: 120px;
-      padding: 20px;
-      background: rgba(255,255,255,0.15);
-      backdrop-filter: blur(10px);
-      border: 1px solid rgba(255,255,255,0.3);
-      border-radius: 10px;
-    }
-    
-    /* Card styling for each list entry */
-    .card {
-      background: rgba(255,255,255,0.15);
-      backdrop-filter: blur(10px);
-      border: 1px solid rgba(255,255,255,0.3);
-      border-radius: 10px;
-      margin-bottom: 20px;
-      display: flex;
-      align-items: center;
-      padding: 15px;
-    }
-    .card img {
-      max-width: 150px;
-      border-radius: 10px;
-      margin-right: 20px;
-    }
-    .card-content {
-      flex: 1;
-    }
-    .card-title {
-      font-size: 1.5em;
-      margin: 0 0 10px 0;
-      color: #fff;
-    }
-    .card-description {
-      margin: 5px 0;
-      color: #e0e0e0;
-    }
-    /* Download links in darker blue */
-    .card a {
-      text-decoration: none;
-      color: #0056b3;
-      font-weight: bold;
-    }
-    .card-links a {
-      margin-right: 15px;
-    }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Halo MCC Custom Files (Dynamic)</title>
+    <style>
+        /* CSS styles (same as previous example) */
+        body { font-family: sans-serif; margin: 0; background-color: #f4f4f4; color: #333; }
+        .container { display: flex; min-height: 100vh; }
+        .sidebar { width: 250px; background-color: #333; color: #fff; padding: 20px; box-shadow: 2px 0 5px rgba(0,0,0,0.1); display: flex; flex-direction: column; }
+        .sidebar h2, .sidebar h3 { margin-top: 0; border-bottom: 1px solid #555; padding-bottom: 10px; }
+        #search-input { width: 100%; padding: 8px; margin-bottom: 15px; box-sizing: border-box; border: 1px solid #555; background-color: #444; color: #fff; }
+        #search-results-container { flex-grow: 1; overflow-y: auto; display: none; }
+        #search-results-container h3 { font-size: 1.1em; margin-bottom: 10px; }
+        .content { flex-grow: 1; padding: 20px; overflow-y: auto; }
+        h1 { color: #333; border-bottom: 2px solid #ccc; padding-bottom: 10px; }
+        .game-section { margin-bottom: 30px; background-color: #fff; padding: 15px; border-radius: 5px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .game-section h2 { margin-top: 0; color: #0056b3; border-bottom: 1px solid #eee; padding-bottom: 8px; text-transform: uppercase; font-size: 1.4em; }
+        .type-section h3 { margin-top: 15px; margin-bottom: 10px; color: #555; text-transform: capitalize; font-size: 1.2em; }
+        .file-list { list-style: none; padding: 0; margin: 0; }
+        .file-list li { background-color: #f9f9f9; border: 1px solid #ddd; padding: 10px 15px; margin-bottom: 10px; border-radius: 3px; display: flex; flex-direction: column; word-wrap: break-word; }
+        #search-results-list li { background-color: #505050; border: 1px solid #666; color: #eee; }
+        #search-results-list li .file-info strong { color: #fff; }
+        #search-results-list li .file-desc { color: #ccc; }
+        #search-results-list li a { color: #8af; }
+        .file-info { font-weight: bold; margin-bottom: 5px; font-size: 1.1em; color: #333; }
+        .file-info strong { color: #0056b3; }
+        .file-desc { font-size: 0.9em; color: #666; margin-bottom: 8px; min-height: 1.2em; white-space: pre-wrap; }
+        .file-actions a { text-decoration: none; background-color: #007bff; color: white; padding: 5px 10px; border-radius: 3px; font-size: 0.9em; transition: background-color 0.2s ease; }
+        .file-actions a:hover { background-color: #0056b3; }
+        #loading-message, #error-message { padding: 15px; border-radius: 4px; margin-bottom: 15px; }
+        #loading-message { font-style: italic; color: #555; background-color: #eee; border: 1px solid #ddd; }
+        #error-message { display: none; color: #721c24; background-color: #f8d7da; border: 1px solid #f5c6cb; }
+        #search-no-results { font-style: italic; color: #aaa; padding: 10px; }
+        .description-error { color: #dc3545; font-size: 0.8em; margin-top: 4px; display: none; }
+
+        @media (max-width: 768px) {
+            .container { flex-direction: column; }
+            .sidebar { width: 100%; height: auto; }
+            #search-results-container { max-height: 300px; }
+            .content { padding: 15px; }
+        }
+    </style>
 </head>
 <body>
-  <!-- Sidebar -->
-  <div class="sidebar">
-    <ul class="menu">
-      <li><a href="#" data-category="halor" class="active">Halo Reach</a></li>
-      <li><a href="#" data-category="halo2a">Halo 2 Anniversary</a></li>
-      <li><a href="#" data-category="halo3">Halo 3</a></li>
-      <li><a href="#" data-category="halo4">Halo 4</a></li>
-    </ul>
-    <div class="footer">
-      <a href="#" data-category="all">All</a>
-      <div class="search-container">
-        <input type="text" id="search-input" placeholder="Search custom files..." />
-      </div>
+    <div class="container">
+        <aside class="sidebar">
+            <h2>Search Files</h2>
+            <input type="search" id="search-input" placeholder="Search by filename..." disabled>
+            <div id="search-results-container">
+                <h3>Search Results</h3>
+                <ul id="search-results-list" class="file-list">
+                    <li id="search-no-results" style="display: none;">No results found.</li>
+                </ul>
+            </div>
+        </aside>
+
+        <main class="content">
+            <h1>Halo MCC Custom Files</h1>
+            <div id="loading-message">Loading file list from GitHub API... This might take a moment.</div>
+            <div id="error-message"></div>
+            <div id="full-list-container">
+                 <!-- Files will be grouped and listed here -->
+            </div>
+        </main>
     </div>
-  </div>
-  
-  <!-- Content Area -->
-  <div class="content">
-    <div id="file-list"></div>
-  </div>
-  
-  <script>
-    const GITHUB_USERNAME = "fizzlepicklepop";
-    const GITHUB_REPO = "fizzlepicklepop.github.io";
-    const ASSETS_FOLDER = "data/assets";
-    
-    // Helper: load groups for one category.
-    async function loadCategoryGroups(category) {
-      const MAPS_API_URL = `https://api.github.com/repos/${GITHUB_USERNAME}/${GITHUB_REPO}/contents/data/${category}/maps`;
-      const GAMETYPES_API_URL = `https://api.github.com/repos/${GITHUB_USERNAME}/${GITHUB_REPO}/contents/data/${category}/gametypes`;
-      const LINKS_API_URL = `https://api.github.com/repos/${GITHUB_USERNAME}/${GITHUB_REPO}/contents/data/${category}/link.txt`;
-      const PLACEHOLDER_API_URL = `https://api.github.com/repos/${GITHUB_USERNAME}/${GITHUB_REPO}/contents/${ASSETS_FOLDER}/placeholder.png`;
-      
-      let linkMapping = {};
-      try {
-        const linksResponse = await fetch(LINKS_API_URL);
-        if (linksResponse.ok) {
-          const linksData = await linksResponse.json();
-          const linksText = await fetch(linksData.download_url).then(res => res.text());
-          const lines = linksText.split('\n');
-          lines.forEach(line => {
-            if (line.trim() === "") return;
-            const parts = line.split('\t');
-            if (parts.length >= 2) {
-              const mvarName = parts[0].trim();
-              const gametypeName = parts[1].trim();
-              linkMapping[mvarName] = gametypeName;
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // --- Configuration ---
+            const GITHUB_USERNAME = "fizzlepicklepop"; // Your GitHub username
+            const GITHUB_REPONAME = "fizzlepicklepop.github.io"; // Your repository name
+
+            // Assuming 'halomcc' folder is at the ROOT of the 'fizzlepicklepop.github.io' repo.
+            // If 'index.html' is directly inside 'halomcc', this path is correct.
+            const REPO_BASE_PATH = "halomcc";
+            // --- End Configuration ---
+
+            const API_BASE_URL = `https://api.github.com/repos/${GITHUB_USERNAME}/${GITHUB_REPONAME}/contents`;
+            // Path to the 'data' folder within the repo, relative to the repo root
+            const DATA_PATH_IN_REPO = `${REPO_BASE_PATH ? REPO_BASE_PATH + '/' : ''}data`;
+
+            const fullListContainer = document.getElementById('full-list-container');
+            const searchInput = document.getElementById('search-input');
+            const searchResultsList = document.getElementById('search-results-list');
+            const searchResultsContainer = document.getElementById('search-results-container');
+            const searchNoResults = document.getElementById('search-no-results');
+            const loadingMessage = document.getElementById('loading-message');
+            const errorMessage = document.getElementById('error-message');
+
+            let allFilesData = [];
+
+            // --- GitHub API Fetching Logic ---
+            async function fetchFromApi(path) {
+                // Construct the full API URL relative to the REPO ROOT
+                const url = `${API_BASE_URL}/${path}`;
+                console.log(`Fetching API: ${url}`); // Log the URL being fetched
+                try {
+                    const response = await fetch(url, {
+                        headers: { 'Accept': 'application/vnd.github.v3+json' }
+                    });
+                    if (response.status === 404) {
+                        console.warn(`API path not found: ${url}`);
+                        return [];
+                    }
+                    if (response.status === 403) {
+                         const rateLimitInfo = `Rate Limit: ${response.headers.get('X-RateLimit-Limit')}, Remaining: ${response.headers.get('X-RateLimit-Remaining')}, Resets: ${new Date(response.headers.get('X-RateLimit-Reset') * 1000)}`;
+                         console.error(rateLimitInfo);
+                         throw new Error(`GitHub API rate limit likely exceeded or access forbidden for path: ${path}. ${rateLimitInfo}`);
+                    }
+                    if (!response.ok) {
+                        throw new Error(`GitHub API request failed for path ${path}: ${response.status} ${response.statusText}`);
+                    }
+                    return await response.json();
+                } catch (error) {
+                    console.error(`Error fetching ${url}:`, error);
+                    throw error;
+                }
             }
-          });
-        } else {
-          console.error("Failed to fetch link.txt from:", LINKS_API_URL);
-        }
-      } catch (err) {
-        console.error("Error fetching link.txt:", err);
-      }
-      
-      let placeholderDownloadURL = "";
-      try {
-        const placeholderResponse = await fetch(PLACEHOLDER_API_URL);
-        if (placeholderResponse.ok) {
-          const placeholderData = await placeholderResponse.json();
-          placeholderDownloadURL = placeholderData.download_url;
-        } else {
-          console.error("Failed to fetch placeholder image from:", PLACEHOLDER_API_URL);
-        }
-      } catch (err) {
-        console.error(err);
-      }
-      
-      let mapFiles = [];
-      try {
-        const mapsResponse = await fetch(MAPS_API_URL);
-        if (!mapsResponse.ok) throw new Error("Failed to fetch maps folder from: " + MAPS_API_URL);
-        mapFiles = await mapsResponse.json();
-      } catch (err) {
-        console.error(err);
-      }
-      
-      let gametypesFiles = [];
-      try {
-        const gametypesResponse = await fetch(GAMETYPES_API_URL);
-        if (!gametypesResponse.ok) throw new Error("Failed to fetch gametypes folder from: " + GAMETYPES_API_URL);
-        gametypesFiles = await gametypesResponse.json();
-      } catch (err) {
-        console.error(err);
-      }
-      
-      const gametypesDict = {};
-      gametypesFiles.forEach(file => {
-        gametypesDict[file.name] = file;
-      });
-      
-      const groups = {};
-      mapFiles.forEach(file => {
-        const parts = file.name.split('.');
-        if (parts.length < 2) return;
-        const ext = parts.pop().toLowerCase();
-        const base = parts.join('.');
-        if (!groups[base]) groups[base] = {};
-        groups[base][ext] = file;
-      });
-      
-      const groupArray = [];
-      for (const base in groups) {
-        if (groups[base].mvar) {
-          groupArray.push({
-            base,
-            group: groups[base],
-            category,
-            linkMapping,
-            gametypesDict,
-            placeholderDownloadURL
-          });
-        }
-      }
-      return groupArray;
-    }
-    
-    async function loadAllGroups() {
-      const categories = ["halor", "halo2a", "halo3", "halo4"];
-      const results = await Promise.all(categories.map(cat => loadCategoryGroups(cat)));
-      return results.flat();
-    }
-    
-    function renderGroups(groups) {
-      const fileListContainer = document.getElementById("file-list");
-      fileListContainer.innerHTML = "";
-      if (groups.length === 0) {
-        fileListContainer.textContent = "No files found.";
-        return;
-      }
-      groups.forEach(obj => {
-        const { base, group, category, linkMapping, gametypesDict, placeholderDownloadURL } = obj;
-        const card = document.createElement("div");
-        card.className = "card";
-        
-        const img = document.createElement("img");
-        img.src = group.png ? group.png.download_url : placeholderDownloadURL;
-        img.alt = base;
-        card.appendChild(img);
-        
-        const contentDiv = document.createElement("div");
-        contentDiv.className = "card-content";
-        
-        const title = document.createElement("h2");
-        title.className = "card-title";
-        title.textContent = base;
-        contentDiv.appendChild(title);
-        
-        // Description container.
-        const descContainer = document.createElement("div");
-        // Map description from filename.txt (first line) if exists.
-        if (group.txt) {
-          fetch(group.txt.download_url)
-            .then(response => {
-              if (!response.ok) throw new Error("Network error for " + group.txt.download_url);
-              return response.text();
-            })
-            .then(text => {
-              const lines = text.split('\n');
-              const mapDesc = lines[0].trim();
-              if (mapDesc) {
-                const mapDescElem = document.createElement("p");
-                mapDescElem.className = "card-description";
-                mapDescElem.textContent = "Map: " + mapDesc;
-                descContainer.appendChild(mapDescElem);
-              }
-            })
-            .catch(err => console.error("Error fetching map .txt for", base, err));
-        }
-        
-        // Gametype description, if mapping exists.
-        if (linkMapping[group.mvar.name]) {
-          const gametypeFileName = linkMapping[group.mvar.name];
-          if (gametypesDict[gametypeFileName]) {
-            const gametypeTxtName = gametypeFileName.replace(/\.bin$/, '.txt');
-            if (gametypesDict[gametypeTxtName]) {
-              fetch(gametypesDict[gametypeTxtName].download_url)
-                .then(resp => {
-                  if (!resp.ok) throw new Error("Network error for " + gametypesDict[gametypeTxtName].download_url);
-                  return resp.text();
-                })
-                .then(text => {
-                  const gtDesc = document.createElement("p");
-                  gtDesc.className = "card-description";
-                  gtDesc.textContent = "Gametype: " + text;
-                  descContainer.appendChild(gtDesc);
-                })
-                .catch(err => console.error("Error fetching gametype .txt for", gametypeTxtName, err));
+
+            async function fetchRepositoryData() {
+                console.log(`Starting fetchRepositoryData... Base API Path: ${API_BASE_URL}, Data Path in Repo: ${DATA_PATH_IN_REPO}`);
+                allFilesData = [];
+                const expectedGames = ["halor", "halo1", "halo2a", "halo3", "halo4"];
+                const expectedTypes = ["gametypes", "maps"];
+                const fileExtensions = { "gametypes": ".bin", "maps": ".mvar" };
+
+                try {
+                    // Fetch the contents of the DATA_PATH_IN_REPO (e.g., 'halomcc/data')
+                    const gameDirs = await fetchFromApi(DATA_PATH_IN_REPO);
+
+                     if (!Array.isArray(gameDirs)) {
+                         throw new Error(`API did not return an array for path '${DATA_PATH_IN_REPO}'. Check path and repo structure. Response: ${JSON.stringify(gameDirs)}`);
+                     }
+
+                    for (const gameDir of gameDirs) {
+                        if (gameDir.type === 'dir' && expectedGames.includes(gameDir.name)) {
+                            const gameName = gameDir.name;
+                            console.log(`Processing game: ${gameName}`);
+                            // Fetch contents of the game directory (e.g., 'halomcc/data/halor')
+                            const typeDirs = await fetchFromApi(gameDir.path);
+
+                            if (!Array.isArray(typeDirs)) {
+                                console.warn(`API did not return an array for game path '${gameDir.path}'. Skipping game. Response: ${JSON.stringify(typeDirs)}`);
+                                continue; // Skip this game directory if the response isn't as expected
+                            }
+
+                            for (const typeDir of typeDirs) {
+                                if (typeDir.type === 'dir' && expectedTypes.includes(typeDir.name)) {
+                                    const typeName = typeDir.name;
+                                    const targetExt = fileExtensions[typeName];
+                                    console.log(`  Processing type: ${typeName}`);
+                                    // Fetch contents of the type directory (e.g., 'halomcc/data/halor/gametypes')
+                                    const filesInDir = await fetchFromApi(typeDir.path);
+
+                                    if (!Array.isArray(filesInDir)) {
+                                        console.warn(`API did not return an array for type path '${typeDir.path}'. Skipping type. Response: ${JSON.stringify(filesInDir)}`);
+                                        continue; // Skip this type directory if the response isn't as expected
+                                    }
+
+
+                                    const txtFiles = {};
+                                    filesInDir.forEach(f => {
+                                        if (f.type === 'file' && f.name.endsWith('.txt')) {
+                                            txtFiles[f.name] = f.path;
+                                        }
+                                    });
+
+                                    for (const file of filesInDir) {
+                                        if (file.type === 'file' && file.name.endsWith(targetExt)) {
+                                            const baseName = file.name.substring(0, file.name.length - targetExt.length);
+                                            const txtFileName = `${baseName}.txt`;
+                                            const descriptionRepoPath = txtFiles[txtFileName];
+
+                                            // --- Calculate paths relative to the *website's* root ---
+                                            // The website is served from the root of fizzlepicklepop.github.io
+                                            // The files live under the 'halomcc' directory in the repo.
+                                            // So, the website path needs to include 'halomcc/'
+
+                                            // Example: repo path 'halomcc/data/halor/maps/mymap.mvar'
+                                            // Website relative path should be 'halomcc/data/halor/maps/mymap.mvar'
+                                            const relativeFilePath = file.path; // API path is already relative to repo root
+
+                                            // Example: repo path 'halomcc/data/halor/maps/mymap.txt'
+                                            // Website relative path should be 'halomcc/data/halor/maps/mymap.txt'
+                                            const relativeDescriptionPath = descriptionRepoPath ? descriptionRepoPath : null;
+
+
+                                            allFilesData.push({
+                                                game: gameName,
+                                                type: typeName,
+                                                filename: file.name,
+                                                displayName: baseName,
+                                                // Use the full path relative to repo root for links/fetches
+                                                filePath: relativeFilePath,
+                                                descriptionPath: relativeDescriptionPath,
+                                            });
+                                            console.log(`    + Added: ${file.name} (filePath: ${relativeFilePath}, descPath: ${relativeDescriptionPath})`);
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    allFilesData.sort((a, b) => {
+                        if (a.game !== b.game) return a.game.localeCompare(b.game);
+                        if (a.type !== b.type) return a.type.localeCompare(b.type);
+                        return a.filename.localeCompare(b.filename);
+                    });
+
+                    loadingMessage.style.display = 'none';
+                    if (allFilesData.length === 0) {
+                         errorMessage.textContent = `No files found matching the expected structure under '${DATA_PATH_IN_REPO}' in the repository, or API calls failed. Check browser console for details.`;
+                         errorMessage.style.display = 'block';
+                         searchInput.disabled = true;
+                    } else {
+                        displayGroupedFiles(allFilesData, fullListContainer);
+                        searchInput.disabled = false;
+                    }
+
+                } catch (error) {
+                    console.error("Error fetching repository data:", error);
+                    loadingMessage.style.display = 'none';
+                    errorMessage.textContent = `Failed to load file list: ${error.message}. Check the browser console for more details (e.g., rate limits, incorrect paths).`;
+                    errorMessage.style.display = 'block';
+                     searchInput.disabled = true;
+                }
             }
-          }
-        }
-        
-        contentDiv.appendChild(descContainer);
-        
-        const linksDiv = document.createElement("div");
-        linksDiv.className = "card-links";
-        
-        const mvarLink = document.createElement("a");
-        mvarLink.href = group.mvar.download_url;
-        mvarLink.textContent = "Download Map";
-        mvarLink.download = group.mvar.name;
-        mvarLink.style.marginRight = "10px";
-        linksDiv.appendChild(mvarLink);
-        
-        if (linkMapping[group.mvar.name] && gametypesDict[linkMapping[group.mvar.name]]) {
-          const gametypeLink = document.createElement("a");
-          gametypeLink.textContent = "Download Gametype";
-          gametypeLink.href = gametypesDict[linkMapping[group.mvar.name]].download_url;
-          gametypeLink.download = gametypesDict[linkMapping[group.mvar.name]].name;
-          linksDiv.appendChild(gametypeLink);
-        }
-        
-        contentDiv.appendChild(linksDiv);
-        
-        const sourceInfo = document.createElement("p");
-        sourceInfo.className = "card-description";
-        let sourceText = "";
-        switch(category) {
-          case "halor": sourceText = "Halo Reach"; break;
-          case "halo2a": sourceText = "Halo 2 Anniversary"; break;
-          case "halo3": sourceText = "Halo 3"; break;
-          case "halo4": sourceText = "Halo 4"; break;
-          default: sourceText = category;
-        }
-        sourceInfo.textContent = "Source: " + sourceText;
-        contentDiv.appendChild(sourceInfo);
-        
-        card.appendChild(contentDiv);
-        fileListContainer.appendChild(card);
-      });
-    }
-    
-    async function loadFiles(category) {
-      if (category === "all") {
-        const groups = await loadAllGroups();
-        renderGroups(groups);
-      } else {
-        const groups = await loadCategoryGroups(category);
-        renderGroups(groups);
-      }
-    }
-    
-    async function loadAllGroups() {
-      const categories = ["halor", "halo2a", "halo3", "halo4"];
-      const results = await Promise.all(categories.map(cat => loadCategoryGroups(cat)));
-      return results.flat();
-    }
-    
-    // Sidebar event handling.
-    document.querySelectorAll(".sidebar a").forEach(link => {
-      link.addEventListener("click", function(e) {
-        e.preventDefault();
-        document.querySelectorAll(".sidebar a").forEach(l => l.classList.remove("active"));
-        this.classList.add("active");
-        document.getElementById("search-input").value = "";
-        const selectedCategory = this.getAttribute("data-category");
-        loadFiles(selectedCategory);
-      });
-    });
-    
-    // Search functionality: if query non-empty, load All view then filter.
-    document.getElementById("search-input").addEventListener("input", function() {
-      const query = this.value.trim().toLowerCase();
-      if (query !== "") {
-        loadAllGroups().then(groups => {
-          renderGroups(groups);
-          const cards = document.querySelectorAll("#file-list .card");
-          cards.forEach(card => {
-            if (card.textContent.toLowerCase().includes(query)) {
-              card.style.display = "";
-            } else {
-              card.style.display = "none";
+
+             // --- Helper Function to Create File List Item (Modified Description Fetch/Download Link) ---
+            function createListItem(file) {
+                const li = document.createElement('li');
+
+                const infoDiv = document.createElement('div');
+                infoDiv.className = 'file-info';
+                const contextSpan = document.createElement('span');
+                contextSpan.textContent = `[${file.game}/${file.type}] `;
+                infoDiv.appendChild(contextSpan);
+                const nameStrong = document.createElement('strong');
+                nameStrong.textContent = file.displayName;
+                infoDiv.appendChild(nameStrong);
+
+                const descP = document.createElement('p');
+                descP.className = 'file-desc';
+                const descErrorSpan = document.createElement('span');
+                descErrorSpan.className = 'description-error';
+
+
+                if (file.descriptionPath) {
+                    descP.textContent = 'Loading description...';
+                    // Fetch description using the path relative to the repo root
+                    // Need to construct the correct URL relative to the current page
+                    // Assuming the page is at fizzlepicklepop.github.io/halomcc/index.html
+                    // And the description is at halomcc/data/.../file.txt in the repo
+                    // The relative path from index.html is ../data/.../file.txt (incorrect)
+                    // Let's fetch using the absolute path from the domain root
+                    const descriptionUrl = `/${file.descriptionPath}`; // Start with '/' for domain root
+
+                    fetch(descriptionUrl)
+                        .then(response => {
+                            if (!response.ok) {
+                                throw new Error(`Status ${response.status} from ${descriptionUrl}`);
+                            }
+                            return response.text();
+                        })
+                        .then(text => {
+                            descP.textContent = text.trim() || '(No description provided)';
+                        })
+                        .catch(error => {
+                            console.warn(`Could not load description for ${file.filename} from ${descriptionUrl}:`, error);
+                            descP.textContent = '';
+                            descErrorSpan.textContent = `(Could not load description: ${error.message})`;
+                            descErrorSpan.style.display = 'inline';
+                        });
+                } else {
+                    descP.textContent = '(Description file missing)';
+                }
+
+                const actionsDiv = document.createElement('div');
+                actionsDiv.className = 'file-actions';
+                const downloadLink = document.createElement('a');
+                // Link directly using the path relative to the repo root (prefixed with '/')
+                 const downloadUrl = `/${file.filePath}`;
+                downloadLink.href = downloadUrl;
+                downloadLink.textContent = `Download ${file.filename}`;
+                downloadLink.setAttribute('download', file.filename);
+                actionsDiv.appendChild(downloadLink);
+
+                li.appendChild(infoDiv);
+                li.appendChild(descP);
+                li.appendChild(descErrorSpan);
+                li.appendChild(actionsDiv);
+
+                return li;
             }
-          });
+
+            // --- Function to Display Files Grouped by Game/Type (Same as before) ---
+             function displayGroupedFiles(files, container) {
+                container.innerHTML = '';
+                const grouped = {};
+                files.forEach(file => {
+                    if (!grouped[file.game]) grouped[file.game] = {};
+                    if (!grouped[file.game][file.type]) grouped[file.game][file.type] = [];
+                    grouped[file.game][file.type].push(file);
+                });
+                const sortedGames = Object.keys(grouped);
+                sortedGames.forEach(game => {
+                    const gameSection = document.createElement('div');
+                    gameSection.className = 'game-section';
+                    const gameHeader = document.createElement('h2');
+                    gameHeader.textContent = game;
+                    gameSection.appendChild(gameHeader);
+                    const sortedTypes = Object.keys(grouped[game]).sort();
+                    sortedTypes.forEach(type => {
+                        const typeSection = document.createElement('div');
+                        typeSection.className = 'type-section';
+                        const typeHeader = document.createElement('h3');
+                        typeHeader.textContent = type;
+                        typeSection.appendChild(typeHeader);
+                        const ul = document.createElement('ul');
+                        ul.className = 'file-list';
+                        grouped[game][type].forEach(file => {
+                            const li = createListItem(file);
+                            li.querySelector('.file-info span').style.display = 'none';
+                            ul.appendChild(li);
+                        });
+                        typeSection.appendChild(ul);
+                        gameSection.appendChild(typeSection);
+                    });
+                    container.appendChild(gameSection);
+                });
+            }
+
+            // --- Search Functionality (Same as before) ---
+            searchInput.addEventListener('input', (e) => {
+                 const searchTerm = e.target.value.trim().toLowerCase();
+                if (searchTerm.length > 0) {
+                    const filteredFiles = allFilesData.filter(file =>
+                        file.filename.toLowerCase().includes(searchTerm) ||
+                        file.displayName.toLowerCase().includes(searchTerm)
+                    );
+                    searchResultsList.innerHTML = '';
+                    if (filteredFiles.length > 0) {
+                        filteredFiles.forEach(file => searchResultsList.appendChild(createListItem(file)));
+                        searchNoResults.style.display = 'none';
+                    } else {
+                        searchNoResults.style.display = 'block';
+                    }
+                    searchResultsContainer.style.display = 'block';
+                    fullListContainer.style.display = 'none';
+                } else {
+                    searchResultsContainer.style.display = 'none';
+                    fullListContainer.style.display = 'block';
+                }
+            });
+
+            // --- Initial Fetch ---
+            fetchRepositoryData(); // Start fetching the data
+
         });
-      } else {
-        loadFiles(currentCategory);
-      }
-    });
-    
-    loadFiles(currentCategory);
-  </script>
+    </script>
+
 </body>
 </html>
