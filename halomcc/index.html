@@ -3,9 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Halo MCC Custom Files (Dynamic)</title>
+    <title>Halo MCC Custom Files</title>
+    <link rel="stylesheet" href="style.css"> <!-- Assuming style.css is separate -->
+    <!-- Or include CSS directly here if you prefer a single file -->
     <style>
-        /* CSS styles (same as previous example) */
+        /* Paste CSS rules from previous examples here if not using style.css */
         body { font-family: sans-serif; margin: 0; background-color: #f4f4f4; color: #333; }
         .container { display: flex; min-height: 100vh; }
         .sidebar { width: 250px; background-color: #333; color: #fff; padding: 20px; box-shadow: 2px 0 5px rgba(0,0,0,0.1); display: flex; flex-direction: column; }
@@ -29,28 +31,22 @@
         .file-desc { font-size: 0.9em; color: #666; margin-bottom: 8px; min-height: 1.2em; white-space: pre-wrap; }
         .file-actions a { text-decoration: none; background-color: #007bff; color: white; padding: 5px 10px; border-radius: 3px; font-size: 0.9em; transition: background-color 0.2s ease; }
         .file-actions a:hover { background-color: #0056b3; }
-        #loading-message, #error-message { padding: 15px; border-radius: 4px; margin-bottom: 15px; }
-        #loading-message { font-style: italic; color: #555; background-color: #eee; border: 1px solid #ddd; }
-        #error-message { display: none; color: #721c24; background-color: #f8d7da; border: 1px solid #f5c6cb; }
+        #loading-message { font-style: italic; color: #777; }
+        #error-message { display: none; color: red; }
         #search-no-results { font-style: italic; color: #aaa; padding: 10px; }
         .description-error { color: #dc3545; font-size: 0.8em; margin-top: 4px; display: none; }
-
-        @media (max-width: 768px) {
-            .container { flex-direction: column; }
-            .sidebar { width: 100%; height: auto; }
-            #search-results-container { max-height: 300px; }
-            .content { padding: 15px; }
-        }
+        @media (max-width: 768px) { .container { flex-direction: column; } .sidebar { width: 100%; height: auto; } #search-results-container { max-height: 300px; } .content { padding: 15px; } }
     </style>
 </head>
 <body>
     <div class="container">
         <aside class="sidebar">
             <h2>Search Files</h2>
-            <input type="search" id="search-input" placeholder="Search by filename..." disabled>
+            <input type="search" id="search-input" placeholder="Search by filename...">
             <div id="search-results-container">
                 <h3>Search Results</h3>
                 <ul id="search-results-list" class="file-list">
+                    <!-- Search results will be populated here -->
                     <li id="search-no-results" style="display: none;">No results found.</li>
                 </ul>
             </div>
@@ -58,8 +54,8 @@
 
         <main class="content">
             <h1>Halo MCC Custom Files</h1>
-            <div id="loading-message">Loading file list from GitHub API... This might take a moment.</div>
-            <div id="error-message"></div>
+            <div id="loading-message">Loading file list...</div>
+            <div id="error-message" style="display: none; color: red;"></div>
             <div id="full-list-container">
                  <!-- Files will be grouped and listed here -->
             </div>
@@ -67,20 +63,9 @@
     </div>
 
     <script>
+        // Paste the JavaScript code from the first Python example (script.js content)
+        // Or use the slightly modified version below
         document.addEventListener('DOMContentLoaded', () => {
-            // --- Configuration ---
-            const GITHUB_USERNAME = "fizzlepicklepop"; // Your GitHub username
-            const GITHUB_REPONAME = "fizzlepicklepop.github.io"; // Your repository name
-
-            // Assuming 'halomcc' folder is at the ROOT of the 'fizzlepicklepop.github.io' repo.
-            // If 'index.html' is directly inside 'halomcc', this path is correct.
-            const REPO_BASE_PATH = "halomcc";
-            // --- End Configuration ---
-
-            const API_BASE_URL = `https://api.github.com/repos/${GITHUB_USERNAME}/${GITHUB_REPONAME}/contents`;
-            // Path to the 'data' folder within the repo, relative to the repo root
-            const DATA_PATH_IN_REPO = `${REPO_BASE_PATH ? REPO_BASE_PATH + '/' : ''}data`;
-
             const fullListContainer = document.getElementById('full-list-container');
             const searchInput = document.getElementById('search-input');
             const searchResultsList = document.getElementById('search-results-list');
@@ -89,147 +74,49 @@
             const loadingMessage = document.getElementById('loading-message');
             const errorMessage = document.getElementById('error-message');
 
-            let allFilesData = [];
+            let allFilesData = []; // To store the fetched file list
 
-            // --- GitHub API Fetching Logic ---
-            async function fetchFromApi(path) {
-                // Construct the full API URL relative to the REPO ROOT
-                const url = `${API_BASE_URL}/${path}`;
-                console.log(`Fetching API: ${url}`); // Log the URL being fetched
-                try {
-                    const response = await fetch(url, {
-                        headers: { 'Accept': 'application/vnd.github.v3+json' }
-                    });
-                    if (response.status === 404) {
-                        console.warn(`API path not found: ${url}`);
-                        return [];
-                    }
-                    if (response.status === 403) {
-                         const rateLimitInfo = `Rate Limit: ${response.headers.get('X-RateLimit-Limit')}, Remaining: ${response.headers.get('X-RateLimit-Remaining')}, Resets: ${new Date(response.headers.get('X-RateLimit-Reset') * 1000)}`;
-                         console.error(rateLimitInfo);
-                         throw new Error(`GitHub API rate limit likely exceeded or access forbidden for path: ${path}. ${rateLimitInfo}`);
-                    }
+            // --- Fetch and Display Initial File List ---
+
+            fetch('file_list.json') // Fetch the JSON generated by the .bat script
+                .then(response => {
                     if (!response.ok) {
-                        throw new Error(`GitHub API request failed for path ${path}: ${response.status} ${response.statusText}`);
-                    }
-                    return await response.json();
-                } catch (error) {
-                    console.error(`Error fetching ${url}:`, error);
-                    throw error;
-                }
-            }
-
-            async function fetchRepositoryData() {
-                console.log(`Starting fetchRepositoryData... Base API Path: ${API_BASE_URL}, Data Path in Repo: ${DATA_PATH_IN_REPO}`);
-                allFilesData = [];
-                const expectedGames = ["halor", "halo1", "halo2a", "halo3", "halo4"];
-                const expectedTypes = ["gametypes", "maps"];
-                const fileExtensions = { "gametypes": ".bin", "maps": ".mvar" };
-
-                try {
-                    // Fetch the contents of the DATA_PATH_IN_REPO (e.g., 'halomcc/data')
-                    const gameDirs = await fetchFromApi(DATA_PATH_IN_REPO);
-
-                     if (!Array.isArray(gameDirs)) {
-                         throw new Error(`API did not return an array for path '${DATA_PATH_IN_REPO}'. Check path and repo structure. Response: ${JSON.stringify(gameDirs)}`);
-                     }
-
-                    for (const gameDir of gameDirs) {
-                        if (gameDir.type === 'dir' && expectedGames.includes(gameDir.name)) {
-                            const gameName = gameDir.name;
-                            console.log(`Processing game: ${gameName}`);
-                            // Fetch contents of the game directory (e.g., 'halomcc/data/halor')
-                            const typeDirs = await fetchFromApi(gameDir.path);
-
-                            if (!Array.isArray(typeDirs)) {
-                                console.warn(`API did not return an array for game path '${gameDir.path}'. Skipping game. Response: ${JSON.stringify(typeDirs)}`);
-                                continue; // Skip this game directory if the response isn't as expected
-                            }
-
-                            for (const typeDir of typeDirs) {
-                                if (typeDir.type === 'dir' && expectedTypes.includes(typeDir.name)) {
-                                    const typeName = typeDir.name;
-                                    const targetExt = fileExtensions[typeName];
-                                    console.log(`  Processing type: ${typeName}`);
-                                    // Fetch contents of the type directory (e.g., 'halomcc/data/halor/gametypes')
-                                    const filesInDir = await fetchFromApi(typeDir.path);
-
-                                    if (!Array.isArray(filesInDir)) {
-                                        console.warn(`API did not return an array for type path '${typeDir.path}'. Skipping type. Response: ${JSON.stringify(filesInDir)}`);
-                                        continue; // Skip this type directory if the response isn't as expected
-                                    }
-
-
-                                    const txtFiles = {};
-                                    filesInDir.forEach(f => {
-                                        if (f.type === 'file' && f.name.endsWith('.txt')) {
-                                            txtFiles[f.name] = f.path;
-                                        }
-                                    });
-
-                                    for (const file of filesInDir) {
-                                        if (file.type === 'file' && file.name.endsWith(targetExt)) {
-                                            const baseName = file.name.substring(0, file.name.length - targetExt.length);
-                                            const txtFileName = `${baseName}.txt`;
-                                            const descriptionRepoPath = txtFiles[txtFileName];
-
-                                            // --- Calculate paths relative to the *website's* root ---
-                                            // The website is served from the root of fizzlepicklepop.github.io
-                                            // The files live under the 'halomcc' directory in the repo.
-                                            // So, the website path needs to include 'halomcc/'
-
-                                            // Example: repo path 'halomcc/data/halor/maps/mymap.mvar'
-                                            // Website relative path should be 'halomcc/data/halor/maps/mymap.mvar'
-                                            const relativeFilePath = file.path; // API path is already relative to repo root
-
-                                            // Example: repo path 'halomcc/data/halor/maps/mymap.txt'
-                                            // Website relative path should be 'halomcc/data/halor/maps/mymap.txt'
-                                            const relativeDescriptionPath = descriptionRepoPath ? descriptionRepoPath : null;
-
-
-                                            allFilesData.push({
-                                                game: gameName,
-                                                type: typeName,
-                                                filename: file.name,
-                                                displayName: baseName,
-                                                // Use the full path relative to repo root for links/fetches
-                                                filePath: relativeFilePath,
-                                                descriptionPath: relativeDescriptionPath,
-                                            });
-                                            console.log(`    + Added: ${file.name} (filePath: ${relativeFilePath}, descPath: ${relativeDescriptionPath})`);
-                                        }
-                                    }
-                                }
-                            }
+                         // Provide more specific error for 404
+                        if (response.status === 404) {
+                            throw new Error(`HTTP error! Status: ${response.status} - Could not find 'file_list.json'. Please run the generate_list.bat script first.`);
+                        } else {
+                            throw new Error(`HTTP error! Status: ${response.status} - Could not load file_list.json.`);
                         }
                     }
-
+                    return response.json();
+                })
+                .then(data => {
+                    allFilesData = data;
+                    loadingMessage.style.display = 'none';
+                    if (allFilesData.length === 0) {
+                        // Check if the file likely existed but was empty vs file not found
+                        errorMessage.textContent = 'File list is empty. Check if generate_list.bat found any files or if the file exists.';
+                        errorMessage.style.display = 'block';
+                        return;
+                    }
+                     // Sort the data for consistent ordering (optional, but good practice)
                     allFilesData.sort((a, b) => {
                         if (a.game !== b.game) return a.game.localeCompare(b.game);
                         if (a.type !== b.type) return a.type.localeCompare(b.type);
                         return a.filename.localeCompare(b.filename);
                     });
-
+                    displayGroupedFiles(allFilesData, fullListContainer);
+                    searchInput.disabled = false; // Enable search
+                })
+                .catch(error => {
+                    console.error('Error loading file data:', error);
                     loadingMessage.style.display = 'none';
-                    if (allFilesData.length === 0) {
-                         errorMessage.textContent = `No files found matching the expected structure under '${DATA_PATH_IN_REPO}' in the repository, or API calls failed. Check browser console for details.`;
-                         errorMessage.style.display = 'block';
-                         searchInput.disabled = true;
-                    } else {
-                        displayGroupedFiles(allFilesData, fullListContainer);
-                        searchInput.disabled = false;
-                    }
-
-                } catch (error) {
-                    console.error("Error fetching repository data:", error);
-                    loadingMessage.style.display = 'none';
-                    errorMessage.textContent = `Failed to load file list: ${error.message}. Check the browser console for more details (e.g., rate limits, incorrect paths).`;
+                    errorMessage.textContent = `Error loading file list: ${error.message}.`;
                     errorMessage.style.display = 'block';
-                     searchInput.disabled = true;
-                }
-            }
+                    searchInput.disabled = true; // Disable search if list fails
+                });
 
-             // --- Helper Function to Create File List Item (Modified Description Fetch/Download Link) ---
+            // --- Helper Function to Create File List Item ---
             function createListItem(file) {
                 const li = document.createElement('li');
 
@@ -247,21 +134,12 @@
                 const descErrorSpan = document.createElement('span');
                 descErrorSpan.className = 'description-error';
 
-
                 if (file.descriptionPath) {
                     descP.textContent = 'Loading description...';
-                    // Fetch description using the path relative to the repo root
-                    // Need to construct the correct URL relative to the current page
-                    // Assuming the page is at fizzlepicklepop.github.io/halomcc/index.html
-                    // And the description is at halomcc/data/.../file.txt in the repo
-                    // The relative path from index.html is ../data/.../file.txt (incorrect)
-                    // Let's fetch using the absolute path from the domain root
-                    const descriptionUrl = `/${file.descriptionPath}`; // Start with '/' for domain root
-
-                    fetch(descriptionUrl)
+                    fetch(file.descriptionPath) // Fetch description using relative path from JSON
                         .then(response => {
                             if (!response.ok) {
-                                throw new Error(`Status ${response.status} from ${descriptionUrl}`);
+                                throw new Error(`Status ${response.status}`);
                             }
                             return response.text();
                         })
@@ -269,21 +147,20 @@
                             descP.textContent = text.trim() || '(No description provided)';
                         })
                         .catch(error => {
-                            console.warn(`Could not load description for ${file.filename} from ${descriptionUrl}:`, error);
-                            descP.textContent = '';
+                            console.warn(`Could not load description for ${file.filename} from ${file.descriptionPath}:`, error);
+                            descP.textContent = ''; // Clear loading text
                             descErrorSpan.textContent = `(Could not load description: ${error.message})`;
                             descErrorSpan.style.display = 'inline';
                         });
                 } else {
-                    descP.textContent = '(Description file missing)';
+                    // This case shouldn't happen if the BAT script always includes the path
+                    descP.textContent = '(Description file path missing in JSON)';
                 }
 
                 const actionsDiv = document.createElement('div');
                 actionsDiv.className = 'file-actions';
                 const downloadLink = document.createElement('a');
-                // Link directly using the path relative to the repo root (prefixed with '/')
-                 const downloadUrl = `/${file.filePath}`;
-                downloadLink.href = downloadUrl;
+                downloadLink.href = file.filePath; // Use relative path from JSON
                 downloadLink.textContent = `Download ${file.filename}`;
                 downloadLink.setAttribute('download', file.filename);
                 actionsDiv.appendChild(downloadLink);
@@ -296,23 +173,23 @@
                 return li;
             }
 
-            // --- Function to Display Files Grouped by Game/Type (Same as before) ---
+             // --- Function to Display Files Grouped by Game/Type ---
              function displayGroupedFiles(files, container) {
-                container.innerHTML = '';
-                const grouped = {};
+                container.innerHTML = ''; // Clear previous content
+                const grouped = {}; // { game: { type: [files] } }
                 files.forEach(file => {
                     if (!grouped[file.game]) grouped[file.game] = {};
                     if (!grouped[file.game][file.type]) grouped[file.game][file.type] = [];
                     grouped[file.game][file.type].push(file);
                 });
-                const sortedGames = Object.keys(grouped);
+                const sortedGames = Object.keys(grouped); // Already sorted by JS sort earlier
                 sortedGames.forEach(game => {
                     const gameSection = document.createElement('div');
                     gameSection.className = 'game-section';
                     const gameHeader = document.createElement('h2');
                     gameHeader.textContent = game;
                     gameSection.appendChild(gameHeader);
-                    const sortedTypes = Object.keys(grouped[game]).sort();
+                    const sortedTypes = Object.keys(grouped[game]).sort(); // Sort types within game
                     sortedTypes.forEach(type => {
                         const typeSection = document.createElement('div');
                         typeSection.className = 'type-section';
@@ -323,7 +200,7 @@
                         ul.className = 'file-list';
                         grouped[game][type].forEach(file => {
                             const li = createListItem(file);
-                            li.querySelector('.file-info span').style.display = 'none';
+                            li.querySelector('.file-info span').style.display = 'none'; // Hide context in main list
                             ul.appendChild(li);
                         });
                         typeSection.appendChild(ul);
@@ -333,7 +210,7 @@
                 });
             }
 
-            // --- Search Functionality (Same as before) ---
+            // --- Search Functionality ---
             searchInput.addEventListener('input', (e) => {
                  const searchTerm = e.target.value.trim().toLowerCase();
                 if (searchTerm.length > 0) {
@@ -356,9 +233,8 @@
                 }
             });
 
-            // --- Initial Fetch ---
-            fetchRepositoryData(); // Start fetching the data
-
+            // Disable search initially until list loads
+            searchInput.disabled = true;
         });
     </script>
 
