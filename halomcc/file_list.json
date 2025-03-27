@@ -2126,10 +2126,10 @@
   {
     "game": "halor",
     "type": "maps",
-    "filename": "ÝFloodgateV4.mvar",
-    "displayName": "ÝFloodgateV4",
-    "filePath": "data/halor/maps/ÝFloodgateV4.mvar",
-    "descriptionPath": "data/halor/maps/ÝFloodgateV4.txt"
+    "filename": " FloodgateV4.mvar",
+    "displayName": " FloodgateV4",
+    "filePath": "data/halor/maps/ FloodgateV4.mvar",
+    "descriptionPath": "data/halor/maps/ FloodgateV4.txt"
   }
 ,
   {
@@ -13354,5 +13354,4 @@
     "filePath": "data/halo4/maps/SLYR Villa.mvar",
     "descriptionPath": "data/halo4/maps/SLYR Villa.txt"
   }
-  REM Ensure the last '}' is on its own line before adding ']'
 ] 
