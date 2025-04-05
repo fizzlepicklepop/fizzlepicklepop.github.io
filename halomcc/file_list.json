@@ -13354,4 +13354,5 @@
     "filePath": "data/halo4/maps/SLYR Villa.mvar",
     "descriptionPath": "data/halo4/maps/SLYR Villa.txt"
   }
+  REM Ensure the last '}' is on its own line before adding ']'
 ] 
