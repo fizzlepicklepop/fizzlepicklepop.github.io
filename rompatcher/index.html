@@ -1,0 +1,673 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>IPS ROM Patcher</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <!-- Retro pixelated font -->
+  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+  <link rel="icon" href="favicon.ico" type="image/x-icon">
+  <link rel="shortcut icon" href="favicon.ico" type="image/x-icon">
+  
+  <style>
+    /* Base reset and retro typography */
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+    body {
+      /* Background using red, orange, yellow, green and blue */
+      background: linear-gradient(135deg, red, orange, yellow, green, blue);
+      color: black;
+      font-family: 'Press Start 2P', cursive;
+      font-size: 14px;
+      line-height: 1.4;
+      padding: 10px;
+    }
+    a:link    { color: red; text-decoration: none; }
+    a:visited { color: blue; text-decoration: none; }
+    a:hover   { color: green; text-decoration: underline; }
+    a:active  { color: orange; text-decoration: underline; }
+    
+    h1, h2 {
+      text-align: center;
+      margin: 10px 0;
+    }
+    h1 { font-size: 28px; color: blue; }
+    h2 { font-size: 22px; color: red; }
+    
+    /* Button styles using orange, red, blue, green and yellow */
+    input[type="button"], input[type="file"] {
+      font-family: inherit;
+      font-size: 16px;
+      padding: 10px;
+      cursor: pointer;
+      border: 3px solid red;
+      background: orange;
+      color: blue;
+      text-shadow: 1px 1px #FFF;
+      transition: background 0.2s, transform 0.1s;
+    }
+    input[type="button"]:hover {
+      background: yellow;
+      color: green;
+    }
+    input[type="button"]:active {
+      transform: translateY(2px);
+    }
+    
+    /* Retro checkbox and tip buttons */
+    input.check {
+      transform: scale(1.2);
+      margin-right: 5px;
+    }
+    input.tip, input.tipopen {
+      cursor: pointer;
+      font-size: 12px;
+      border: 2px solid blue;
+      background: green;
+      color: orange;
+      padding: 2px 5px;
+      margin: 2px;
+    }
+    
+    /* Panels layout using Flexbox */
+    .panels {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 20px;
+      justify-content: center;
+      margin: 20px 0;
+    }
+    .panel {
+      background: white;
+      border: 3px solid green;
+      padding: 20px;
+      flex: 1 1 300px;
+      max-width: 320px;
+      text-align: center;
+    }
+    
+    /* Info boxes inside each panel */
+    .info {
+      font-family: monospace;
+      background: #FAFAD2; /* light yellow */
+      border: 2px solid orange;
+      padding: 10px;
+      margin-top: 10px;
+      overflow-wrap: break-word;
+      min-height: 80px;
+    }
+    
+    /* Guide section styling with list adjustments */
+    .guide {
+      background: #FFFACD;  /* lemon chiffon */
+      border: 3px solid red;
+      padding: 20px;
+      margin: 20px;
+    }
+    .guide ol {
+      padding-left: 20px; /* Ensures the numbered items appear inside the box */
+      margin-top: 10px;
+    }
+    .guide li {
+      margin-bottom: 8px;
+    }
+    
+    /* Option elements: retro toggles */
+    .option {
+      display: inline-block;
+      margin: 10px 5px;
+    }
+    .optionhide {
+      display: none;
+    }
+    .tiptext {
+      display: none;
+      background: #FFD700; /* gold */
+      padding: 10px;
+      border: 2px solid red;
+      margin-top: 5px;
+      font-size: 12px;
+    }
+    
+    /* Responsive adjustments */
+    @media (max-width: 600px) {
+      body {
+        font-size: 12px;
+      }
+      h1 {
+        font-size: 24px;
+      }
+      h2 {
+        font-size: 18px;
+      }
+      .panel {
+        max-width: 100%;
+        flex: 1 1 auto;
+      }
+    }
+  </style>
+  
+  <script type="text/javascript">
+    // Global variables and state
+    var g_rom_valid = false, g_ips_valid = false, g_out_valid = false;
+    var g_rom = [], g_ips = [], g_out = [];
+    var g_rom_name = "", g_ips_name = "", g_out_name = "";
+    var g_rom_ext = "", g_ips_basename = "";
+    var g_ips_info = "No IPS loaded.", g_ips_parsed = false;
+    var g_rom_crc = [], g_rom_md5 = [], g_rom_sha1 = [];
+    var g_snes_header_found = false, g_snes_headerless_found = false;
+    var g_snes_header_strip = true, g_snes_header_fake = false;
+    var g_ips_type = 0; // 0 = IPS, 1 = BPS
+    
+    // Utility functions
+    function rotl(x,s) { return ((x << s) | (x >>> (32 - s))) >>> 0; }
+    function stringhash(a) { var s = ""; for (var i=0; i<a.length; ++i) s += ("00000000"+a[i].toString(16).toUpperCase()).slice(-8); return s; }
+    function endianswap(x) { return (((x >>> 24) & 0xFF) | ((x >>> 8) & 0xFF00) | ((x << 8) & 0xFF0000) | ((x << 24) & 0xFF000000)) >>> 0; }
+    function sizestring(x) { var sk = x >>> 10, sb = x % 1024; var ss = sk.toString() + "kb"; if (sb > 0) ss += " + " + sb.toString() + "b"; return ss; }
+    
+    function crc32(array, start=0) {
+      var crc = 0xFFFFFFFF >>> 0;
+      for (var i = start; i < array.length; i++) {
+        crc ^= array[i];
+        for (var j = 0; j < 8; j++) {
+          var mask = -(crc & 1);
+          crc = (crc >>> 1) ^ (0xEDB88320 & mask);
+        }
+      }
+      return (~crc) >>> 0;
+    }
+    
+    function md5(array, start=0) {
+      var d = [].slice.call(array.slice(start));
+      var dl = d.length;
+      d.push(0x80);
+      while ((d.length % 64) != 56) d.push(0x00);
+      for (var i = 0; i < 4; ++i) d.push(((dl << 3) >>> (i * 8)) & 0xFF);
+      for (var i = 0; i < 4; ++i) d.push(((dl >>> 29) >>> (i * 8)) & 0xFF);
+      const cs = [7,12,17,22,7,12,17,22,7,12,17,22,7,12,17,22,
+                  5,9,14,20,5,9,14,20,5,9,14,20,5,9,14,20,
+                  4,11,16,23,4,11,16,23,4,11,16,23,4,11,16,23,
+                  6,10,15,21,6,10,15,21,6,10,15,21,6,10,15,21];
+      const ck = [0xD76AA478,0xE8C7B756,0x242070DB,0xC1BDCEEE,
+                  0xF57C0FAF,0x4787C62A,0xA8304613,0xFD469501,
+                  0x698098D8,0x8B44F7AF,0xFFFF5BB1,0X895CD7BE,
+                  0x6B901122,0xFD987193,0xA679438E,0x49B40821,
+                  0xF61E2562,0xC040B340,0x265E5A51,0xE9B6C7AA,
+                  0xD62F105D,0x02441453,0xD8A1E681,0xE7D3FBC8,
+                  0x21E1CDE6,0xC33707D6,0xF4D50D87,0x455A14ED,
+                  0xA9E3E905,0xFCEFA3F8,0x676F02D9,0x8D2A4C8A,
+                  0xFFFA3942,0x8771F681,0x6D9D6122,0xFDE5380C,
+                  0xA4BEEA44,0x4BDECFA9,0xF6BB4B60,0xBEBFBC70,
+                  0x289B7EC6,0xEAA127FA,0xD4EF3085,0x04881D05,
+                  0xD9D4D039,0xE6DB99E5,0x1FA27CF8,0xC4AC5665,
+                  0xF4292244,0x432AFF97,0xAB9423A7,0xFC93A039,
+                  0x655B59C3,0x8F0CCC92,0xFFEFF47D,0x85845DD1,
+                  0x6FA87E4F,0xFE2CE6E0,0xA3014314,0x4E0811A1,
+                  0xF7537E82,0xBD3AF235,0x2AD7D2BB,0xEB86D391];
+      var h0 = 0x67452301, h1 = 0xEFCDAB89, h2 = 0x98BADCFE, h3 = 0x10325476;
+      for (var chunk = 0; chunk < d.length; chunk += 64) {
+        var cw = [];
+        for (var i = 0; i < 64; i += 4) {
+          cw.push((d[chunk+i] << 0) | (d[chunk+i+1] << 8) | (d[chunk+i+2] << 16) | (d[chunk+i+3] << 24));
+        }
+        var ha = h0, hb = h1, hc = h2, hd = h3;
+        for (var i = 0; i < 64; ++i) {
+          var hf, hg;
+          if (i < 16) { hf = ((hb & hc) | ((~hb) & hd)) >>> 0; hg = i; }
+          else if (i < 32) { hf = ((hd & hb) | ((~hd) & hc)) >>> 0; hg = (5*i+1) % 16; }
+          else if (i < 48) { hf = (hb ^ hc ^ hd) >>> 0; hg = (3*i+5) % 16; }
+          else { hf = (hc ^ (hb | (~hd))) >>> 0; hg = (7*i) % 16; }
+          hf = (hf + ha + ck[i] + cw[hg]) >>> 0;
+          ha = hd;
+          hd = hc;
+          hc = hb;
+          hb = (hb + rotl(hf, cs[i])) >>> 0;
+        }
+        h0 = (h0 + ha) >>> 0;
+        h1 = (h1 + hb) >>> 0;
+        h2 = (h2 + hc) >>> 0;
+        h3 = (h3 + hd) >>> 0;
+      }
+      return [endianswap(h0), endianswap(h1), endianswap(h2), endianswap(h3)];
+    }
+    
+    function sha1(array, start=0) {
+      var d = [].slice.call(array.slice(start));
+      var dl = d.length;
+      d.push(0x80);
+      while ((d.length % 64) != 56) d.push(0x00);
+      for (var i = 0; i < 4; ++i) d.push(((dl >>> 29) >>> ((3-i)*8)) & 0xFF);
+      for (var i = 0; i < 4; ++i) d.push(((dl << 3) >>> ((3-i)*8)) & 0xFF);
+      var h0 = 0x67452301 >>> 0, h1 = 0xEFCDAB89 >>> 0, h2 = 0x98BADCFE >>> 0, h3 = 0x10325476 >>> 0, h4 = 0xC3D2E1F0 >>> 0;
+      for (var chunk = 0; chunk < d.length; chunk += 64) {
+        var cw = [];
+        for (var i = 0; i < 64; i += 4) {
+          cw.push((d[chunk+i] << 24) | (d[chunk+i+1] << 16) | (d[chunk+i+2] << 8) | (d[chunk+i+3]));
+        }
+        for (var i = 16; i < 80; ++i)
+          cw.push(rotl(cw[i-3] ^ cw[i-8] ^ cw[i-14] ^ cw[i-16], 1));
+        var ha = h0, hb = h1, hc = h2, hd = h3, he = h4;
+        for (var i = 0; i < 80; ++i) {
+          var hf, hk;
+          if (i < 20) { hf = ((hb & hc) | ((~hb) & hd)) >>> 0; hk = 0x5A827999 >>> 0; }
+          else if (i < 40) { hf = (hb ^ hc ^ hd) >>> 0; hk = 0x6ED9EBA1 >>> 0; }
+          else if (i < 60) { hf = ((hb & hc) | (hb & hd) | (hc & hd)) >>> 0; hk = 0x8F1BBCDC >>> 0; }
+          else { hf = (hb ^ hc ^ hd) >>> 0; hk = 0xCA62C1D6 >>> 0; }
+          var ht = (rotl(ha, 5) + hf + he + hk + cw[i]) >>> 0;
+          he = hd;
+          hd = hc;
+          hc = rotl(hb, 30);
+          hb = ha;
+          ha = ht;
+        }
+        h0 = (h0 + ha) >>> 0;
+        h1 = (h1 + hb) >>> 0;
+        h2 = (h2 + hc) >>> 0;
+        h3 = (h3 + hd) >>> 0;
+        h4 = (h4 + he) >>> 0;
+      }
+      return [h0, h1, h2, h3, h4];
+    }
+    
+    // IPS patching functions
+    const IPS_PATCH = ['P'.charCodeAt(0), 'A'.charCodeAt(0), 'T'.charCodeAt(0), 'C'.charCodeAt(0), 'H'.charCodeAt(0)];
+    const IPS_EOF = ['E'.charCodeAt(0), 'O'.charCodeAt(0), 'F'.charCodeAt(0)];
+    const BPS_PATCH = ['B'.charCodeAt(0), 'P'.charCodeAt(0), 'S'.charCodeAt(0), '1'.charCodeAt(0)];
+    
+    function ips_match_at(data, offset, match) {
+      if ((match.length + offset) > data.length) return false;
+      for (var i = 0; i < match.length; ++i)
+        if (data[offset+i] != match[i])
+          return false;
+      return true;
+    }
+    
+    function ips_24(data, offset) {
+      if ((offset+3) > data.length) return -1;
+      return (data[offset+0] << 16) | (data[offset+1] << 8) | (data[offset+2]);
+    }
+    
+    function ips_16(data, offset) {
+      if ((offset+2) > data.length) return -1;
+      return (data[offset+0] << 8) | (data[offset+1]);
+    }
+    
+    function ips_validate(ips) {
+      g_ips_type = 0;
+      g_ips_parsed = false;
+      if (!g_ips_valid) { g_ips_info = "No IPS loaded."; return 0; }
+      g_ips_info = g_ips_name;
+      if (ips_match_at(ips,0,BPS_PATCH))
+        return bps_validate(ips);
+      if (!ips_match_at(ips,0,IPS_PATCH)) {
+        g_ips_info += "<br/>Invalid patch file.";
+        return 0;
+      }
+      g_ips_parsed = true;
+      var patchlimit = 0, patchbytes = 0, chunkcount = 0, chunk = 5, eof = false, err = "";
+      while (chunk < ips.length) {
+        if (ips_match_at(ips, chunk, IPS_EOF)) { eof = true; break; }
+        var co = ips_24(ips, chunk+0), cs = ips_16(ips, chunk+3);
+        if (co < 0 || cs < 0) { err += "<br/><b>Warning: Incomplete chunk.</b>"; break; }
+        if (cs > 0) {
+          if ((chunk+5+cs) > ips.length) { err += "<br/><br>Warning: Incomplete chunk.</b>"; break; }
+          patchlimit = Math.max(patchlimit, co + cs);
+          chunk += 5 + cs;
+          patchbytes += cs;
+          chunkcount++;
+        } else {
+          var rs = ips_16(ips, chunk+5);
+          if (rs < 0 || (chunk+8) > ips.length) { err += "<br/><b>Warning: Incomplete RLE chunk.</b>"; break; }
+          patchlimit = Math.max(patchlimit, co + rs);
+          chunk += 8;
+          patchbytes += rs;
+          chunkcount++;
+        }
+      }
+      if (!eof) err += "<br/><b>Warning: No EOF.</b>";
+      g_ips_info += "<br/>Chunks: " + chunkcount.toString() + "<br/>Bytes: " + patchbytes.toString() + err;
+      return patchlimit;
+    }
+    
+    function ips_apply(patched, src, ips) {
+      if (g_ips_type == 1) return bps_apply(patched, src, ips);
+      var chunk = 5;
+      while (chunk < ips.length) {
+        if (ips_match_at(ips, chunk, IPS_EOF)) break;
+        var co = ips_24(ips, chunk+0), cs = ips_16(ips, chunk+3);
+        if (co < 0 || cs < 0) break;
+        if (cs > 0) {
+          if ((chunk+5+cs) > ips.length) break;
+          for (var i = 0; i < cs; ++i)
+            patched[co+i] = ips[chunk+5+i];
+          chunk += 5+cs;
+        } else {
+          var rs = ips_16(ips, chunk+5);
+          if (rs < 0 || (chunk+8) > ips.length) break;
+          var rle = ips[chunk+7];
+          for (var i = 0; i < rs; ++i)
+            patched[co+i] = rle;
+          chunk += 8;
+        }
+      }
+      return patched;
+    }
+    
+    var g_bps_number_size = 0;
+    function bps_number(data, offset) {
+      g_bps_number_size = 0;
+      var n = 0, shift = 1;
+      while (true) {
+        if (offset > data.length) return -1;
+        var x = data[offset];
+        g_bps_number_size++;
+        offset++;
+        n += (x & 0x7F) * shift;
+        if (x & 0x80) break;
+        shift <<= 7;
+        n += shift;
+      }
+      return n;
+    }
+    
+    function bps_32(data, offset) {
+      if ((offset+4) > data.length) return -1;
+      return ((data[offset+0] << 0) | (data[offset+1] << 8) | (data[offset+2] << 16) | (data[offset+3] << 24)) >>> 0;
+    }
+    
+    function bps_validate(bps) {
+      g_ips_parsed = true;
+      g_ips_type = 1;
+      var chunk = 4;
+      var src_size = bps_number(bps, chunk); chunk += g_bps_number_size;
+      var tgt_size = bps_number(bps, chunk); chunk += g_bps_number_size;
+      var meta_size = bps_number(bps, chunk); chunk += g_bps_number_size;
+      if (src_size < 0 || tgt_size < 0 || meta_size < 0) {
+        g_ips_info += "<br/><b>Error: Incomplete BPS header.</b>";
+        return 0;
+      }
+      chunk += meta_size;
+      var err = "", bps_end = bps.length - 12, out_offset = 0, src_offset = 0, tgt_offset = 0, action_count = 0;
+      while (chunk < bps_end) {
+        var anum = bps_number(bps, chunk); chunk += g_bps_number_size;
+        if (anum < 0) { err += "<br/><b>Warning: Incomplete BPS action.</b>"; break; }
+        var atype = anum & 3, alen = (anum >> 2) + 1;
+        if (atype == 0) { out_offset += alen; if (out_offset > tgt_size || out_offset > src_size) { err += "<br/><b>Warning: BPS SourceRead out of bounds.</b>"; break; } }
+        else if (atype == 1) { out_offset += alen; chunk += alen; if (out_offset > tgt_size) { err += "<br/><b>Warning: BPS TargetRead out of bounds.</b>"; break; } }
+        else if (atype == 2) {
+          var cnum = bps_number(bps, chunk); chunk += g_bps_number_size;
+          if (cnum < 0) { err += "<br/><b>Warning: Incomplete BPS SourceCopy action.</b>"; break; }
+          src_offset += ((cnum & 1) ? (-1) : 1) * (cnum >> 1);
+          if (src_offset < 0) { err += "<br/><b>Warning: BPS SourceCopy relative address underflow.</b>"; break; }
+          out_offset += alen; src_offset += alen;
+          if (out_offset > tgt_size || src_offset > src_size) { err += "<br/><b>Warning: BPS SourceCopy out of bounds.</b>"; break; }
+        } else if (atype == 3) {
+          var cnum = bps_number(bps, chunk); chunk += g_bps_number_size;
+          tgt_offset += ((cnum & 1) ? (-1) : 1) * (cnum >> 1);
+          if (tgt_offset < 0) { err += "<br/><b>Warning: BPS TargetCopy relative address underflow.</b>"; break; }
+          out_offset += alen; tgt_offset += alen;
+          if (out_offset > tgt_size || tgt_offset > tgt_size) { err += "<br/><b>Warning: BPS TargetCopy out of bounds.</b>"; break; }
+        }
+        action_count++;
+      }
+      if (bps_end >= 0) {
+        var pat_crc = bps_32(bps, bps_end + 8);
+        var bps_crc = crc32(bps.slice(0, bps.length - 4));
+        if (pat_crc != bps_crc) err += "<br/><b>Warning: BPS patch CRC mismatch: " + stringhash([pat_crc]) + "<br/>Patch CRC: " + stringhash([bps_crc]);
+      } else {
+        err += "<br/><b>Error: BPS too small for CRC footer.</b>";
+      }
+      g_ips_info += "<br/>Actions: " + action_count.toString() + err;
+      return tgt_size;
+    }
+    
+    function bps_apply(patched, src, bps) {
+      var chunk = 4, i, src_size = bps_number(bps, chunk); chunk += g_bps_number_size;
+      var tgt_size = bps_number(bps, chunk); chunk += g_bps_number_size;
+      var meta_size = bps_number(bps, chunk); chunk += g_bps_number_size;
+      if (src_size < 0 || tgt_size < 0 || meta_size < 0) return 0;
+      chunk += meta_size;
+      var bps_end = bps.length - 12, out_offset = 0, src_offset = 0, tgt_offset = 0;
+      while (chunk < bps_end) {
+        var anum = bps_number(bps, chunk); chunk += g_bps_number_size;
+        if (anum < 0) break;
+        var atype = anum & 3, alen = (anum >> 2) + 1;
+        if (atype == 0) {
+          if ((out_offset + alen) > tgt_size || (out_offset + alen) > src_size) break;
+          for (i = 0; i < alen; i++) patched[out_offset+i] = src[out_offset+i];
+          out_offset += alen;
+        } else if (atype == 1) {
+          if (out_offset > tgt_size) break;
+          for (i = 0; i < alen; i++) patched[out_offset+i] = bps[chunk+i];
+          out_offset += alen; chunk += alen;
+        } else if (atype == 2) {
+          var cnum = bps_number(bps, chunk); chunk += g_bps_number_size;
+          src_offset += ((cnum & 1) ? (-1) : 1) * (cnum >> 1);
+          if (src_offset < 0) break;
+          if ((out_offset + alen) > tgt_size || (src_offset + alen) > src_size) break;
+          for (i = 0; i < alen; i++) patched[out_offset+i] = src[src_offset+i];
+          out_offset += alen; src_offset += alen;
+        } else if (atype == 3) {
+          var cnum = bps_number(bps, chunk); chunk += g_bps_number_size;
+          if (cnum < 0) break;
+          tgt_offset += ((cnum & 1) ? (-1) : 1) * (cnum >> 1);
+          if (tgt_offset < 0) break;
+          if ((out_offset + alen) > tgt_size || (tgt_offset + alen) > tgt_size) break;
+          for (i = 0; i < alen; i++) patched[out_offset+i] = patched[tgt_offset+i];
+          out_offset += alen; tgt_offset += alen;
+        }
+      }
+      return patched;
+    }
+    
+    function rebuild() {
+      var extpos = g_rom_name.lastIndexOf(".");
+      g_rom_ext = (extpos != -1) ? g_rom_name.substring(extpos) : "";
+      extpos = g_ips_name.lastIndexOf(".");
+      g_ips_basename = (extpos != -1) ? g_ips_name.substring(0, extpos) : g_ips_name;
+      g_out_name = g_ips_basename + g_rom_ext;
+      g_snes_header_found = false;
+      g_snes_headerless_found = false;
+      if ([".SFC", ".SMC", ".SWC", ".FIG"].includes(g_rom_ext.toUpperCase())) {
+        if ((g_rom.length % 1024) == 512) g_snes_header_found = true;
+        else g_snes_headerless_found = true;
+      }
+      var header_strip = (g_snes_header_found && g_snes_header_strip) ? 512 : 0;
+      var header_pad = (g_snes_headerless_found && g_snes_header_fake) ? 512 : 0;
+      g_out_valid = false;
+      var patchlimit = ips_validate(g_ips);
+      if (g_rom_valid && g_ips_valid && g_ips_parsed) {
+        var patchedsize = (g_ips_type == 1) ? patchlimit : Math.max(g_rom.length + header_pad - header_strip, patchlimit);
+        var patched = new Uint8Array(patchedsize);
+        var src = g_rom.slice(header_strip);
+        if (g_ips_type != 1) { patched.set(src, header_pad); }
+        else { src = new Uint8Array(g_rom.length + header_pad - header_strip); src.set(g_rom.slice(header_strip), header_pad); }
+        g_out = ips_apply(patched, src, g_ips);
+        if (g_snes_headerless_found && g_snes_header_fake) g_out = g_out.slice(header_pad);
+        g_out_valid = true;
+      }
+      var info_rom = document.getElementById("info_rom");
+      var info_ips = document.getElementById("info_ips");
+      var info_out = document.getElementById("info_out");
+      if (g_rom_valid) {
+        if (g_rom_crc.length < 1) {
+          g_rom_crc = [crc32(g_rom, header_strip)];
+          g_rom_md5 = md5(g_rom, header_strip);
+          g_rom_sha1 = sha1(g_rom, header_strip);
+        }
+        info_rom.innerHTML = g_rom_name + "<br/>" +
+          "CRC: " + stringhash(g_rom_crc) + "<br/>" +
+          "MD5: " + stringhash(g_rom_md5) + "<br/>" +
+          "SHA1: " + stringhash(g_rom_sha1) + "<br/>" +
+          "Size: " + sizestring(g_rom.length - header_strip);
+      } else { info_rom.innerHTML = "No ROM loaded."; }
+      info_ips.innerHTML = g_ips_info;
+      if (g_out_valid) { info_out.innerHTML = g_out_name + "<br/>Size: " + sizestring(g_out.length); }
+      else { info_out.innerHTML = "No result."; }
+      document.getElementById("download").disabled = !g_out_valid;
+      var snes_header = document.getElementById("snes_header_option");
+      if (g_snes_header_found) snes_header.classList.replace("optionhide", "option");
+      else snes_header.classList.replace("option", "optionhide");
+      var snes_headerless = document.getElementById("snes_headerless_option");
+      if (g_snes_headerless_found) snes_headerless.classList.replace("optionhide", "option");
+      else snes_headerless.classList.replace("option", "optionhide");
+    }
+    
+    function file_rom_load(file, event) {
+      g_rom_name = file.name;
+      g_rom = new Uint8Array(event.target.result);
+      g_rom_valid = true;
+      g_rom_crc = [];
+      rebuild();
+    }
+    
+    function file_ips_load(file, event) {
+      g_ips_name = file.name;
+      g_ips = new Uint8Array(event.target.result);
+      g_ips_valid = true;
+      rebuild();
+    }
+    
+    function file_rom(file) {
+      var reader = new FileReader();
+      reader.onload = function(event) { file_rom_load(file, event); }
+      reader.readAsArrayBuffer(file);
+    }
+    
+    function file_ips(file) {
+      var reader = new FileReader();
+      reader.onload = function(event) { file_ips_load(file, event); }
+      reader.readAsArrayBuffer(file);
+    }
+    
+    function browse_rom_click() { document.getElementById("file_rom").click(); }
+    function browse_ips_click() { document.getElementById("file_ips").click(); }
+    
+    function browse_rom() { var fb = document.getElementById("file_rom"); if (fb.files.length > 0) { file_rom(fb.files[0]); } }
+    function browse_ips() { var fb = document.getElementById("file_ips"); if (fb.files.length > 0) { file_ips(fb.files[0]); } }
+    
+    function drop_rom(event) {
+      event.preventDefault();
+      if (event.dataTransfer.files.length > 0) { file_rom(event.dataTransfer.files[0]); }
+      dragleave_rom(event);
+    }
+    
+    function drop_ips(event) {
+      event.preventDefault();
+      if (event.dataTransfer.files.length > 0) { file_ips(event.dataTransfer.files[0]); }
+      dragleave_ips(event);
+    }
+    
+    function drop_cancel(event) { event.preventDefault(); }
+    function dragenter_rom(event) { document.getElementById("panel_rom").style.background = "#FAFAD2"; }
+    function dragenter_ips(event) { document.getElementById("panel_ips").style.background = "#FAFAD2"; }
+    function dragleave_rom(event) { document.getElementById("panel_rom").style.background = ""; }
+    function dragleave_ips(event) { document.getElementById("panel_ips").style.background = ""; }
+    function dragover_rom(event) { event.preventDefault(); dragenter_rom(event); }
+    function dragover_ips(event) { event.preventDefault(); dragenter_ips(event); }
+    
+    function download() {
+      if (!g_out_valid) return;
+      var bytes = new Uint8Array(g_out);
+      var blob = new Blob([bytes], { type: "application/octet-stream" });
+      var a = document.createElement("a");
+      var url = window.URL.createObjectURL(blob);
+      a.style = "display: none";
+      a.download = g_out_name;
+      a.href = url;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(url);
+    }
+    
+    function snes_strip(checkbox) { g_snes_header_strip = checkbox.checked; g_rom_crc = []; rebuild(); }
+    function snes_fake(checkbox) { g_snes_header_fake = checkbox.checked; rebuild(); }
+    
+    function tip(src) {
+      var content = src.nextElementSibling;
+      if (content.style.display === "block") { content.style.display = "none"; src.classList.replace("tipopen", "tip"); }
+      else { content.style.display = "block"; src.classList.replace("tip", "tipopen"); }
+    }
+    
+    function onload() { document.getElementById("snes_header_check").checked = true; document.getElementById("snes_headerless_check").checked = false; rebuild(); }
+  </script>
+</head>
+<body onload="onload();" ondrop="drop_cancel(event);" ondragover="drop_cancel(event);">
+  <h1>IPS ROM Patcher</h1>
+  <div class="lead" style="text-align:center; margin-bottom:20px;">
+    A simple HTML/JavaScript ROM patching utility for IPS files.
+  </div>
+  
+  <noscript>
+    <h2 style="background: yellow; color: red; padding: 10px;">
+      JavaScript is disabled. Please enable JavaScript to use this tool.
+    </h2>
+  </noscript>
+  
+  <!-- Responsive panels using Flexbox -->
+  <div class="panels">
+    <div id="panel_rom" class="panel" ondrop="drop_rom(event);" ondragover="dragover_rom(event);" ondragenter="dragenter_rom(event);" ondragleave="dragleave_rom(event);">
+      <h2>ROM</h2>
+      <input type="file" id="file_rom" style="display:none" onchange="browse_rom();" accept=".sfc,.smc,.swc,.fig,*/*">
+      <input type="button" id="browse_rom" onclick="browse_rom_click();" value="Browse...">
+      <p style="margin-top: 10px;">Drag your ROM file here.</p>
+      <div class="option" id="snes_header_option">
+        <input type="checkbox" class="check" id="snes_header_check" onclick="snes_strip(this);" checked> Remove SNES header.
+        <input type="button" class="tip" onclick="tip(this);" value="?">
+        <div class="tiptext">A 512-byte SNES copier header was detected on this ROM.<br>Normally this should be removed before patching.</div>
+      </div>
+      <div class="option" id="snes_headerless_option">
+        <input type="checkbox" class="check" id="snes_headerless_check" onclick="snes_fake(this);"> Fake SNES header.
+        <input type="button" class="tip" onclick="tip(this);" value="?">
+        <div class="tiptext">Some older SNES patches require a copier header.<br>You can use this option to provide a temporary header.</div>
+      </div>
+      <div id="info_rom" class="info">Page loading...</div>
+    </div>
+    
+    <div id="panel_ips" class="panel" ondrop="drop_ips(event);" ondragover="dragover_ips(event);" ondragenter="dragenter_ips(event);" ondragleave="dragleave_ips(event);">
+      <h2>IPS</h2>
+      <input type="file" id="file_ips" style="display:none" onchange="browse_ips();" accept=".ips">
+      <input type="button" id="browse_ips" onclick="browse_ips_click();" value="Browse...">
+      <p style="margin-top: 10px;">Drag your IPS file here.</p>
+      <div id="info_ips" class="info">Page loading...</div>
+    </div>
+    
+    <div class="panel">
+      <h2>Result</h2>
+      <input type="button" id="download" onclick="download();" value="Download" disabled>
+      <p style="margin-top: 10px;">Get your patched ROM here.</p>
+      <div id="info_out" class="info">No result.</div>
+    </div>
+  </div>
+  
+  <div class="guide">
+    <p>
+      How to use this tool:
+    </p>
+    <ol>
+      <li>Drag your ROM into the box on the left. If your patch provided hashes (CRC, MD5, SHA1) you can check these to make sure you have the correct ROM.</li>
+      <li>Drag the IPS patch into the middle box. (BPS patch files are also supported.)</li>
+      <li>Finally the result should be available to download from the box on the right. The patching is done locally on your computer.</li>
+    </ol>
+    <p>
+      IPS is a file format for making modifications to video game ROMs. It can be used to translate a game, alter its difficulty, add features, replace graphics, create custom levels, and more.
+    </p>
+    <p>
+      Useful resources:
+    </p>
+    <ul>
+      <li><a href="https://www.fantasyanime.com/patching">FantasyAnime Patching tutorial</a></li>
+      <li><a href="https://www.romhacking.net/utilities/1040/">Floating IPS</a></li>
+      <li><a href="https://www.romhacking.net/patch/">ROMhacking.net ROM Patcher</a></li>
+      <li><a href="https://zerosoft.zophar.net/ips.php">ZeroSoft IPS Format</a></li>
+      <li><a href="https://www.romhacking.net/documents/746/">RHDN BPS Format</a></li>
+      <li><a href="https://www.romhacking.net/">ROMhacking.net</a></li>
+      <li><a href="https://aeongenesis.net/">Aeon Genesis</a></li>
+    </ul>
+  </div>
+</body>
+</html>
