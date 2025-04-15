@@ -1,0 +1,715 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <!-- Full-screen viewport for mobile/desktop -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#333">
+  <title>Ballz Retro</title>
+  <!-- Retro pixelated font -->
+  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+  <style>
+    /* Basic reset and centering */
+    html, body {
+      margin: 0;
+      padding: 0;
+      height: 100%;
+      background: #222;
+      font-family: 'Press Start 2P', cursive;
+      color: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+    }
+    /* For mobile: game area fills the viewport */
+    @media (max-width: 480px) {
+      #game-area {
+        width: 100vw;
+        height: 100vh;
+      }
+    }
+    /* For desktop: game area uses full height and maintains 360:640 aspect ratio */
+    @media (min-width: 640px) {
+      #game-area {
+        height: 100vh;
+        width: calc(100vh * (360 / 640));
+      }
+    }
+    /* Game container fills viewport */
+    #game-container {
+      width: 100vw;
+      height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+    }
+    /* Game area (360x640) with pixel rendering and flush edges */
+    #game-area {
+      position: relative;
+      width: 360px;
+      height: 640px;
+      max-width: 100%;
+      max-height: 100%;
+      background: #333;
+      border: 4px solid #fff;
+      image-rendering: pixelated;
+      overflow: hidden;
+      box-sizing: border-box;
+    }
+    canvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+    /* Overlays covering the game area */
+    .overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0,0,0,0.8);
+      z-index: 3;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      cursor: pointer;
+      box-sizing: border-box;
+      overflow: hidden;
+      padding: 20px;
+    }
+    /* Menu overlay */
+    #menuScreen {
+      font-size: 20px;
+    }
+    #menuScreen h1 {
+      margin-bottom: 30px;
+    }
+    .menu-button {
+      background: #000;
+      color: #fff;
+      border: 2px solid #fff;
+      padding: 10px 20px;
+      margin: 10px;
+      font-size: 14px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      cursor: pointer;
+      image-rendering: pixelated;
+    }
+    .menu-button:active {
+      background: #555;
+    }
+    /* Difficulty selection overlay */
+    #difficultyScreen {
+      display: none;
+      font-size: 20px;
+    }
+    #difficultyScreen h2 {
+      margin-bottom: 20px;
+    }
+    /* Start overlay with instructions */
+    #startScreen {
+      display: none;
+      font-size: 14px;
+      overflow: hidden;
+    }
+    /* Game Over overlay */
+    #gameOverScreen {
+      display: none;
+      font-size: 14px;
+    }
+    /* Speedup button styling (hidden on main menu) */
+    #speedupButton {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      z-index: 4;
+      display: none;
+      background: #000;
+      border: 2px solid #fff;
+      border-radius: 50%;
+      width: 40px;
+      height: 40px;
+      cursor: pointer;
+      align-items: center;
+      justify-content: center;
+      display: flex;
+      font-size: 16px;
+      color: #fff;
+    }
+  </style>
+</head>
+<body>
+  <div id="game-container">
+    <div id="game-area">
+      <canvas id="gameCanvas" width="360" height="640"></canvas>
+      <!-- Speedup button (appears 4 seconds into a round) -->
+      <div id="speedupButton" onclick="activateSpeedup()">▶▶▶</div>
+      <!-- Menu overlay -->
+      <div id="menuScreen" class="overlay">
+        <div id="menuContent">
+          <h1>BALLZ RETRO</h1>
+          <div class="menu-button" onclick="selectMode()">Play</div>
+        </div>
+      </div>
+      <!-- Difficulty selection overlay -->
+      <div id="difficultyScreen" class="overlay">
+        <div id="difficultyContent">
+          <h2>Select Difficulty</h2>
+          <div class="menu-button" onclick="setDifficulty('easy')">Easy</div>
+          <div class="menu-button" onclick="setDifficulty('medium')">Medium</div>
+          <div class="menu-button" onclick="setDifficulty('hard')">Hard</div>
+        </div>
+      </div>
+      <!-- Start overlay (instructions) -->
+      <div id="startScreen" class="overlay">
+        <div>
+          <p>
+            The goal of the game is to destroy all blocks before they reach the bottom of the screen.<br>
+            Use clever angled trickery to maximize your collisions.<br>
+            Shooting a ball at a bonus orb will grant you an extra ball.<br><br>
+            Click anywhere to start the game.
+          </p>
+        </div>
+      </div>
+      <!-- Game Over overlay: now includes level reached -->
+      <div id="gameOverScreen" class="overlay">
+        <div id="gameOverContent"></div>
+      </div>
+    </div>
+  </div>
+  
+  <script>
+    // -------------------------------------------------
+    // Service Worker Registration (for PWA)
+    // -------------------------------------------------
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./sw.js')
+          .then(reg => console.log("Service Worker registered with scope:", reg.scope))
+          .catch(err => console.log("SW registration failed:", err));
+      });
+    }
+    
+    // -------------------------------------------------
+    // External Asset Loading with Fallback
+    // -------------------------------------------------
+    let ballImg = new Image();
+    ballImg.src = "assets/ball.png";
+    ballImg.onerror = () => { ballImg = null; };
+
+    let blockImg = new Image();
+    blockImg.src = "assets/block.png";
+    blockImg.onerror = () => { blockImg = null; };
+
+    let backgroundImg = new Image();
+    backgroundImg.src = "assets/background.png";
+    backgroundImg.onerror = () => { backgroundImg = null; };
+    
+    // -------------------------------------------------
+    // Global Game Variables & Settings
+    // -------------------------------------------------
+    const GAME_WIDTH = 360;
+    const GAME_HEIGHT = 640;
+    
+    // Grid settings for Scroll Play
+    const columns = 7;
+    const gap = 4;
+    const topMargin = 0; // Flush with top.
+    const leftMargin = 0;
+    const blockSize = Math.floor((GAME_WIDTH - (columns - 1) * gap) / columns);
+    const cellHeight = blockSize + gap;
+    // Blocks drop exactly one grid unit per round.
+    let globalDropOffset = 0;
+    const normalBlockColors = ["#FF5555", "#FFAA00", "#55FF55", "#55AAFF", "#AA55FF"];
+    
+    // Game state variables
+    let totalBalls = 1;
+    let displayBalls = totalBalls;
+    let activeBalls = [];
+    let ballsToLaunch = 0;
+    let launchTimer = 0;
+    const launchDelay = 5;
+    let turnShooting = false;
+    let launchVx = 0, launchVy = 0;
+    let currentLevel = 1;
+    let gameStarted = false;
+    let lastBallX = GAME_WIDTH / 2;
+    let speedMultiplier = 1;
+    let roundStartTime = 0;
+    
+    // Difficulty scaling factor: easy = 0.1, medium = 0.2, hard = 0.3.
+    let difficultyFactor = 0.1;
+    
+    const shooter = { x: GAME_WIDTH / 2, y: GAME_HEIGHT - 30, radius: 8 };
+    const aim = { x: shooter.x, y: shooter.y - 100 };
+    
+    // -------------------------------------------------
+    // Utility Function: Return n unique integers in [min, max]
+    // -------------------------------------------------
+    function getRandomUniqueIntegers(n, min, max) {
+      let arr = [];
+      for (let i = min; i <= max; i++) { arr.push(i); }
+      // Shuffle array.
+      for (let i = arr.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [arr[i], arr[j]] = [arr[j], arr[i]];
+      }
+      return arr.slice(0, n);
+    }
+    
+    // -------------------------------------------------
+    // Data for Blocks (Scroll Play Mode)
+    // -------------------------------------------------
+    // We want each new row to have a minimum of 3 solid normal blocks and a maximum of 2 clock blocks.
+    let blocks = [];
+    function loadInitialBlocks() {
+      blocks = [];
+      // Generate one full row (row index 0) using addNewRowCustom()
+      addNewRowCustom();
+    }
+    function addNewRowCustom() {
+      // Create a new row at grid row -1.
+      let newRow = [];
+      // For 7 columns, choose 3 random columns to definitely have a normal block.
+      let mandatory = getRandomUniqueIntegers(3, 0, columns - 1);
+      let clockCount = 0;
+      for (let col = 0; col < columns; col++) {
+        if (mandatory.includes(col)) {
+          // Create a normal block.
+          let baseHP = Math.floor(Math.random() * 5) + 1;
+          baseHP += Math.floor(currentLevel / 2);
+          let scalingFactor = 1 + (totalBalls - 1) * difficultyFactor;
+          let scaledHP = Math.floor(baseHP * scalingFactor);
+          newRow.push({ type: "normal", row: -1, col: col, value: scaledHP, 
+            color: normalBlockColors[Math.floor(Math.random() * normalBlockColors.length)] });
+        } else {
+          // For remaining columns, with 70% chance create a block.
+          if (Math.random() < 0.7) {
+            let baseHP = Math.floor(Math.random() * 5) + 1;
+            baseHP += Math.floor(currentLevel / 2);
+            let scalingFactor = 1 + (totalBalls - 1) * difficultyFactor;
+            let scaledHP = Math.floor(baseHP * scalingFactor);
+            // Up to 2 clock blocks allowed.
+            let blockType = "normal";
+            if (Math.random() < 0.20 && clockCount < 2) {
+              blockType = "clock";
+              clockCount++;
+            }
+            let color = (blockType === "clock") ? "#FFFFFF" : normalBlockColors[Math.floor(Math.random() * normalBlockColors.length)];
+            newRow.push({ type: blockType, row: -1, col: col, value: scaledHP, color: color });
+          }
+        }
+      }
+      // Add newRow blocks to the global blocks array.
+      blocks = blocks.concat(newRow);
+    }
+    function addNewRow() {
+      // Use the custom row generator for new rows.
+      addNewRowCustom();
+    }
+    function newTurn() {
+      blocks.forEach(block => block.row++);
+      globalDropOffset = 0;
+      // Check game over: if any block is at or below the bottom.
+      for (let block of blocks) {
+        let rect = getBlockRect(block);
+        if (rect.y + rect.height >= GAME_HEIGHT) {
+          gameOver();
+          return;
+        }
+      }
+      addNewRow();
+      currentLevel++;
+    }
+    
+    // -------------------------------------------------
+    // Utility & Collision Functions
+    // -------------------------------------------------
+    function clamp(val, min, max) {
+      return Math.max(min, Math.min(max, val));
+    }
+    function getBlockRect(block) {
+      const x = leftMargin + block.col * (blockSize + gap);
+      const y = topMargin + block.row * (blockSize + gap);
+      return { x: x, y: y, width: blockSize, height: blockSize };
+    }
+    function circleRectCollision(circle, rect) {
+      const closestX = clamp(circle.x, rect.x, rect.x + rect.width);
+      const closestY = clamp(circle.y, rect.y, rect.y + rect.height);
+      const dx = circle.x - closestX;
+      const dy = circle.y - closestY;
+      return (dx * dx + dy * dy) < (circle.radius * circle.radius);
+    }
+    function circleCircleCollision(c1, r1, c2, r2) {
+      const dx = c1.x - c2.x;
+      const dy = c1.y - c2.y;
+      return (dx * dx + dy * dy) < Math.pow(r1 + r2, 2);
+    }
+    
+    // -------------------------------------------------
+    // Sound Effect Setup
+    // -------------------------------------------------
+    const popSound = new Audio("data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAESsAACJWAAACABAAZGF0YQAAAAA=");
+    popSound.onerror = () => {};
+    
+    // -------------------------------------------------
+    // Ball Launching & Updating
+    // -------------------------------------------------
+    function updateBalls() {
+      if (!gameStarted) return;
+      
+      // Show speedup button after 4 seconds.
+      if (turnShooting && roundStartTime && performance.now() - roundStartTime >= 4000) {
+        document.getElementById("speedupButton").style.display = "flex";
+      }
+      
+      if (turnShooting) {
+        launchTimer++;
+        if (launchTimer >= launchDelay && ballsToLaunch > 0) {
+          launchTimer = 0;
+          ballsToLaunch--;
+          displayBalls--;
+          activeBalls.push({ x: shooter.x, y: shooter.y, radius: 5, vx: launchVx, vy: launchVy });
+        }
+      }
+      
+      for (let i = 0; i < activeBalls.length; i++) {
+        let b = activeBalls[i];
+        b.x += b.vx * speedMultiplier;
+        b.y += b.vy * speedMultiplier;
+        if (b.x < b.radius || b.x > GAME_WIDTH - b.radius) {
+          b.vx = -b.vx;
+          b.x = (b.x < b.radius) ? b.radius : GAME_WIDTH - b.radius;
+        }
+        if (b.y < b.radius) {
+          b.vy = -b.vy;
+          b.y = b.radius;
+        }
+        let collided = false;
+        let collisionDx = 0, collisionDy = 0;
+        for (let j = blocks.length - 1; j >= 0; j--) {
+          let block = blocks[j];
+          let rect = getBlockRect(block);
+          if (rect.y < 0) continue; // Skip blocks not fully visible.
+          if (block.type === "clock") {
+            let clockCenter = { x: rect.x + rect.width/2, y: rect.y + rect.height/2 };
+            let clockRadius = rect.width * 0.55;  // Expanded hitbox.
+            if (circleCircleCollision({ x: b.x, y: b.y }, b.radius, clockCenter, clockRadius)) {
+              collided = true;
+              block.value--;
+              popSound.currentTime = 0;
+              popSound.play().catch(() => {});
+              if (block.value <= 0) {
+                totalBalls++;
+                blocks.splice(j, 1);
+              }
+              // Clock blocks do not cause bounce.
+            }
+          } else {
+            if (circleRectCollision(b, rect)) {
+              collided = true;
+              block.value--;
+              popSound.currentTime = 0;
+              popSound.play().catch(() => {});
+              if (block.value <= 0) {
+                blocks.splice(j, 1);
+              }
+              let blockCenter = { x: rect.x + rect.width/2, y: rect.y + rect.height/2 };
+              collisionDx += (b.x - blockCenter.x);
+              collisionDy += (b.y - blockCenter.y);
+            }
+          }
+        }
+        if (collided && (collisionDx !== 0 || collisionDy !== 0)) {
+          if (Math.abs(collisionDx) > Math.abs(collisionDy))
+            b.vx = -b.vx;
+          else
+            b.vy = -b.vy;
+        }
+      }
+      activeBalls = activeBalls.filter(b => {
+        if (b.y > GAME_HEIGHT - b.radius) {
+          lastBallX = b.x;
+          return false;
+        }
+        return true;
+      });
+      
+      if (turnShooting && activeBalls.length === 0 && ballsToLaunch === 0) {
+        speedMultiplier = 1;
+        document.getElementById("speedupButton").style.display = "none";
+        turnShooting = false;
+        displayBalls = totalBalls;
+        shooter.x = lastBallX;
+        roundStartTime = 0;
+        newTurn();
+      }
+    }
+    
+    // -------------------------------------------------
+    // Drawing Functions
+    // -------------------------------------------------
+    const canvas = document.getElementById("gameCanvas");
+    const ctx = canvas.getContext("2d");
+    function draw() {
+      ctx.clearRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
+      if (backgroundImg) {
+        ctx.drawImage(backgroundImg, 0, 0, GAME_WIDTH, GAME_HEIGHT);
+      }
+      if (!turnShooting) {
+        if (ballImg) {
+          ctx.drawImage(ballImg, shooter.x - shooter.radius, shooter.y - shooter.radius, shooter.radius * 2, shooter.radius * 2);
+        } else {
+          ctx.fillStyle = "#fff";
+          ctx.beginPath();
+          ctx.arc(shooter.x, shooter.y, shooter.radius, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
+      activeBalls.forEach(b => {
+        if (ballImg) {
+          ctx.drawImage(ballImg, b.x - b.radius, b.y - b.radius, b.radius * 2, b.radius * 2);
+        } else {
+          ctx.fillStyle = "#ff0";
+          ctx.beginPath();
+          ctx.arc(b.x, b.y, b.radius, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      });
+      if (!turnShooting) {
+        ctx.strokeStyle = "#0f0";
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(shooter.x, shooter.y);
+        ctx.lineTo(aim.x, aim.y);
+        ctx.stroke();
+      }
+      blocks.forEach(block => {
+        let rect = getBlockRect(block);
+        if (rect.y < 0) return;
+        if (block.type === "clock") {
+          ctx.fillStyle = "#FFFFFF";
+          ctx.beginPath();
+          ctx.arc(rect.x + rect.width/2, rect.y + rect.height/2, rect.width/2, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.strokeStyle = "#000";
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.arc(rect.x + rect.width/2, rect.y + rect.height/2, rect.width/2 - 4, 0, Math.PI * 2);
+          ctx.stroke();
+        } else {
+          if (blockImg) {
+            ctx.drawImage(blockImg, rect.x, rect.y, rect.width, rect.height);
+          } else {
+            ctx.fillStyle = block.color;
+            ctx.fillRect(rect.x, rect.y, rect.width, rect.height);
+            ctx.strokeStyle = "#fff";
+            ctx.lineWidth = 2;
+            ctx.strokeRect(rect.x, rect.y, rect.width, rect.height);
+          }
+        }
+        ctx.fillStyle = "#fff";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText(block.value, rect.x + rect.width/2, rect.y + rect.height/2);
+      });
+      ctx.font = "16px 'Press Start 2P', cursive";
+      ctx.textAlign = "left";
+      ctx.fillStyle = "#fff";
+      ctx.fillText("Balls: " + (turnShooting ? displayBalls : totalBalls), 10, GAME_HEIGHT - 10);
+      ctx.textAlign = "right";
+      ctx.fillText("lv " + currentLevel, GAME_WIDTH - 10, GAME_HEIGHT - 10);
+    }
+    
+    function gameLoop() {
+      updateBalls();
+      updateSpeedupButton();
+      draw();
+      requestAnimationFrame(gameLoop);
+    }
+    
+    // -------------------------------------------------
+    // Speedup Button Handling
+    // -------------------------------------------------
+    function updateSpeedupButton() {
+      if (!gameStarted) {
+        document.getElementById("speedupButton").style.display = "none";
+        return;
+      }
+      if (turnShooting && roundStartTime && performance.now() - roundStartTime >= 4000) {
+        document.getElementById("speedupButton").style.display = "flex";
+      }
+    }
+    
+    function activateSpeedup() {
+      speedMultiplier = 3;
+      document.getElementById("speedupButton").style.display = "none";
+    }
+    
+    // -------------------------------------------------
+    // Overlays: Menu, Difficulty, Start, and Game Over
+    // -------------------------------------------------
+    function selectMode() {
+      document.getElementById("speedupButton").style.display = "none";
+      gameMode = "scroll";
+      document.getElementById("menuScreen").style.display = "none";
+      document.getElementById("difficultyScreen").style.display = "flex";
+    }
+    
+    function setDifficulty(diff) {
+      if (diff === "easy") { difficultyFactor = 0.1; }
+      else if (diff === "medium") { difficultyFactor = 0.2; }
+      else if (diff === "hard") { difficultyFactor = 0.3; }
+      document.getElementById("difficultyScreen").style.display = "none";
+      let startEl = document.getElementById("startScreen");
+      startEl.innerHTML =
+        "<p>" +
+        "The goal of the game is to destroy all blocks before they reach the bottom of the screen.<br>" +
+        "Use clever angled trickery to maximize your collisions.<br>" +
+        "Shooting a ball at a bonus orb will grant you an extra ball.<br><br>" +
+        "Click anywhere to start the game" +
+        "</p>";
+      startEl.onclick = startGame;
+      startEl.style.display = "flex";
+      loadInitialBlocks();
+    }
+    
+    function startGame() {
+      gameStarted = true;
+      document.getElementById("startScreen").style.display = "none";
+      roundStartTime = performance.now();
+    }
+    
+    // When game is over, display level reached and then return to main menu on click.
+    function gameOver(win = false) {
+      gameStarted = false;
+      let msg = win ? "You Win!<br>" : "Game Over!<br>";
+      msg += "You reached lv " + currentLevel + "<br>Click to return to main menu.";
+      let gameOverEl = document.getElementById("gameOverScreen");
+      gameOverEl.innerHTML = msg;
+      // Change the click handler so that clicking game over returns to main menu.
+      gameOverEl.onclick = goToMainMenu;
+      gameOverEl.style.display = "flex";
+    }
+    
+    function goToMainMenu() {
+      // Reset game state and show main menu overlay.
+      totalBalls = 1;
+      currentLevel = 1;
+      globalDropOffset = 0;
+      activeBalls = [];
+      turnShooting = false;
+      displayBalls = totalBalls;
+      document.getElementById("gameOverScreen").style.display = "none";
+      document.getElementById("menuScreen").style.display = "flex";
+    }
+    
+    // -------------------------------------------------
+    // Input Handling & Minimum Launch Angle Enforcement
+    // -------------------------------------------------
+    function getPointerPos(evt) {
+      const rect = canvas.getBoundingClientRect();
+      let clientX, clientY;
+      if (evt.touches && evt.touches.length > 0) {
+        clientX = evt.touches[0].clientX;
+        clientY = evt.touches[0].clientY;
+      } else {
+        clientX = evt.clientX;
+        clientY = evt.clientY;
+      }
+      return { x: clientX - rect.left, y: clientY - rect.top };
+    }
+    
+    canvas.addEventListener("mousedown", (evt) => {
+      if (!gameStarted) return;
+      const pos = getPointerPos(evt);
+      aim.x = pos.x;
+      aim.y = pos.y;
+    });
+    canvas.addEventListener("mousemove", (evt) => {
+      if (!gameStarted) return;
+      const pos = getPointerPos(evt);
+      aim.x = pos.x;
+      aim.y = pos.y;
+    });
+    canvas.addEventListener("mouseup", (evt) => {
+      if (!gameStarted || turnShooting) return;
+      const pos = getPointerPos(evt);
+      aim.x = pos.x;
+      aim.y = pos.y;
+      let dx = aim.x - shooter.x;
+      let dy = aim.y - shooter.y;
+      const minRatio = Math.tan(4 * Math.PI / 180);
+      if (Math.abs(dy) < Math.abs(dx) * minRatio) {
+        dy = -Math.abs(dx) * minRatio;
+      }
+      const mag = Math.sqrt(dx * dx + dy * dy);
+      if (mag === 0) return;
+      launchVx = (dx / mag) * 6;
+      launchVy = (dy / mag) * 6;
+      turnShooting = true;
+      ballsToLaunch = totalBalls;
+      activeBalls = [];
+      launchTimer = 0;
+      displayBalls = totalBalls;
+      roundStartTime = performance.now();
+      document.getElementById("speedupButton").style.display = "none";
+    });
+    
+    canvas.addEventListener("touchstart", (evt) => {
+      evt.preventDefault();
+      if (!gameStarted) return;
+      const pos = getPointerPos(evt);
+      aim.x = pos.x;
+      aim.y = pos.y;
+    }, { passive: false });
+    canvas.addEventListener("touchmove", (evt) => {
+      evt.preventDefault();
+      if (!gameStarted) return;
+      const pos = getPointerPos(evt);
+      aim.x = pos.x;
+      aim.y = pos.y;
+    }, { passive: false });
+    canvas.addEventListener("touchend", (evt) => {
+      evt.preventDefault();
+      if (!gameStarted || turnShooting) return;
+      let dx = aim.x - shooter.x;
+      let dy = aim.y - shooter.y;
+      const minRatio = Math.tan(4 * Math.PI / 180);
+      if (Math.abs(dy) < Math.abs(dx) * minRatio) {
+        dy = -Math.abs(dx) * minRatio;
+      }
+      const mag = Math.sqrt(dx * dx + dy * dy);
+      if (mag === 0) return;
+      launchVx = (dx / mag) * 6;
+      launchVy = (dy / mag) * 6;
+      turnShooting = true;
+      ballsToLaunch = totalBalls;
+      activeBalls = [];
+      launchTimer = 0;
+      displayBalls = totalBalls;
+      roundStartTime = performance.now();
+      document.getElementById("speedupButton").style.display = "none";
+    }, { passive: false });
+    
+    // -------------------------------------------------
+    // Game Loop
+    // -------------------------------------------------
+    function gameLoop() {
+      updateBalls();
+      updateSpeedupButton();
+      draw();
+      requestAnimationFrame(gameLoop);
+    }
+    
+    gameLoop();
+  </script>
+</body>
+</html>

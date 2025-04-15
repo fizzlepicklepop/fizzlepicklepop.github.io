@@ -7,7 +7,7 @@
   <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#333">
   <title>Ballz Retro</title>
-  <!-- Load retro pixel font -->
+  <!-- Load retro pixelated font -->
   <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
   <style>
     /* Basic reset and centering */
@@ -30,7 +30,7 @@
         height: 100vh;
       }
     }
-    /* For desktop: full height with correct aspect ratio */
+    /* For desktop: game area uses full height and maintains a 360:640 aspect ratio */
     @media (min-width: 640px) {
       #game-area {
         height: 100vh;
@@ -46,7 +46,7 @@
       justify-content: center;
       overflow: hidden;
     }
-    /* The game area (360×640) */
+    /* Game area (360x640) with pixel rendering and flush edges */
     #game-area {
       position: relative;
       width: 360px;
@@ -64,7 +64,7 @@
       height: 100%;
       display: block;
     }
-    /* Overlays */
+    /* Overlays covering the game area */
     .overlay {
       position: absolute;
       top: 0;
@@ -124,7 +124,7 @@
       display: none;
       font-size: 14px;
     }
-    /* Speedup Button (hidden on menus) */
+    /* Speedup Button – hidden on main menu */
     #speedupButton {
       position: absolute;
       top: 10px;
@@ -148,7 +148,7 @@
   <div id="game-container">
     <div id="game-area">
       <canvas id="gameCanvas" width="360" height="640"></canvas>
-      <!-- Speedup button (shows 4 seconds into a round) -->
+      <!-- Speedup Button (appears 4 seconds into a round) -->
       <div id="speedupButton">▶▶▶</div>
       <!-- Main Menu Overlay -->
       <div id="menuScreen" class="overlay">
@@ -185,11 +185,10 @@
   </div>
   
   <script>
+    // Wrap the code in DOMContentLoaded to ensure all elements are present
     document.addEventListener("DOMContentLoaded", function () {
       
-      // -------------------------------------------------
-      // Service Worker Registration (for PWA)
-      // -------------------------------------------------
+      // --- Service Worker Registration ---
       if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
           navigator.serviceWorker.register('./sw.js')
@@ -198,9 +197,7 @@
         });
       }
       
-      // -------------------------------------------------
-      // External Asset Loading with Fallback
-      // -------------------------------------------------
+      // --- External Asset Loading with Fallback ---
       let ballImg = new Image();
       ballImg.src = "assets/ball.png";
       ballImg.onerror = () => { ballImg = null; };
@@ -213,17 +210,7 @@
       backgroundImg.src = "assets/background.png";
       backgroundImg.onerror = () => { backgroundImg = null; };
       
-      // Sound effects with fallback for missing assets:
-      let hitSound = new Audio("assets/hit.wav");
-      hitSound.onerror = () => { console.log("Hit sound failed to load"); hitSound = null; };
-      let clockSound = new Audio("assets/clock.wav");
-      clockSound.onerror = () => { console.log("Clock sound failed to load"); clockSound = null; };
-      let breakSound = new Audio("assets/break.wav");
-      breakSound.onerror = () => { console.log("Break sound failed to load"); breakSound = null; };
-      
-      // -------------------------------------------------
-      // Global Game Variables & Settings
-      // -------------------------------------------------
+      // --- Global Game Variables & Settings ---
       const GAME_WIDTH = 360;
       const GAME_HEIGHT = 640;
       
@@ -250,22 +237,16 @@
       let speedMultiplier = 1;
       let roundStartTime = 0;
       
-      // Difficulty scaling factor: easy = 0.1, medium = 0.2, hard = 0.3.
+      // Difficulty scaling: easy = 0.1, medium = 0.2, hard = 0.3.
       let difficultyFactor = 0.1;
       
-      // Declare gameMode to avoid undefined errors.
       let gameMode = "";
       
       const shooter = { x: GAME_WIDTH / 2, y: GAME_HEIGHT - 30, radius: 8 };
       const aim = { x: shooter.x, y: shooter.y - 100 };
       
-      // -------------------------------------------------
-      // Custom Row Generator
-      // Ensures at least 3 normal blocks per row, a maximum of 2 clock blocks per row,
-      // and forces a clock block if two consecutive rows lack one.
-      // -------------------------------------------------
+      // --- Custom Row Generator ---
       let consecutiveRowsWithoutClock = 0;
-      
       function addNewRowCustom() {
         let newRow = [];
         let mandatoryNormal = getRandomUniqueIntegers(3, 0, columns - 1);
@@ -289,7 +270,8 @@
                 blockType = "clock";
                 clockCount++;
               }
-              let color = (blockType === "clock") ? "#FFFFFF" : normalBlockColors[Math.floor(Math.random() * normalBlockColors.length)];
+              let color = (blockType === "clock") ? "#FFFFFF" :
+                normalBlockColors[Math.floor(Math.random() * normalBlockColors.length)];
               newRow.push({ type: blockType, row: -1, col: col, value: scaledHP, color: color });
             }
           }
@@ -351,9 +333,7 @@
         currentLevel++;
       }
       
-      // -------------------------------------------------
-      // Utility & Collision Functions
-      // -------------------------------------------------
+      // --- Utility & Collision Functions ---
       function clamp(val, min, max) {
         return Math.max(min, Math.min(max, val));
       }
@@ -378,19 +358,7 @@
         return (dx * dx + dy * dy) < Math.pow(r1 + r2, 2);
       }
       
-      // -------------------------------------------------
-      // Sound Effects Setup
-      // -------------------------------------------------
-      const hitSound = new Audio("assets/hit.wav");
-      hitSound.onerror = () => { console.log("Hit sound failed to load"); hitSound = null; };
-      const clockSound = new Audio("assets/clock.wav");
-      clockSound.onerror = () => { console.log("Clock sound failed to load"); clockSound = null; };
-      const breakSound = new Audio("assets/break.wav");
-      breakSound.onerror = () => { console.log("Break sound failed to load"); breakSound = null; };
-      
-      // -------------------------------------------------
-      // Ball Launching & Updating
-      // -------------------------------------------------
+      // --- Ball Launching & Updating ---
       function updateBalls() {
         if (!gameStarted) return;
         
@@ -427,11 +395,10 @@
             let rect = getBlockRect(block);
             if (rect.y < 0) continue;
             if (block.type === "clock") {
-              let clockCenter = { x: rect.x + rect.width / 2, y: rect.y + rect.height / 2 };
+              let clockCenter = { x: rect.x + rect.width/2, y: rect.y + rect.height/2 };
               let clockRadius = rect.width * 0.55;
               if (circleCircleCollision({ x: b.x, y: b.y }, b.radius, clockCenter, clockRadius)) {
                 collided = true;
-                if (clockSound) { clockSound.currentTime = 0; clockSound.play().catch(() => {}); }
                 block.value--;
                 if (block.value <= 0) {
                   totalBalls++;
@@ -441,13 +408,11 @@
             } else {
               if (circleRectCollision(b, rect)) {
                 collided = true;
-                if (hitSound) { hitSound.currentTime = 0; hitSound.play().catch(() => {}); }
                 block.value--;
                 if (block.value <= 0) {
-                  if (breakSound) { breakSound.currentTime = 0; breakSound.play().catch(() => {}); }
                   blocks.splice(j, 1);
                 }
-                let blockCenter = { x: rect.x + rect.width / 2, y: rect.y + rect.height / 2 };
+                let blockCenter = { x: rect.x + rect.width/2, y: rect.y + rect.height/2 };
                 collisionDx += (b.x - blockCenter.x);
                 collisionDy += (b.y - blockCenter.y);
               }
@@ -480,9 +445,7 @@
         }
       }
       
-      // -------------------------------------------------
-      // Drawing Functions
-      // -------------------------------------------------
+      // --- Drawing Functions ---
       const canvas = document.getElementById("gameCanvas");
       const ctx = canvas.getContext("2d");
       function draw() {
@@ -524,12 +487,12 @@
           if (block.type === "clock") {
             ctx.fillStyle = "#FFFFFF";
             ctx.beginPath();
-            ctx.arc(rect.x + rect.width / 2, rect.y + rect.height / 2, rect.width / 2, 0, Math.PI * 2);
+            ctx.arc(rect.x + rect.width/2, rect.y + rect.height/2, rect.width/2, 0, Math.PI * 2);
             ctx.fill();
             ctx.strokeStyle = "#000";
             ctx.lineWidth = 2;
             ctx.beginPath();
-            ctx.arc(rect.x + rect.width / 2, rect.y + rect.height / 2, rect.width / 2 - 4, 0, Math.PI * 2);
+            ctx.arc(rect.x + rect.width/2, rect.y + rect.height/2, rect.width/2 - 4, 0, Math.PI * 2);
             ctx.stroke();
           } else {
             if (blockImg) {
@@ -545,7 +508,7 @@
           ctx.fillStyle = "#fff";
           ctx.textAlign = "center";
           ctx.textBaseline = "middle";
-          ctx.fillText(block.value, rect.x + rect.width / 2, rect.y + rect.height / 2);
+          ctx.fillText(block.value, rect.x + rect.width/2, rect.y + rect.height/2);
         });
         ctx.font = "16px 'Press Start 2P', cursive";
         ctx.textAlign = "left";
@@ -562,9 +525,7 @@
         requestAnimationFrame(gameLoop);
       }
       
-      // -------------------------------------------------
-      // Speedup Button Handling
-      // -------------------------------------------------
+      // --- Speedup Button Handling ---
       function updateSpeedupButton() {
         if (!gameStarted) {
           document.getElementById("speedupButton").style.display = "none";
@@ -580,9 +541,7 @@
         document.getElementById("speedupButton").style.display = "none";
       }
       
-      // -------------------------------------------------
-      // Overlays & Navigation
-      // -------------------------------------------------
+      // --- Overlays & Navigation Functions ---
       function selectMode() {
         console.log("selectMode called");
         document.getElementById("speedupButton").style.display = "none";
@@ -639,9 +598,7 @@
         document.getElementById("menuScreen").style.display = "flex";
       }
       
-      // -------------------------------------------------
-      // Input Handling & Launch Angle Enforcement
-      // -------------------------------------------------
+      // --- Input Handling & Launch Angle Enforcement ---
       function getPointerPos(evt) {
         const rect = canvas.getBoundingClientRect();
         let clientX, clientY;
@@ -661,12 +618,14 @@
         aim.x = pos.x;
         aim.y = pos.y;
       });
+      
       canvas.addEventListener("mousemove", (evt) => {
         if (!gameStarted) return;
         const pos = getPointerPos(evt);
         aim.x = pos.x;
         aim.y = pos.y;
       });
+      
       canvas.addEventListener("mouseup", (evt) => {
         if (!gameStarted || turnShooting) return;
         const pos = getPointerPos(evt);
@@ -675,7 +634,9 @@
         let dx = aim.x - shooter.x;
         let dy = aim.y - shooter.y;
         const minRatio = Math.tan(4 * Math.PI / 180);
-        if (Math.abs(dy) < Math.abs(dx) * minRatio) { dy = -Math.abs(dx) * minRatio; }
+        if (Math.abs(dy) < Math.abs(dx) * minRatio) {
+          dy = -Math.abs(dx) * minRatio;
+        }
         const mag = Math.sqrt(dx * dx + dy * dy);
         if (mag === 0) return;
         launchVx = (dx / mag) * 6;
@@ -696,6 +657,7 @@
         aim.x = pos.x;
         aim.y = pos.y;
       }, { passive: false });
+      
       canvas.addEventListener("touchmove", (evt) => {
         evt.preventDefault();
         if (!gameStarted) return;
@@ -703,13 +665,16 @@
         aim.x = pos.x;
         aim.y = pos.y;
       }, { passive: false });
+      
       canvas.addEventListener("touchend", (evt) => {
         evt.preventDefault();
         if (!gameStarted || turnShooting) return;
         let dx = aim.x - shooter.x;
         let dy = aim.y - shooter.y;
         const minRatio = Math.tan(4 * Math.PI / 180);
-        if (Math.abs(dy) < Math.abs(dx) * minRatio) { dy = -Math.abs(dx) * minRatio; }
+        if (Math.abs(dy) < Math.abs(dx) * minRatio) {
+          dy = -Math.abs(dx) * minRatio;
+        }
         const mag = Math.sqrt(dx * dx + dy * dy);
         if (mag === 0) return;
         launchVx = (dx / mag) * 6;
@@ -723,9 +688,6 @@
         document.getElementById("speedupButton").style.display = "none";
       }, { passive: false });
       
-      // -------------------------------------------------
-      // Game Loop
-      // -------------------------------------------------
       function gameLoop() {
         updateBalls();
         updateSpeedupButton();
@@ -735,26 +697,20 @@
       
       gameLoop();
       
-      // -------------------------------------------------
-      // Attach Event Listeners to Overlay Buttons
-      // -------------------------------------------------
+      // --- Attach Event Listeners to Overlay Buttons ---
       document.getElementById("playButton").addEventListener("click", selectMode);
       document.getElementById("easyBtn").addEventListener("click", () => { setDifficulty("easy"); });
       document.getElementById("mediumBtn").addEventListener("click", () => { setDifficulty("medium"); });
       document.getElementById("hardBtn").addEventListener("click", () => { setDifficulty("hard"); });
       
-      // -------------------------------------------------
-      // Expose some functions to global scope (for sw.js registration, etc.)
-      // -------------------------------------------------
+      // Expose functions globally (if needed)
       window.selectMode = selectMode;
       window.setDifficulty = setDifficulty;
       window.startGame = startGame;
       window.activateSpeedup = activateSpeedup;
       window.goToMainMenu = goToMainMenu;
       
-      // -------------------------------------------------
-      // Overlay Navigation Functions
-      // -------------------------------------------------
+      // --- Overlay Navigation Functions ---
       function selectMode() {
         console.log("selectMode called");
         document.getElementById("speedupButton").style.display = "none";
