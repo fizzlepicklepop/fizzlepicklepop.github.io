@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <!-- Full-screen viewport for mobile/desktop -->
+  <!-- Full-screen viewport for mobile and desktop -->
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#333">
@@ -23,14 +23,14 @@
       justify-content: center;
       overflow: hidden;
     }
-    /* For mobile devices: game area fills viewport */
+    /* For mobile devices: game area fills the viewport */
     @media (max-width: 480px) {
       #game-area {
         width: 100vw;
         height: 100vh;
       }
     }
-    /* For desktop: game area uses full height and maintains a 360:640 aspect ratio */
+    /* For desktop: use full height and maintain 360:640 aspect ratio */
     @media (min-width: 640px) {
       #game-area {
         height: 100vh;
@@ -124,7 +124,7 @@
       display: none;
       font-size: 14px;
     }
-    /* Speedup Button – hidden on main menu */
+    /* Speedup Button: hidden on main menu */
     #speedupButton {
       position: absolute;
       top: 10px;
@@ -148,8 +148,8 @@
   <div id="game-container">
     <div id="game-area">
       <canvas id="gameCanvas" width="360" height="640"></canvas>
-      <!-- Speedup Button (appears 4 seconds into a round) -->
-      <div id="speedupButton">▶▶▶</div>
+      <!-- Speedup button (appears 4 seconds into a round) -->
+      <div id="speedupButton" onclick="activateSpeedup()">▶▶▶</div>
       <!-- Main Menu Overlay -->
       <div id="menuScreen" class="overlay">
         <div id="menuContent">
@@ -166,7 +166,7 @@
           <div class="menu-button" id="hardBtn">Hard</div>
         </div>
       </div>
-      <!-- Start Overlay with Instructions -->
+      <!-- Start Overlay (Instructions) -->
       <div id="startScreen" class="overlay">
         <div id="instructions">
           <p>
@@ -185,7 +185,7 @@
   </div>
   
   <script>
-    // Wrap the code in DOMContentLoaded to ensure all elements are present
+    // Wrap everything in DOMContentLoaded to ensure elements are ready.
     document.addEventListener("DOMContentLoaded", function () {
       
       // --- Service Worker Registration ---
@@ -216,7 +216,7 @@
       
       const columns = 7;
       const gap = 4;
-      const topMargin = 0;  // Blocks flush with top.
+      const topMargin = 0;
       const leftMargin = 0;
       const blockSize = Math.floor((GAME_WIDTH - (columns - 1) * gap) / columns);
       const cellHeight = blockSize + gap;
@@ -270,8 +270,7 @@
                 blockType = "clock";
                 clockCount++;
               }
-              let color = (blockType === "clock") ? "#FFFFFF" :
-                normalBlockColors[Math.floor(Math.random() * normalBlockColors.length)];
+              let color = (blockType === "clock") ? "#FFFFFF" : normalBlockColors[Math.floor(Math.random() * normalBlockColors.length)];
               newRow.push({ type: blockType, row: -1, col: col, value: scaledHP, color: color });
             }
           }
@@ -395,7 +394,7 @@
             let rect = getBlockRect(block);
             if (rect.y < 0) continue;
             if (block.type === "clock") {
-              let clockCenter = { x: rect.x + rect.width/2, y: rect.y + rect.height/2 };
+              let clockCenter = { x: rect.x + rect.width / 2, y: rect.y + rect.height / 2 };
               let clockRadius = rect.width * 0.55;
               if (circleCircleCollision({ x: b.x, y: b.y }, b.radius, clockCenter, clockRadius)) {
                 collided = true;
@@ -412,7 +411,7 @@
                 if (block.value <= 0) {
                   blocks.splice(j, 1);
                 }
-                let blockCenter = { x: rect.x + rect.width/2, y: rect.y + rect.height/2 };
+                let blockCenter = { x: rect.x + rect.width / 2, y: rect.y + rect.height / 2 };
                 collisionDx += (b.x - blockCenter.x);
                 collisionDy += (b.y - blockCenter.y);
               }
@@ -634,9 +633,7 @@
         let dx = aim.x - shooter.x;
         let dy = aim.y - shooter.y;
         const minRatio = Math.tan(4 * Math.PI / 180);
-        if (Math.abs(dy) < Math.abs(dx) * minRatio) {
-          dy = -Math.abs(dx) * minRatio;
-        }
+        if (Math.abs(dy) < Math.abs(dx) * minRatio) { dy = -Math.abs(dx) * minRatio; }
         const mag = Math.sqrt(dx * dx + dy * dy);
         if (mag === 0) return;
         launchVx = (dx / mag) * 6;
@@ -672,9 +669,7 @@
         let dx = aim.x - shooter.x;
         let dy = aim.y - shooter.y;
         const minRatio = Math.tan(4 * Math.PI / 180);
-        if (Math.abs(dy) < Math.abs(dx) * minRatio) {
-          dy = -Math.abs(dx) * minRatio;
-        }
+        if (Math.abs(dy) < Math.abs(dx) * minRatio) { dy = -Math.abs(dx) * minRatio; }
         const mag = Math.sqrt(dx * dx + dy * dy);
         if (mag === 0) return;
         launchVx = (dx / mag) * 6;
@@ -766,7 +761,6 @@
         document.getElementById("gameOverScreen").style.display = "none";
         document.getElementById("menuScreen").style.display = "flex";
       }
-      
     });
   </script>
 </body>
