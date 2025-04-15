@@ -1,0 +1,649 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebRTC Tic-Tac-Toe (Single File)</title>
+    <style>
+        /* --- CSS Styles --- */
+        body {
+            font-family: sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 10px; /* Add padding for smaller screens */
+        }
+
+        #game {
+            margin-bottom: 20px;
+            text-align: center;
+            width: 100%; /* Ensure game area uses available width */
+            max-width: 350px; /* Limit max width */
+        }
+
+        #board {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr); /* Use fractions for responsiveness */
+            grid-template-rows: repeat(3, 100px); /* Keep fixed height or use aspect ratio */
+            gap: 5px;
+            margin: 15px auto; /* Center board */
+            width: 100%; /* Use full width of parent */
+            max-width: 310px; /* 3*100 + 2*5 -> fixed size for cells */
+            aspect-ratio: 1 / 1; /* Maintain square shape */
+        }
+
+        .cell {
+            background-color: #eee;
+            border: 1px solid #ccc;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 2.5em; /* Slightly smaller for better fit */
+            cursor: pointer;
+            user-select: none; /* Prevent text selection */
+            height: 100%; /* Fill grid cell */
+            box-sizing: border-box; /* Include padding/border in size */
+        }
+
+        .cell.X {
+            color: blue;
+        }
+
+        .cell.O {
+            color: red;
+        }
+
+        .cell.disabled {
+            cursor: not-allowed;
+            background-color: #f8f8f8;
+        }
+
+        #status {
+            margin-bottom: 10px;
+            font-size: 1.1em; /* Adjust size */
+            min-height: 1.5em; /* Prevent layout shift */
+            word-wrap: break-word; /* Wrap long text */
+        }
+
+        #signaling {
+            width: 95%; /* Responsive width */
+            max-width: 600px;
+            border: 1px solid lightgray;
+            padding: 15px;
+            background-color: #f9f9f9;
+            margin-top: 20px;
+            box-sizing: border-box;
+        }
+
+        #signaling h2, #signaling h3 {
+            margin-top: 0;
+            margin-bottom: 10px;
+            text-align: center;
+        }
+
+        #signaling div {
+            margin-bottom: 15px;
+        }
+
+        textarea {
+            width: 95%; /* Use percentage width */
+            max-width: 100%; /* Prevent overflow */
+            margin-top: 5px;
+            margin-bottom: 10px;
+            font-size: 0.9em;
+            box-sizing: border-box;
+            display: block; /* Ensure it takes block space */
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        button {
+            padding: 8px 12px; /* Slightly adjusted padding */
+            margin: 5px; /* Add margin for spacing */
+            cursor: pointer;
+        }
+
+        button:disabled {
+            cursor: not-allowed;
+            opacity: 0.6;
+        }
+
+        hr {
+            width: 100%;
+            border: none;
+            border-top: 1px solid lightgray;
+        }
+
+        #connectionStatus {
+            margin-top: 15px;
+            font-weight: bold;
+            text-align: center;
+            word-wrap: break-word;
+        }
+
+         /* Responsive adjustments */
+        @media (max-width: 600px) {
+            #board {
+                grid-template-rows: repeat(3, 80px); /* Smaller cells on small screens */
+                max-width: 250px; /* Adjust max width */
+            }
+            .cell {
+                font-size: 2em;
+            }
+            h1 {
+                font-size: 1.5em;
+            }
+        }
+         @media (max-width: 400px) {
+            #board {
+                grid-template-rows: repeat(3, 60px); /* Even smaller cells */
+                max-width: 190px; /* Adjust max width */
+            }
+             .cell {
+                font-size: 1.5em;
+            }
+             button {
+                 width: calc(50% - 10px); /* Stack buttons */
+                 margin: 5px auto;
+                 display: block;
+             }
+             textarea {
+                 font-size: 0.8em;
+             }
+        }
+
+    </style>
+</head>
+<body>
+    <h1>WebRTC Tic-Tac-Toe</h1>
+
+    <div id="game">
+        <div id="board">
+            <div class="cell" data-index="0"></div>
+            <div class="cell" data-index="1"></div>
+            <div class="cell" data-index="2"></div>
+            <div class="cell" data-index="3"></div>
+            <div class="cell" data-index="4"></div>
+            <div class="cell" data-index="5"></div>
+            <div class="cell" data-index="6"></div>
+            <div class="cell" data-index="7"></div>
+            <div class="cell" data-index="8"></div>
+        </div>
+        <div id="status">Waiting for connection... You are Player ?</div>
+        <button id="resetButton" disabled>Reset Game</button>
+    </div>
+
+    <hr>
+
+    <div id="signaling">
+        <h2>Manual Connection Setup (via SMS/Other)</h2>
+
+        <div>
+            <h3>Player 1 (Initiator - Player X)</h3>
+            <button id="createOfferButton">1. Create Offer</button>
+            <p>Copy this offer and send it to Player 2:</p>
+            <textarea id="offerSdp" rows="5" readonly></textarea>
+            <p>Paste Player 2's answer here:</p>
+            <textarea id="answerSdpInput" rows="5"></textarea>
+            <button id="receiveAnswerButton">3. Receive Answer</button>
+        </div>
+
+        <hr style="margin: 20px 0;">
+
+        <div>
+            <h3>Player 2 (Receiver - Player O)</h3>
+            <p>Paste Player 1's offer here:</p>
+            <textarea id="offerSdpInput" rows="5"></textarea>
+            <button id="createAnswerButton">2. Create Answer</button>
+            <p>Copy this answer and send it back to Player 1:</p>
+            <textarea id="answerSdpOutput" rows="5" readonly></textarea>
+        </div>
+         <p id="connectionStatus">Connection Status: Idle</p>
+    </div>
+
+    <script>
+        // --- JavaScript Logic ---
+
+        // --- Game State & Elements ---
+        const boardElement = document.getElementById('board');
+        const cells = document.querySelectorAll('.cell');
+        const statusElement = document.getElementById('status');
+        const resetButton = document.getElementById('resetButton');
+        const connectionStatusElement = document.getElementById('connectionStatus');
+
+        let boardState = Array(9).fill(null); // null, 'X', or 'O'
+        let currentPlayer = 'X';
+        let localPlayer = '?'; // Will be 'X' or 'O'
+        let gameActive = false;
+        let peerConnection;
+        let dataChannel;
+
+        // --- WebRTC Configuration ---
+        // Using a public Google STUN server for NAT traversal assistance
+        const configuration = {
+            iceServers: [
+                { urls: 'stun:stun.l.google.com:19302' }
+                // You might add more STUN servers here for robustness
+                // { urls: 'stun:stun1.l.google.com:19302' },
+            ]
+        };
+
+        // --- Signaling Elements ---
+        const createOfferButton = document.getElementById('createOfferButton');
+        const offerSdpTextarea = document.getElementById('offerSdp');
+        const answerSdpInputTextarea = document.getElementById('answerSdpInput');
+        const receiveAnswerButton = document.getElementById('receiveAnswerButton');
+
+        const offerSdpInputTextarea = document.getElementById('offerSdpInput');
+        const createAnswerButton = document.getElementById('createAnswerButton');
+        const answerSdpOutputTextarea = document.getElementById('answerSdpOutput');
+
+        // --- Game Logic ---
+
+        function handleCellClick(event) {
+            const index = event.target.dataset.index;
+            // Check if the click is on a cell itself, not the board gap
+            if (event.target.classList.contains('cell')) {
+                 if (!gameActive || boardState[index] !== null || currentPlayer !== localPlayer || event.target.classList.contains('disabled')) {
+                     console.log("Move ignored:", {gameActive, boardStateIndex: boardState[index], currentPlayer, localPlayer});
+                     return; // Ignore click if game not active, cell taken, not our turn, or visually disabled
+                 }
+
+                 makeMove(index, localPlayer);
+
+                 // Send move to peer
+                 if (dataChannel && dataChannel.readyState === 'open') {
+                     console.log(`Sending move: ${index}`);
+                     dataChannel.send(JSON.stringify({ type: 'move', index: parseInt(index, 10) })); // Ensure index is number
+                 } else {
+                     console.warn("Cannot send move, data channel not open or ready.");
+                 }
+            }
+        }
+
+        function makeMove(index, player) {
+            if (!gameActive || boardState[index] !== null) {
+                 console.warn(`makeMove prevented: gameActive=${gameActive}, boardState[${index}]=${boardState[index]}`);
+                 return; // Extra safety check
+            }
+
+            console.log(`Making move: Player ${player} at index ${index}`);
+            boardState[index] = player;
+            cells[index].textContent = player;
+            cells[index].classList.add(player); // Add X or O class
+            cells[index].classList.add('disabled'); // Visually disable cell immediately
+
+            if (checkWin(player)) {
+                statusElement.textContent = `Player ${player} wins!`;
+                gameActive = false;
+                resetButton.disabled = false;
+                updateBoardInteractivity(); // Ensure whole board is disabled on win
+                // Optionally send a win notification? Or let peer detect win locally.
+            } else if (boardState.every(cell => cell !== null)) {
+                statusElement.textContent = "It's a draw!";
+                gameActive = false;
+                resetButton.disabled = false;
+                updateBoardInteractivity(); // Ensure whole board is disabled on draw
+            } else {
+                currentPlayer = currentPlayer === 'X' ? 'O' : 'X';
+                updateStatus();
+                updateBoardInteractivity(); // Update board based on new current player
+            }
+        }
+
+        function checkWin(player) {
+            const winPatterns = [
+                [0, 1, 2], [3, 4, 5], [6, 7, 8], // Rows
+                [0, 3, 6], [1, 4, 7], [2, 5, 8], // Columns
+                [0, 4, 8], [2, 4, 6]             // Diagonals
+            ];
+
+            return winPatterns.some(pattern =>
+                pattern.every(index => boardState[index] === player)
+            );
+        }
+
+        function updateStatus() {
+            if (!gameActive) return;
+             const turnText = (currentPlayer === localPlayer) ? "Your turn" : "Opponent's turn";
+             statusElement.textContent = `Player ${currentPlayer} (${turnText}). You are Player ${localPlayer}.`;
+        }
+
+        function updateBoardInteractivity() {
+            cells.forEach((cell, index) => {
+                if (boardState[index] !== null || !gameActive || currentPlayer !== localPlayer) {
+                    // Disable if cell taken, game inactive, or not local player's turn
+                    cell.classList.add('disabled');
+                } else {
+                    // Enable only if cell empty, game active, AND it's local player's turn
+                    cell.classList.remove('disabled');
+                }
+            });
+             // Also disable reset button if game isn't active (unless connection exists)
+             resetButton.disabled = !(dataChannel && dataChannel.readyState === 'open');
+
+        }
+
+        function resetGame(isInitiator = true) { // isInitiator helps prevent reset loops
+             console.log("Resetting game...");
+             boardState.fill(null);
+             cells.forEach(cell => {
+                 cell.textContent = '';
+                 cell.classList.remove('X', 'O', 'disabled');
+             });
+             currentPlayer = 'X'; // X always starts
+
+             if (dataChannel && dataChannel.readyState === 'open') {
+                 gameActive = true;
+                 updateStatus();
+                 updateBoardInteractivity();
+                 resetButton.disabled = false; // Re-enable reset button
+                 // Only send reset message if this player initiated the reset
+                 if (isInitiator) {
+                     console.log("Sending reset message to peer.");
+                     dataChannel.send(JSON.stringify({ type: 'reset' }));
+                 }
+             } else {
+                 gameActive = false;
+                 statusElement.textContent = `Connection lost or not established. You are Player ${localPlayer}.`;
+                 updateBoardInteractivity(); // Should disable board
+                 resetButton.disabled = true;
+             }
+        }
+
+
+        // --- WebRTC Logic ---
+
+        function initializePeerConnection() {
+             // Close existing connection if any
+             if (peerConnection) {
+                 console.log("Closing existing PeerConnection.");
+                 peerConnection.close();
+                 peerConnection = null;
+             }
+             if(dataChannel) {
+                 dataChannel.close();
+                 dataChannel = null;
+             }
+
+             console.log("Initializing new PeerConnection with config:", configuration);
+            peerConnection = new RTCPeerConnection(configuration);
+
+            // --- ICE Candidate Handling ---
+            // Simplification: Candidates are included in the SDP offer/answer.
+            // For more complex networks (especially with Trickle ICE), explicit handling is better.
+            // peerConnection.onicecandidate = event => { ... };
+
+            peerConnection.oniceconnectionstatechange = () => {
+                const state = peerConnection ? peerConnection.iceConnectionState : 'closed';
+                connectionStatusElement.textContent = `Connection Status: ${state}`;
+                console.log(`ICE Connection State Change: ${state}`);
+
+                switch (state) {
+                    case 'connected':
+                    case 'completed':
+                        // Usually handled by data channel 'open', but good fallback
+                        if (!gameActive && dataChannel && dataChannel.readyState === 'open') {
+                             console.log("ICE connected/completed, ensuring game is active.");
+                             gameActive = true;
+                             updateStatus();
+                             updateBoardInteractivity();
+                             resetButton.disabled = false;
+                        }
+                        break;
+                    case 'disconnected':
+                        console.warn("ICE disconnected. Connection might recover.");
+                        // Optionally handle temporary disconnection display
+                        break;
+                    case 'failed':
+                         console.error("ICE connection failed.");
+                         handleConnectionLoss();
+                         alert('Connection failed! Please check network or try exchanging signalling info again.');
+                         break;
+                    case 'closed':
+                         console.log("ICE connection closed.");
+                         handleConnectionLoss();
+                         break;
+                    default:
+                        console.log(`ICE State: ${state}`);
+                }
+            };
+
+            // --- Data Channel Handling ---
+            // Player 2: Handle data channel creation initiated by Player 1
+            peerConnection.ondatachannel = event => {
+                console.log('ondatachannel event received');
+                dataChannel = event.channel;
+                setupDataChannelEvents();
+            };
+        }
+
+        function handleConnectionLoss() {
+             if (gameActive) { // Only alert if game was active
+                 alert('Connection lost!');
+             }
+             gameActive = false;
+             updateStatus();
+             updateBoardInteractivity(); // Disables board etc
+             resetButton.disabled = true; // Disable reset if no connection
+             connectionStatusElement.textContent = 'Connection Status: Closed/Failed';
+             // Consider resetting signaling UI elements if needed
+        }
+
+
+        function setupDataChannelEvents() {
+            if (!dataChannel) {
+                console.error("setupDataChannelEvents called without a dataChannel!");
+                return;
+            }
+            console.log(`Setting up events for data channel: ${dataChannel.label}, state: ${dataChannel.readyState}`);
+
+            dataChannel.onopen = () => {
+                console.log('Data channel is open!');
+                connectionStatusElement.textContent = 'Connection Status: Connected';
+                // Check if game is already active (e.g., ICE connected first)
+                if (!gameActive) {
+                    gameActive = true;
+                    resetGame(false); // Reset state without sending msg on initial connect
+                    updateStatus();
+                    updateBoardInteractivity();
+                    resetButton.disabled = false; // Enable reset now connected
+                }
+            };
+
+            dataChannel.onclose = () => {
+                console.log('Data channel is closed!');
+                 if (gameActive) { // Only alert if game was active
+                     handleConnectionLoss();
+                 } else {
+                     connectionStatusElement.textContent = 'Connection Status: Closed';
+                 }
+            };
+
+            dataChannel.onerror = error => {
+                console.error('Data channel error:', error);
+                connectionStatusElement.textContent = 'Connection Status: Error';
+                handleConnectionLoss();
+            };
+
+            dataChannel.onmessage = event => {
+                console.log('Message received:', event.data);
+                try {
+                    const message = JSON.parse(event.data);
+                    if (!gameActive && message.type !== 'reset') {
+                         console.warn("Received message but game is inactive, ignoring.");
+                         return; // Don't process moves if game is over or connection lost
+                    }
+
+                    if (message.type === 'move' && typeof message.index === 'number') {
+                         console.log(`Received move for index ${message.index}. Current player: ${currentPlayer}, local player: ${localPlayer}`);
+                         // Ensure it's the opponent's turn before processing their move
+                         if (currentPlayer !== localPlayer) {
+                             makeMove(message.index, currentPlayer); // Make move as the opponent
+                         } else {
+                             console.warn(`Received move from Player ${currentPlayer}, but it's Player ${localPlayer}'s turn.`);
+                         }
+                    } else if (message.type === 'reset') {
+                        console.log("Received reset request from peer.");
+                        resetGame(false); // Reset locally, don't send another reset back
+                    } else {
+                         console.warn("Received unknown message type:", message.type);
+                    }
+                } catch (e) {
+                    console.error('Failed to parse message or invalid message format:', event.data, e);
+                }
+            };
+        }
+
+
+        // --- Signaling Button Handlers ---
+
+        // Player 1: Creates offer
+        createOfferButton.onclick = async () => {
+            localPlayer = 'X'; // Initiator is Player X
+            statusElement.textContent = `You are Player X. Creating offer...`;
+            initializePeerConnection(); // Ensure clean state
+
+            // Player 1 creates the data channel *before* creating the offer
+            try {
+                dataChannel = peerConnection.createDataChannel('gameDataChannel', { reliable: true }); // Use reliable channel
+                console.log('Data channel created by initiator');
+                setupDataChannelEvents(); // Setup handlers for the created channel
+            } catch(e) {
+                 console.error("Error creating data channel:", e);
+                 alert("Error creating data channel. Cannot proceed.");
+                 return;
+            }
+
+            try {
+                const offer = await peerConnection.createOffer();
+                // Wait for ICE gathering to complete before setting local description
+                // For simplicity in manual exchange, we might need to wait a bit or handle candidates separately
+                // await new Promise(resolve => setTimeout(resolve, 1000)); // Simple delay - NOT robust
+
+                await peerConnection.setLocalDescription(offer);
+                console.log('Offer created and set as local description');
+
+                // Wait for ICE gathering state to be 'complete' or give it a timeout
+                 await new Promise((resolve) => {
+                    if (peerConnection.iceGatheringState === 'complete') {
+                        resolve();
+                    } else {
+                        const timeout = setTimeout(() => {
+                             console.warn("ICE gathering timeout reached, using current localDescription.");
+                             resolve();
+                        }, 2000); // 2 second timeout
+                        peerConnection.onicegatheringstatechange = () => {
+                            if (peerConnection.iceGatheringState === 'complete') {
+                                clearTimeout(timeout);
+                                resolve();
+                            }
+                        };
+                    }
+                });
+
+                // Now localDescription should include gathered ICE candidates
+                offerSdpTextarea.value = JSON.stringify(peerConnection.localDescription);
+                statusElement.textContent = `You are Player X. Offer created. Send it to Player O.`;
+                console.log("Final Offer SDP (including candidates):", peerConnection.localDescription);
+
+            } catch (e) {
+                console.error('Error creating offer or setting local description:', e);
+                 statusElement.textContent = `Error creating offer. See console.`;
+            }
+        };
+
+        // Player 2: Receives offer, creates answer
+        createAnswerButton.onclick = async () => {
+            if (!offerSdpInputTextarea.value) {
+                alert('Please paste the offer from Player 1 first!');
+                return;
+            }
+            localPlayer = 'O'; // Receiver is Player O
+            statusElement.textContent = `You are Player O. Processing offer...`;
+            initializePeerConnection(); // Ensure clean state
+
+            try {
+                const offer = JSON.parse(offerSdpInputTextarea.value);
+                if (!offer || !offer.type || !offer.sdp) {
+                     throw new Error("Invalid Offer SDP format.");
+                }
+                await peerConnection.setRemoteDescription(new RTCSessionDescription(offer));
+                console.log('Offer set as remote description');
+
+                const answer = await peerConnection.createAnswer();
+                await peerConnection.setLocalDescription(answer);
+                console.log('Answer created and set as local description');
+
+                 // Wait for ICE gathering state to be 'complete' or give it a timeout
+                 await new Promise((resolve) => {
+                    if (peerConnection.iceGatheringState === 'complete') {
+                        resolve();
+                    } else {
+                        const timeout = setTimeout(() => {
+                             console.warn("ICE gathering timeout reached, using current localDescription.");
+                             resolve();
+                        }, 2000); // 2 second timeout
+                        peerConnection.onicegatheringstatechange = () => {
+                            if (peerConnection.iceGatheringState === 'complete') {
+                                clearTimeout(timeout);
+                                resolve();
+                            }
+                        };
+                    }
+                });
+
+                // Now localDescription should include gathered ICE candidates
+                answerSdpOutputTextarea.value = JSON.stringify(peerConnection.localDescription);
+                statusElement.textContent = `You are Player O. Answer created. Send it back to Player X.`;
+                 console.log("Final Answer SDP (including candidates):", peerConnection.localDescription);
+
+            } catch (e) {
+                console.error('Error processing offer or creating answer:', e);
+                alert(`Error processing offer/creating answer: ${e.message}`);
+                statusElement.textContent = `Error processing offer. See console.`;
+            }
+        };
+
+        // Player 1: Receives answer
+        receiveAnswerButton.onclick = async () => {
+            if (!answerSdpInputTextarea.value) {
+                alert('Please paste the answer from Player 2 first!');
+                return;
+            }
+            if (!peerConnection || !peerConnection.localDescription) {
+                 alert('Please create an offer first!');
+                 return;
+            }
+
+            try {
+                const answer = JSON.parse(answerSdpInputTextarea.value);
+                 if (!answer || !answer.type || !answer.sdp) {
+                     throw new Error("Invalid Answer SDP format.");
+                }
+                await peerConnection.setRemoteDescription(new RTCSessionDescription(answer));
+                console.log('Answer set as remote description. Connection establishing...');
+                statusElement.textContent = `You are Player X. Answer received. Connecting...`;
+                // Connection should now start establishing via ICE checks & Data Channel opens
+            } catch (e) {
+                console.error('Error setting remote description (answer):', e);
+                 alert(`Error setting answer: ${e.message}`);
+                 statusElement.textContent = `Error processing answer. See console.`;
+            }
+        };
+
+
+        // --- Initialize Game ---
+        boardElement.addEventListener('click', handleCellClick);
+        resetButton.addEventListener('click', () => {
+             resetGame(true); // Local player initiated reset
+        });
+
+        // Initial setup
+        updateBoardInteractivity(); // Initially disable board & reset button
+        statusElement.textContent = 'Select Player 1 or Player 2 role below.'; // Initial prompt
+
+    </script>
+
+</body>
+</html>
