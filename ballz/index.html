@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <!-- Use viewport-fit=cover for iOS and allow full-screen experience -->
+  <!-- Use viewport-fit=cover for iOS full-screen experience -->
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#333">
@@ -20,15 +20,13 @@
       color: #fff;
       overflow: hidden;
     }
-    /* The game container is now fixed and centered so it will remain fully visible.
-       Its fixed dimensions remain at 360x640, but scaling will be applied via JS */
+    /* Center and scale the game container */
     #game-container {
       position: fixed;
-      left: 50%;
-      top: 50%;
       width: 360px;
       height: 640px;
-      /* The container will be centered with a translate(-50%, -50%) applied in the resizeGame function */
+      left: 50%;
+      top: 50%;
     }
     /* Game area styling with black border */
     #game-area {
@@ -46,13 +44,10 @@
       height: 100%;
       display: block;
     }
-    /* Overlays covering the game area */
     .overlay {
       position: absolute;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
       background: rgba(0,0,0,0.8);
       z-index: 3;
       display: flex;
@@ -65,65 +60,27 @@
       overflow: hidden;
       padding: 20px;
     }
-    /* Menu overlay */
-    #menuScreen {
-      font-size: 20px;
-    }
-    #menuScreen h1 {
-      margin-bottom: 30px;
-    }
+    #menuScreen { font-size: 20px; }
+    #menuScreen h1 { margin-bottom: 30px; }
     .menu-button {
-      background: #000;
-      color: #fff;
-      border: 2px solid #fff;
-      padding: 10px 20px;
-      margin: 10px;
-      font-size: 14px;
-      text-transform: uppercase;
-      letter-spacing: 1px;
-      cursor: pointer;
+      background: #000; color: #fff; border: 2px solid #fff;
+      padding: 10px 20px; margin: 10px; font-size: 14px;
+      text-transform: uppercase; letter-spacing: 1px; cursor: pointer;
       image-rendering: pixelated;
     }
-    .menu-button:active {
-      background: #555;
-    }
-    /* Difficulty selection overlay */
-    #difficultyScreen {
-      display: none;
-      font-size: 20px;
-    }
-    #difficultyScreen h2 {
-      margin-bottom: 20px;
-    }
-    /* Start overlay with instructions */
-    #startScreen {
-      display: none;
-      font-size: 14px;
-      overflow: hidden;
-    }
-    /* Game Over overlay */
-    #gameOverScreen {
-      display: none;
-      font-size: 14px;
-    }
-    /* Speedup button styling */
+    .menu-button:active { background: #555; }
+    #difficultyScreen { display: none; font-size: 20px; }
+    #difficultyScreen h2 { margin-bottom: 20px; }
+    #startScreen { display: none; font-size: 14px; overflow: hidden; }
+    #gameOverScreen { display: none; font-size: 14px; }
     #speedupButton {
-      position: absolute;
-      top: 10px;
-      right: 10px;
-      z-index: 4;
-      display: none;
-      background: #000;
-      border: 2px solid #fff;
-      border-radius: 50%;
-      width: 40px;
-      height: 40px;
+      position: absolute; top: 10px; right: 10px;
+      z-index: 4; display: none;
+      background: #000; border: 2px solid #fff;
+      border-radius: 50%; width: 40px; height: 40px;
       cursor: pointer;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 16px;
-      color: #fff;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 16px; color: #fff;
     }
   </style>
 </head>
@@ -163,18 +120,16 @@
   </div>
 
   <script>
-    // Wait for DOM to load
+    // Wrap code to run after DOM loads.
     document.addEventListener('DOMContentLoaded', function() {
 
       // --- Responsive Scaling ---
       function resizeGame() {
-        // Designed game size: 360 x 640.
+        // Designed dimensions: 360x640.
         let scale = Math.min(window.innerWidth / 360, window.innerHeight / 640);
         const gameContainer = document.getElementById("game-container");
-        // Center the container with translate(-50%, -50()) and scale it.
+        // Center and scale the container.
         gameContainer.style.transform = "translate(-50%, -50%) scale(" + scale + ")";
-        gameContainer.style.left = "50%";
-        gameContainer.style.top = "50%";
       }
       window.addEventListener("resize", resizeGame);
       resizeGame();
@@ -189,41 +144,30 @@
       }
 
       // --- External Assets ---
-      let ballImg = new Image();
-      ballImg.src = "assets/ball.png";
-      ballImg.onerror = () => { ballImg = null; };
-
-      let blockImg = new Image();
-      blockImg.src = "assets/block.png";
-      blockImg.onerror = () => { blockImg = null; };
-
-      let backgroundImg = new Image();
-      backgroundImg.src = "assets/background.png";
-      backgroundImg.onerror = () => { backgroundImg = null; };
+      let ballImg = new Image(); ballImg.src = "assets/ball.png"; ballImg.onerror = () => { ballImg = null; };
+      let blockImg = new Image(); blockImg.src = "assets/block.png"; blockImg.onerror = () => { blockImg = null; };
+      let backgroundImg = new Image(); backgroundImg.src = "assets/background.png"; backgroundImg.onerror = () => { backgroundImg = null; };
 
       // --- Audio Assets ---
       let hitSound = new Audio("assets/hit.wav");
       let clockSound = new Audio("assets/clock.wav");
       let breakSound = new Audio("assets/break.wav");
 
-      // --- Global Game Variables ---
+      // --- Global Variables ---
       const GAME_WIDTH = 360, GAME_HEIGHT = 640;
       const columns = 7, gap = 4, topMargin = 0, leftMargin = 0;
       const blockSize = Math.floor((GAME_WIDTH - (columns - 1) * gap) / columns);
       const normalBlockColors = ["#FF5555", "#FFAA00", "#55FF55", "#55AAFF", "#AA55FF"];
-
       let totalBalls = 1, displayBalls = totalBalls, activeBalls = [];
       let ballsToLaunch = 0, launchTimer = 0, launchDelay = 5;
       let turnShooting = false, launchVx = 0, launchVy = 0;
       let currentLevel = 1, gameStarted = false;
       let lastBallX = GAME_WIDTH / 2, speedMultiplier = 1, roundStartTime = 0;
       let difficultyFactor = 0.1;
-
       const shooter = { x: GAME_WIDTH / 2, y: GAME_HEIGHT - 30, radius: 8 };
       const aim = { x: shooter.x, y: shooter.y - 100 };
-
-      // --- Global Variable for Patterned Tunnels ---
-      let tunnelCol;
+      let tunnelCol; // For patterned tunnels
+      let consecutiveRowsWithoutClock = 0;
 
       // --- Utility Functions ---
       function getRandomUniqueIntegers(n, min, max) {
@@ -235,9 +179,7 @@
         }
         return arr.slice(0, n);
       }
-      function clamp(val, min, max) {
-        return Math.max(min, Math.min(max, val));
-      }
+      function clamp(val, min, max) { return Math.max(min, Math.min(max, val)); }
       function getBlockRect(block) {
         const x = leftMargin + block.col * (blockSize + gap);
         const y = topMargin + block.row * (blockSize + gap);
@@ -254,14 +196,10 @@
         return (dx * dx + dy * dy) < Math.pow(r1 + r2, 2);
       }
 
-      // --- Block Data & Generation Functions ---
+      // --- Block Generation Functions ---
       let blocks = [];
-      function loadInitialBlocks() {
-        blocks = [];
-        addNewRowCustom();
-      }
+      function loadInitialBlocks() { blocks = []; addNewRowCustom(); }
       function addNewRowCustom() {
-        // Update tunnelCol: 70% chance to keep the same; else pick a new one.
         if (typeof tunnelCol === 'undefined') {
           tunnelCol = Math.floor(Math.random() * columns);
         } else if (Math.random() >= 0.7) {
@@ -269,36 +207,29 @@
         }
         let newRow = [];
         let clockCount = 0;
-        let rowValue = (blocks.length === 0) ? 0 : -1; // first row is visible
-
+        let rowValue = (blocks.length === 0) ? 0 : -1;
         let baseOptional, mandatoryCount;
         if (currentLevel <= 3 && Math.random() < 0.4) {
-          // Sparse branch.
           mandatoryCount = 1;
           baseOptional = 0.2;
           let possibleMandatory = [];
-          for (let c = 0; c < columns; c++) {
-            if (c !== tunnelCol) possibleMandatory.push(c);
-          }
+          for (let c = 0; c < columns; c++) { if (c !== tunnelCol) possibleMandatory.push(c); }
           let mandatory = [];
           if (possibleMandatory.length > 0) {
             mandatory = [possibleMandatory[Math.floor(Math.random() * possibleMandatory.length)]];
           }
           for (let col = 0; col < columns; col++) {
-            if (col === tunnelCol) continue; // tunnel remains empty
-            let prob = baseOptional;
-            if (col === tunnelCol - 1 || col === tunnelCol + 1) { prob *= 0.5; }
+            if (col === tunnelCol) continue;
+            let prob = baseOptional; if (col === tunnelCol - 1 || col === tunnelCol + 1) { prob *= 0.5; }
             if (mandatory.includes(col)) {
-              let baseHP = Math.floor(Math.random() * 5) + 1;
-              baseHP += Math.floor(currentLevel / 3);
+              let baseHP = Math.floor(Math.random() * 5) + 1; baseHP += Math.floor(currentLevel / 3);
               let scalingFactor = 1 + (totalBalls - 1) * difficultyFactor;
               let scaledHP = Math.floor(baseHP * scalingFactor);
               newRow.push({ type: "clock", row: rowValue, col: col, value: scaledHP, color: "#FFFFFF" });
               clockCount++;
             } else {
               if (Math.random() < prob) {
-                let baseHP = Math.floor(Math.random() * 5) + 1;
-                baseHP += Math.floor(currentLevel / 3);
+                let baseHP = Math.floor(Math.random() * 5) + 1; baseHP += Math.floor(currentLevel / 3);
                 let scalingFactor = 1 + (totalBalls - 1) * difficultyFactor;
                 let scaledHP = Math.floor(baseHP * scalingFactor);
                 let blockType = (Math.random() < 0.5 && clockCount < 2) ? "clock" : "normal";
@@ -309,7 +240,6 @@
             }
           }
         } else {
-          // Normal branch.
           mandatoryCount = 3;
           baseOptional = Math.min(0.7, 0.3 + (currentLevel * 0.04));
           let possibleMandatory = [];
@@ -321,18 +251,15 @@
           for (let col = 0; col < columns; col++) {
             if (col === tunnelCol) continue;
             if (mandatory.includes(col)) {
-              let baseHP = Math.floor(Math.random() * 5) + 1;
-              baseHP += Math.floor(currentLevel / 3);
+              let baseHP = Math.floor(Math.random() * 5) + 1; baseHP += Math.floor(currentLevel / 3);
               let scalingFactor = 1 + (totalBalls - 1) * difficultyFactor;
               let scaledHP = Math.floor(baseHP * scalingFactor);
               newRow.push({ type: "normal", row: rowValue, col: col, value: scaledHP,
                              color: normalBlockColors[Math.floor(Math.random() * normalBlockColors.length)] });
             } else {
-              let prob = baseOptional;
-              if (col === tunnelCol - 1 || col === tunnelCol + 1) { prob *= 0.5; }
+              let prob = baseOptional; if (col === tunnelCol - 1 || col === tunnelCol + 1) { prob *= 0.5; }
               if (Math.random() < prob) {
-                let baseHP = Math.floor(Math.random() * 5) + 1;
-                baseHP += Math.floor(currentLevel / 3);
+                let baseHP = Math.floor(Math.random() * 5) + 1; baseHP += Math.floor(currentLevel / 3);
                 let scalingFactor = 1 + (totalBalls - 1) * difficultyFactor;
                 let scaledHP = Math.floor(baseHP * scalingFactor);
                 let blockType = "normal";
@@ -348,7 +275,7 @@
             }
           }
         }
-        // For each clock block, optionally remove an adjacent block (50% chance) to improve accessibility.
+        // Optionally remove an adjacent block for clock blocks.
         for (let i = 0; i < newRow.length; i++) {
           if (newRow[i].type === "clock") {
             let neighbors = [];
@@ -364,24 +291,19 @@
             }
           }
         }
-        // Ensure each row has at least 2 blocks (ignoring the tunnel column)
         if (newRow.length < 2) {
           let filledCols = newRow.map(b => b.col);
           let missingCols = [];
-          for (let c = 0; c < columns; c++) {
-            if (!filledCols.includes(c) && c !== tunnelCol) { missingCols.push(c); }
-          }
+          for (let c = 0; c < columns; c++) { if (!filledCols.includes(c) && c !== tunnelCol) { missingCols.push(c); } }
           if (missingCols.length > 0) {
             let col = missingCols[Math.floor(Math.random() * missingCols.length)];
-            let baseHP = Math.floor(Math.random() * 5) + 1;
-            baseHP += Math.floor(currentLevel / 3);
+            let baseHP = Math.floor(Math.random() * 5) + 1; baseHP += Math.floor(currentLevel / 3);
             let scalingFactor = 1 + (totalBalls - 1) * difficultyFactor;
             let scaledHP = Math.floor(baseHP * scalingFactor);
             newRow.push({ type: "normal", row: rowValue, col: col, value: scaledHP,
                           color: normalBlockColors[Math.floor(Math.random() * normalBlockColors.length)] });
           }
         }
-        // Ensure not all non-tunnel columns are filled.
         if (newRow.length >= (columns - 1)) {
           let removeIdx = Math.floor(Math.random() * newRow.length);
           newRow.splice(removeIdx, 1);
@@ -465,10 +387,8 @@
               }
             }
             if (collided && (collisionDx !== 0 || collisionDy !== 0)) {
-              if (Math.abs(collisionDx) > Math.abs(collisionDy))
-                b.vx = -b.vx;
-              else
-                b.vy = -b.vy;
+              if (Math.abs(collisionDx) > Math.abs(collisionDy)) b.vx = -b.vx;
+              else b.vy = -b.vy;
             }
           }
         }
@@ -529,8 +449,8 @@
           ctx.fillStyle = "#fff"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
           ctx.fillText(block.value, rect.x+rect.width/2, rect.y+rect.height/2);
         });
-        // Draw "Balls:" and "lv" text in black.
         ctx.font = "16px 'Press Start 2P', cursive";
+        // Draw "Balls:" and "lv" text in black.
         ctx.textAlign = "left"; ctx.fillStyle = "#000";
         ctx.fillText("Balls: " + (turnShooting ? displayBalls : totalBalls), 10, GAME_HEIGHT - 10);
         ctx.textAlign = "right";
@@ -556,39 +476,48 @@
         document.getElementById("speedupButton").style.display = "none";
       }
 
-      // --- Firing Input (8° minimum angle, upward-only) ---
+      // --- Firing Input with 8° minimum angle, upward-only ---
       function processFire(evtPos) {
         aim.x = evtPos.x; aim.y = evtPos.y;
         let dx = aim.x - shooter.x, dy = aim.y - shooter.y;
-        // Prevent downward firing.
         if (dy >= 0) { dy = -Math.abs(dy) || -1; }
         const minRatio = Math.tan(8 * Math.PI / 180);
         if (Math.abs(dy) < Math.abs(dx) * minRatio) { dy = -Math.abs(dx) * minRatio; }
-        const mag = Math.sqrt(dx*dx + dy*dy);
+        const mag = Math.sqrt(dx * dx + dy * dy);
         if (mag === 0) return;
-        launchVx = (dx/mag)*6; launchVy = (dy/mag)*6;
+        launchVx = (dx / mag) * 6; launchVy = (dy / mag) * 6;
         turnShooting = true; ballsToLaunch = totalBalls; activeBalls = [];
         launchTimer = 0; displayBalls = totalBalls; roundStartTime = performance.now();
         document.getElementById("speedupButton").style.display = "none";
       }
 
+      // --- Modified getPointerPos Function ---
       function getPointerPos(evt) {
         const rect = canvas.getBoundingClientRect();
         let clientX, clientY;
-        if (evt.touches && evt.touches.length > 0) { clientX = evt.touches[0].clientX; clientY = evt.touches[0].clientY; }
-        else { clientX = evt.clientX; clientY = evt.clientY; }
+        if (evt.touches && evt.touches.length > 0) {
+          clientX = evt.touches[0].clientX;
+          clientY = evt.touches[0].clientY;
+        } else if (evt.changedTouches && evt.changedTouches.length > 0) {
+          clientX = evt.changedTouches[0].clientX;
+          clientY = evt.changedTouches[0].clientY;
+        } else {
+          clientX = evt.clientX;
+          clientY = evt.clientY;
+        }
         return { x: clientX - rect.left, y: clientY - rect.top };
       }
 
       // --- Attach Event Listeners ---
       canvas.addEventListener("mouseup", (evt) => { if (!gameStarted || turnShooting) return; processFire(getPointerPos(evt)); });
       canvas.addEventListener("touchend", (evt) => { evt.preventDefault(); if (!gameStarted || turnShooting) return; processFire(getPointerPos(evt)); }, { passive: false });
+      canvas.addEventListener("touchcancel", (evt) => { evt.preventDefault(); if (!gameStarted || turnShooting) return; processFire(getPointerPos(evt)); }, { passive: false });
       canvas.addEventListener("mousedown", (evt) => { if (!gameStarted) return; let pos = getPointerPos(evt); aim.x = pos.x; aim.y = pos.y; });
       canvas.addEventListener("mousemove", (evt) => { if (!gameStarted) return; let pos = getPointerPos(evt); aim.x = pos.x; aim.y = pos.y; });
       canvas.addEventListener("touchstart", (evt) => { evt.preventDefault(); if (!gameStarted) return; let pos = getPointerPos(evt); aim.x = pos.x; aim.y = pos.y; }, { passive: false });
       canvas.addEventListener("touchmove", (evt) => { evt.preventDefault(); if (!gameStarted) return; let pos = getPointerPos(evt); aim.x = pos.x; aim.y = pos.y; }, { passive: false });
 
-      // --- Overlay Functions ---
+      // --- Overlay Functions (Expose to window for inline handlers) ---
       function selectMode() {
         document.getElementById("speedupButton").style.display = "none";
         document.getElementById("menuScreen").style.display = "none";
@@ -625,16 +554,15 @@
         document.getElementById("gameOverScreen").style.display = "none";
         document.getElementById("menuScreen").style.display = "flex";
       }
-
-      // Expose key functions for inline handlers
       window.selectMode = selectMode;
       window.setDifficulty = setDifficulty;
       window.startGame = startGame;
       window.activateSpeedup = activateSpeedup;
       window.goToMainMenu = goToMainMenu;
 
-      // --- Start the Game Loop ---
+      // --- Start Game Loop ---
       gameLoop();
+
     }); // End DOMContentLoaded
   </script>
 </body>
