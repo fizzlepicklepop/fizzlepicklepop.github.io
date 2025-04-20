@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Instagram Reels Downloader</title>
+  <style>
+    body { font-family: sans-serif; max-width: 600px; margin: 2em auto; padding: 0 1em; }
+    input, button { font-size: 1em; padding: 0.5em; }
+    #videoPreview { display: none; margin-top: 1em; max-width: 100%; }
+  </style>
+</head>
+<body>
+  <h1>Instagram Reels Downloader</h1>
+  <p>Paste an Instagram Reels URL below and click “Download”.</p>
+  <input type="text" id="urlInput" placeholder="https://www.instagram.com/reel/XXXXXXXXX/" size="50" />
+  <button id="downloadBtn">Download Video</button>
+  <video id="videoPreview" controls></video>
+
+  <script>
+    async function fetchReelHtml(url) {
+      // Using AllOrigins free CORS proxy
+      const proxy = 'https://api.allorigins.win/raw?url=';
+      const res = await fetch(proxy + encodeURIComponent(url));
+      if (!res.ok) throw new Error('Network response was not ok');
+      return await res.text();
+    }
+
+    function extractVideoUrl(html) {
+      // Try JSON-LD first
+      const ldJsonMatch = html.match(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/);
+      if (ldJsonMatch) {
+        try {
+          const data = JSON.parse(ldJsonMatch[1]);
+          if (data['@type'] === 'VideoObject' && data.contentUrl) {
+            return data.contentUrl;
+          }
+        } catch (e) { /* ignore */ }
+      }
+      // Fallback: look for GraphQL “playUrl” or “video_url”
+      const playMatch = html.match(/"playUrl":"([^"]+)"/) || html.match(/"video_url":"([^"]+)"/);
+      if (playMatch) {
+        return playMatch[1].replace(/\\u0026/g, '&');
+      }
+      return null;
+    }
+
+    document.getElementById('downloadBtn').addEventListener('click', async () => {
+      const input = document.getElementById('urlInput');
+      const url = input.value.trim();
+      if (!url) {
+        alert('Please paste an Instagram Reels URL.');
+        return;
+      }
+
+      try {
+        const html = await fetchReelHtml(url);
+        const videoUrl = extractVideoUrl(html);
+        if (!videoUrl) {
+          alert('Could not find video URL. Instagram may have changed their page format.');
+          return;
+        }
+
+        // Show preview
+        const video = document.getElementById('videoPreview');
+        video.src = videoUrl;
+        video.style.display = 'block';
+
+        // Trigger download
+        const a = document.createElement('a');
+        a.href = videoUrl;
+        a.download = 'instagram-reel.mp4';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+      } catch (err) {
+        console.error(err);
+        alert('Error fetching or parsing the reel. See console for details.');
+      }
+    });
+  </script>
+</body>
+</html>
