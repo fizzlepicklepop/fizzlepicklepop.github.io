@@ -1,93 +1,91 @@
 <!DOCTYPE html>
-<html lang="en" data-theme="dark">
+<html lang="en">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Tic‑Tac‑Toe — P2P (y‑webrtc, no signup)</title>
   <style>
-    /* ======================= THEME ======================= */
+    /* ======================= LIGHT "WATER" THEME ======================= */
     :root {
-      --bg: #0b1020; --bg2:#0e1530; --card:#121a33; --muted:#94a3ff; --text:#eaf0ff; --accent:#6ae6b3; --accent-2:#7ad1ff; --danger:#ff7a7a; --ring: rgba(122, 209, 255, .5);
-      --shadow: 0 10px 30px rgba(0,0,0,.35);
-    }
-    [data-theme="light"]{
-      --bg:#f6f7fb; --bg2:#eef1ff; --card:#ffffff; --muted:#5563c1; --text:#0e1330; --accent:#14b8a6; --accent-2:#2563eb; --danger:#ef4444; --ring: rgba(37, 99, 235, .28);
-      --shadow: 0 8px 24px rgba(5,16,60,.12);
+      --bg:#f3f8ff; --bg2:#e9f4ff; --card:#ffffff; --muted:#365ea8; --text:#0b1840; --accent:#0ea5e9; --accent-2:#22d3ee; --danger:#ef4444; --ring: rgba(14, 165, 233, .28);
+      --shadow: 0 10px 26px rgba(8, 36, 80, .12);
     }
     html, body { height:100%; }
     body { margin:0; font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, Helvetica, Arial; background: radial-gradient(1200px 700px at 20% -10%, var(--bg2), var(--bg)); color:var(--text); overflow-x:hidden; }
 
-    /* ======================= BUBBLY BACKGROUND ======================= */
+    /* ======================= BUBBLY WATER BACKGROUND ======================= */
     .bg { position: fixed; inset: -10vmax; z-index: -1; filter: blur(40px); pointer-events:none; }
-    .blob { position: absolute; width: 40vmax; height: 40vmax; border-radius: 50%; opacity:.45; mix-blend-mode: screen; animation: float 18s ease-in-out infinite alternate; }
-    .blob1 { left: -8vmax; top: -8vmax; background: radial-gradient(circle at 30% 30%, var(--accent), transparent 60%); animation-duration: 20s; }
-    .blob2 { right: -10vmax; bottom: -12vmax; background: radial-gradient(circle at 70% 70%, var(--accent-2), transparent 60%); animation-duration: 22s; }
-    @keyframes float { from { transform: translate3d(0,0,0) scale(1);} to { transform: translate3d(4vmax,-3vmax,0) scale(1.08);} }
+    .blob { position: absolute; width: 46vmax; height: 46vmax; border-radius: 50%; opacity:.5; mix-blend-mode: screen; animation: float 18s ease-in-out infinite alternate; }
+    .blob1 { left: -8vmax; top: -10vmax; background: radial-gradient(circle at 30% 30%, var(--accent-2), transparent 60%); animation-duration: 19s; }
+    .blob2 { right: -12vmax; bottom: -14vmax; background: radial-gradient(circle at 70% 70%, var(--accent), transparent 60%); animation-duration: 22s; }
+    .wave { position: fixed; left:0; right:0; bottom:-2rem; height:180px; opacity:.32; }
+    @keyframes float { from { transform: translate3d(0,0,0) scale(1);} to { transform: translate3d(3vmax,-2vmax,0) scale(1.06);} }
     @media (prefers-reduced-motion: reduce){ .blob{ animation:none; } }
 
     /* ======================= LAYOUT ======================= */
     .wrap { max-width: 980px; margin: 0 auto; padding: 28px; }
     header { display:flex; align-items:center; justify-content:space-between; gap:16px; margin-bottom: 20px; }
     h1 { font-size: clamp(22px, 3.2vw, 36px); letter-spacing: .3px; margin:0; display:flex; align-items:center; gap:8px; }
-    .card { background: linear-gradient(180deg, color-mix(in oklab, var(--card), transparent 90%), color-mix(in oklab, var(--card), transparent 80%)); border:1px solid color-mix(in oklab, var(--text), transparent 92%); border-radius: 22px; padding: 18px; box-shadow: var(--shadow); backdrop-filter: saturate(140%) blur(4px); }
+    .card { background: linear-gradient(180deg, color-mix(in oklab, var(--card), white 0%), color-mix(in oklab, var(--card), white 4%)); border:1px solid color-mix(in oklab, var(--text), transparent 90%); border-radius: 22px; padding: 18px; box-shadow: var(--shadow); backdrop-filter: saturate(140%) blur(4px); }
 
     .row { display:flex; gap:12px; flex-wrap: wrap; align-items:center; }
-    .input { flex:1 1 220px; min-width: 200px; padding: 12px 14px; border-radius: 16px; outline:none; border:1px solid color-mix(in oklab, var(--text), transparent 88%); background: color-mix(in oklab, var(--bg2), white 5%); color:var(--text); font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono"; box-shadow: inset 0 0 0 1px transparent; transition: box-shadow .15s ease, transform .06s ease; }
+    .input { flex:1 1 220px; min-width: 180px; padding: 12px 14px; border-radius: 16px; outline:none; border:1px solid color-mix(in oklab, var(--text), transparent 90%); background: color-mix(in oklab, var(--bg2), white 10%); color:var(--text); font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono"; box-shadow: inset 0 0 0 1px transparent; transition: box-shadow .15s ease, transform .06s ease; }
     .input:focus { box-shadow: 0 0 0 6px var(--ring); transform: translateY(-1px); }
 
-    .btn { padding: 11px 14px; border-radius: 16px; border:1px solid color-mix(in oklab, var(--text), transparent 90%); background: linear-gradient(180deg, color-mix(in oklab, var(--bg2), white 8%), color-mix(in oklab, var(--bg2), black 6%)); color:var(--text); cursor:pointer; font-weight:700; letter-spacing:.2px; transition: transform .06s ease, box-shadow .15s ease, opacity .2s; box-shadow: 0 6px 16px rgba(0,0,0,.12); }
-    .btn:hover { transform: translateY(-1px); box-shadow: 0 10px 22px rgba(0,0,0,.16); }
+    .btn { padding: 11px 14px; border-radius: 16px; border:1px solid color-mix(in oklab, var(--text), transparent 92%); background: linear-gradient(180deg, color-mix(in oklab, var(--bg2), white 8%), color-mix(in oklab, var(--bg2), black 4%)); color:var(--text); cursor:pointer; font-weight:700; letter-spacing:.2px; transition: transform .06s ease, box-shadow .15s ease, opacity .2s; box-shadow: 0 6px 16px rgba(5, 25, 55, .12); }
+    .btn:hover { transform: translateY(-1px); box-shadow: 0 10px 22px rgba(5, 25, 55, .16); }
     .btn:active { transform: translateY(0); }
     .btn:disabled { opacity:.55; cursor:not-allowed; }
-    .btn.primary { background: linear-gradient(180deg, color-mix(in oklab, var(--accent-2), white 6%), color-mix(in oklab, var(--accent-2), black 10%)); color:white; border-color: transparent; }
-    .btn.ghost { background: transparent; }
+    .btn.primary { background: linear-gradient(180deg, color-mix(in oklab, var(--accent), white 12%), color-mix(in oklab, var(--accent), black 6%)); color:white; border-color: transparent; }
+    .btn.info { background: linear-gradient(180deg, color-mix(in oklab, var(--accent-2), white 14%), color-mix(in oklab, var(--accent-2), black 8%)); color:white; border-color: transparent; }
 
-    .pill { display:inline-flex; align-items:center; gap:8px; padding:8px 12px; border-radius: 999px; font-size:12px; border:1px solid color-mix(in oklab, var(--text), transparent 90%); background: color-mix(in oklab, var(--bg2), white 4%); box-shadow: var(--shadow); }
+    .pill { display:inline-flex; align-items:center; gap:8px; padding:8px 12px; border-radius: 999px; font-size:12px; border:1px solid color-mix(in oklab, var(--text), transparent 92%); background: color-mix(in oklab, var(--bg2), white 12%); box-shadow: var(--shadow); }
     .muted { color: color-mix(in oklab, var(--text), white 40%); }
 
     /* ======================= BOARD ======================= */
     .grid { display:grid; grid-template-columns: repeat(3, minmax(90px, 120px)); grid-template-rows: repeat(3, minmax(90px, 120px)); gap: 12px; justify-content:center; margin-top:12px; }
-    .cell { display:flex; align-items:center; justify-content:center; font-weight:900; font-size:64px; background: var(--card); border-radius: 22px; border: 1px solid color-mix(in oklab, var(--text), transparent 90%); cursor:pointer; user-select:none; transition: transform .08s ease, background .2s ease, box-shadow .15s ease; box-shadow: 0 8px 20px rgba(0,0,0,.15); }
-    .cell:hover { transform: translateY(-1px) scale(1.01); box-shadow: 0 12px 26px rgba(0,0,0,.18); }
+    .cell { display:flex; align-items:center; justify-content:center; font-weight:900; font-size:64px; background: var(--card); border-radius: 22px; border: 1px solid color-mix(in oklab, var(--text), transparent 90%); cursor:pointer; user-select:none; transition: transform .08s ease, background .2s ease, box-shadow .15s ease; box-shadow: 0 8px 20px rgba(5, 25, 55, .12); }
+    .cell:hover { transform: translateY(-1px) scale(1.01); box-shadow: 0 12px 26px rgba(5, 25, 55, .16); }
     .cell:disabled { cursor:not-allowed; opacity:.6; }
     .cell.placed { animation: pop .24s cubic-bezier(.2,.8,.2,1); }
-    @keyframes pop { 0%{ transform: scale(.75); filter: saturate(1.2);} 60%{ transform: scale(1.1);} 100%{ transform: scale(1);} }
+    @keyframes pop { 0%{ transform: scale(.75);} 60%{ transform: scale(1.08);} 100%{ transform: scale(1);} }
 
     footer { opacity:.8; font-size:12px; margin-top:16px; text-align:center; }
-
-    /* Theme toggle icon styles */
-    .toggle { display:flex; align-items:center; gap:8px; padding:8px 12px; border-radius:16px; border:1px solid color-mix(in oklab, var(--text), transparent 90%); background: color-mix(in oklab, var(--bg2), white 4%); cursor:pointer; box-shadow: var(--shadow); }
   </style>
 </head>
 <body>
   <div class="bg">
     <div class="blob blob1"></div>
     <div class="blob blob2"></div>
+    <svg class="wave" viewBox="0 0 1440 320" preserveAspectRatio="none" aria-hidden="true"><path fill="#7dd3fc" d="M0,256L80,224C160,192,320,128,480,138.7C640,149,800,235,960,240C1120,245,1280,171,1360,133.3L1440,96L1440,320L1360,320C1280,320,1120,320,960,320C800,320,640,320,480,320C320,320,160,320,80,320L0,320Z"/></svg>
   </div>
 
   <div class="wrap">
     <header>
-      <h1>🎮 Tic‑Tac‑Toe — P2P (y‑webrtc)</h1>
-      <div class="row">
-        <button id="themeToggle" class="toggle" title="Toggle theme">🌙 <span id="themeLabel">Dark</span></button>
-        <div class="pill"><span id="statusText">Not connected</span></div>
-      </div>
+      <h1>💧 Tic‑Tac‑Toe — P2P (y‑webrtc)</h1>
+      <div class="pill"><span id="statusText">Not connected</span></div>
     </header>
 
     <div class="card" style="margin-bottom:16px;">
       <div class="row">
-        <input id="room" class="input" placeholder="Room name, e.g. tictactoe-COCO" />
+        <input id="username" class="input" placeholder="Your username (required)" />
+        <input id="room" class="input" placeholder="Room name (e.g. tictactoe-coolfish)" />
         <input id="secret" class="input" placeholder="(Optional) room password" />
-        <button id="join" class="btn primary">Join room</button>
+      </div>
+      <div class="row" style="margin-top:8px;">
+        <button id="create" class="btn primary">Create room</button>
+        <button id="join" class="btn info">Join room</button>
+        <button id="copyLink" class="btn" disabled>Copy room link</button>
         <button id="leave" class="btn" disabled>Leave</button>
       </div>
       <div class="row" style="margin-top:8px;">
         <div class="muted">Peers: <span id="peers">0</span></div>
-        <div class="muted">You are: <span id="role">—</span></div>
+        <div class="muted">You: <span id="you">—</span></div>
+        <div class="muted">Role: <span id="role">—</span></div>
         <div class="muted">Mark: <span id="mark">—</span></div>
         <div class="muted">Turn: <span id="turn">—</span></div>
       </div>
-      <div class="muted" style="font-size:13px; margin-top:8px;">No signup, no servers you operate. Discovery via public y‑webrtc hubs; game data syncs peer‑to‑peer.</div>
+      <div class="muted" style="font-size:13px; margin-top:8px;">Zero-signup. Discovery via public y‑webrtc hubs; gameplay syncs peer‑to‑peer. Share the room link after creating.</div>
     </div>
 
     <div class="card" style="text-align:center;">
@@ -98,39 +96,25 @@
     </div>
 
     <footer>
-      Heads‑up: Without TURN relays, very restrictive networks might not connect. Works great on home/Wi‑Fi.
+      Note: Without TURN relays, very restrictive networks might not connect. Most home/Wi‑Fi networks work well.
     </footer>
   </div>
 
   <script type="module">
-    // ===== Imports (no signup; CDN modules) =====
     import * as Y from 'https://cdn.jsdelivr.net/npm/yjs@13.6.15/dist/yjs.mjs';
     import { WebrtcProvider } from 'https://cdn.jsdelivr.net/npm/y-webrtc@10.3.2/dist/y-webrtc.mjs';
 
-    // ===== Theme toggle (persisted) =====
-    const themeBtn = document.getElementById('themeToggle');
-    const themeLabel = document.getElementById('themeLabel');
-    const root = document.documentElement;
-    const stored = localStorage.getItem('theme');
-    const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
-    const initial = stored || (prefersDark ? 'dark' : 'light');
-    setTheme(initial);
-    themeBtn.onclick = () => setTheme(root.getAttribute('data-theme') === 'dark' ? 'light' : 'dark');
-
-    function setTheme(mode){
-      root.setAttribute('data-theme', mode);
-      themeLabel.textContent = mode === 'dark' ? 'Dark' : 'Light';
-      themeBtn.firstChild.nodeValue = mode === 'dark' ? '🌙 ' : '☀️ ';
-      localStorage.setItem('theme', mode);
-    }
-
     // ===== UI refs =====
     const statusText = document.getElementById('statusText');
+    const usernameIn = document.getElementById('username');
     const roomInput  = document.getElementById('room');
     const secretInput= document.getElementById('secret');
+    const createBtn  = document.getElementById('create');
     const joinBtn    = document.getElementById('join');
+    const copyLinkBtn= document.getElementById('copyLink');
     const leaveBtn   = document.getElementById('leave');
     const peersEl    = document.getElementById('peers');
+    const youEl      = document.getElementById('you');
     const roleEl     = document.getElementById('role');
     const markEl     = document.getElementById('mark');
     const turnEl     = document.getElementById('turn');
@@ -151,9 +135,8 @@
     let ydoc, provider, game, board, players;
     let myMark = null; // 'X' | 'O' | null (spectator)
 
-    function initDoc(room, password) {
+    function initDoc(room, password, username) {
       ydoc = new Y.Doc();
-      // Public community hubs; no signup
       provider = new WebrtcProvider(room, ydoc, {
         signaling: [
           'wss://signaling.yjs.dev',
@@ -163,38 +146,39 @@
         password: password || undefined,
       });
 
+      // Announce ourselves (username)
+      provider.awareness.setLocalStateField('user', { name: username });
+
       game = ydoc.getMap('game');
       if (!game.has('players')) game.set('players', new Y.Map());
+      if (!game.has('names')) game.set('names', new Y.Map());
       if (!game.has('turn')) game.set('turn', 'X');
       if (!game.has('status')) game.set('status', 'playing');
       if (!game.has('board')) game.set('board', new Y.Array());
 
-      players = game.get('players');
+      players = game.get('players'); // holds clientIDs for X/O
+      const names = game.get('names'); // maps clientID -> username
+      names.set(String(ydoc.clientID), username);
+
       board = game.get('board');
       if (board.length === 0) board.insert(0, Array(9).fill(null));
 
       // Observe changes and re-render
       game.observeDeep(() => render());
 
-      // Awareness: update peers count
-      const updatePeers = () => {
-        const states = provider.awareness.getStates();
-        peersEl.textContent = states.size;
-      };
-      provider.awareness.on('update', updatePeers);
-      updatePeers();
+      // Peers UI
+      const updatePeers = () => { peersEl.textContent = provider.awareness.getStates().size; };
+      provider.awareness.on('update', updatePeers); updatePeers();
 
-      // Assign mark
+      // Assign mark when joining
       assignMark();
 
-      // Update status pill
-      const setConnStatus = () => {
-        const connected = provider.connected; // boolean
-        statusText.textContent = connected ? 'Connected' : 'Connecting…';
-      };
-      provider.on('synced', setConnStatus);
-      provider.on('status', setConnStatus);
-      setConnStatus();
+      // Status
+      const setConnStatus = () => { statusText.textContent = provider.connected ? 'Connected' : 'Connecting…'; };
+      provider.on('synced', setConnStatus); provider.on('status', setConnStatus); setConnStatus();
+
+      // Enable controls
+      resetBtn.disabled = false; copyLinkBtn.disabled = false; leaveBtn.disabled = false;
     }
 
     function assignMark(){
@@ -205,9 +189,10 @@
       else if (x && x !== me && !o) { players.set('O', me); myMark = 'O'; }
       else if (x === me) { myMark = 'X'; }
       else if (o === me) { myMark = 'O'; }
-      else { myMark = null; } // spectator if X and O already assigned
+      else { myMark = null; }
       roleEl.textContent = myMark ? (myMark === 'X' ? 'Host' : 'Guest') : 'Spectator';
       markEl.textContent = myMark || '—';
+      youEl.textContent = provider.awareness.getLocalState()?.user?.name || '—';
       render();
     }
 
@@ -216,9 +201,7 @@
 
     function winner(b){
       const lines = [[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]];
-      for (const [a,b2,c] of lines) {
-        if (b[a] && b[a] === b[b2] && b[a] === b[c]) return b[a];
-      }
+      for (const [a,b2,c] of lines) { if (b[a] && b[a] === b[b2] && b[a] === b[c]) return b[a]; }
       return b.every(Boolean) ? 'draw' : null;
     }
 
@@ -228,27 +211,19 @@
       if (game.get('status') !== 'playing') return;
       if (b[i]) return;
       if (currentTurn() !== myMark) return;
-      const next = b.slice();
-      next[i] = myMark;
+      const next = b.slice(); next[i] = myMark;
       board.delete(0,1); board.insert(0, [next]);
       const w = winner(next);
-      if (w) {
-        game.set('status', w === 'draw' ? 'draw' : `${w}-wins`);
-      } else {
-        setTurn(myMark === 'X' ? 'O' : 'X');
-      }
-      // animate placed cell
-      cells[i].classList.remove('placed');
-      void cells[i].offsetWidth; // reflow to restart animation
-      cells[i].classList.add('placed');
+      if (w) { game.set('status', w === 'draw' ? 'draw' : `${w}-wins`); }
+      else { setTurn(myMark === 'X' ? 'O' : 'X'); }
+      cells[i].classList.remove('placed'); void cells[i].offsetWidth; cells[i].classList.add('placed');
       render();
     }
 
     function reset(){
       if (!game) return;
       board.delete(0,1); board.insert(0, [Array(9).fill(null)]);
-      game.set('status', 'playing');
-      game.set('turn', 'X');
+      game.set('status', 'playing'); game.set('turn', 'X');
       render();
     }
 
@@ -257,36 +232,57 @@
       const b = board.toArray()[0] || Array(9).fill(null);
       cells.forEach((c, idx) => { c.textContent = b[idx] || ''; });
       const w = winner(b);
-      if (game.get('status') === 'draw' || w === 'draw') {
-        turnEl.textContent = 'Draw';
-      } else if (w) {
-        turnEl.textContent = `${w} wins`; 
-      } else {
-        turnEl.textContent = `Turn: ${currentTurn()}`;
-      }
-      const myTurn = !!myMark && currentTurn() === myMark && !w;
-      cells.forEach(c => c.disabled = !myTurn);
-      resetBtn.disabled = !provider || !provider.connected;
+      if (game.get('status') === 'draw' || w === 'draw') turnEl.textContent = 'Draw';
+      else if (w) turnEl.textContent = `${w} wins`;
+      else turnEl.textContent = `Turn: ${currentTurn()}`;
+      const iCanPlay = !!myMark && currentTurn() === myMark && !w; cells.forEach(c => c.disabled = !iCanPlay);
     }
 
-    // ===== Buttons =====
-    joinBtn.onclick = () => {
-      const room = roomInput.value.trim();
-      if (!room) { alert('Enter a room name first.'); return; }
-      joinBtn.disabled = true; roomInput.disabled = true; secretInput.disabled = true; leaveBtn.disabled = false;
-      initDoc(room, secretInput.value.trim());
+    // ===== Buttons & helpers =====
+    function requireInputs(){
+      const name = usernameIn.value.trim(); if(!name){ alert('Enter a username first.'); return; }
+      const room = roomInput.value.trim(); if(!room){ alert('Enter a room name.'); return; }
+      return { name, room };
+    }
+
+    createBtn.onclick = () => {
+      // If room empty, generate a cute slug
+      if (!roomInput.value.trim()) roomInput.value = genSlug();
+      joinFlow(true);
     };
 
-    leaveBtn.onclick = () => {
-      try { provider && provider.destroy(); } catch {}
-      try { ydoc && ydoc.destroy(); } catch {}
-      location.reload();
+    joinBtn.onclick = () => joinFlow(false);
+
+    copyLinkBtn.onclick = async () => {
+      const room = roomInput.value.trim(); if(!room) return;
+      const url = `${location.origin}${location.pathname}#${encodeURIComponent(room)}`;
+      try { await navigator.clipboard.writeText(url); copyLinkBtn.textContent = 'Link copied!'; setTimeout(()=>copyLinkBtn.textContent='Copy room link', 1200); } catch {}
     };
+
+    leaveBtn.onclick = () => { try { provider && provider.destroy(); } catch {} try { ydoc && ydoc.destroy(); } catch {} location.reload(); };
 
     resetBtn.onclick = () => reset();
 
-    // Auto-fill a friendly room if URL hash is present
-    const hashRoom = location.hash.replace('#','');
+    function joinFlow(created){
+      const req = requireInputs(); if(!req) return;
+      if (created) {
+        // Creator joins immediately; they will likely get X
+      }
+      createBtn.disabled = true; joinBtn.disabled = true; copyLinkBtn.disabled = false;
+      usernameIn.disabled = true; roomInput.disabled = true; secretInput.disabled = true; leaveBtn.disabled = false;
+      initDoc(req.room, secretInput.value.trim(), req.name);
+      // Update URL hash for shareability
+      history.replaceState({}, '', `#${encodeURIComponent(req.room)}`);
+    }
+
+    function genSlug(){
+      const adj = ['cool','minty','bubbly','lilypad','aqua','splashy','crystal','tidal','cloudy','sunny'];
+      const noun= ['otter','coral','splash','shell','bubble','reef','kelp','dolphin','foam','drift'];
+      return `tictactoe-${adj[Math.floor(Math.random()*adj.length)]}-${noun[Math.floor(Math.random()*noun.length)]}`;
+    }
+
+    // If URL already has a room, prefill it
+    const hashRoom = decodeURIComponent(location.hash.replace('#',''));
     if (hashRoom) roomInput.value = hashRoom;
 
     // Initial render
