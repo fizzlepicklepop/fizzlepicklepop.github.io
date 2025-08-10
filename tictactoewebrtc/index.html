@@ -66,34 +66,42 @@
       <div class="pill"><span id="statusText">Not connected</span></div>
     </header>
 
-    <div class="card" style="margin-bottom:16px;">
-      <div class="row">
-        <input id="username" class="input" placeholder="Your username (required)" />
-        <input id="room" class="input" placeholder="Room name (e.g. tictactoe-coolfish)" />
-        <input id="secret" class="input" placeholder="(Optional) room password" />
+    <!-- VIEWS -->
+    <section id="view-lobby" class="view active">
+      <div class="card" style="margin-bottom:16px;">
+        <div class="row">
+          <input id="username" class="input" placeholder="Your username (required)" />
+          <input id="room" class="input" placeholder="Room name (e.g. tictactoe-coolfish)" />
+          <input id="secret" class="input" placeholder="(Optional) room password" />
+        </div>
+        <div class="row" style="margin-top:8px;">
+          <button id="create" class="btn primary">Create room</button>
+          <button id="join" class="btn info">Join room</button>
+          <button id="copyLink" class="btn" disabled>Copy room link</button>
+        </div>
+        <div class="muted" style="font-size:13px; margin-top:8px;">Zero-signup. Discovery via public y‑webrtc hubs; gameplay syncs peer‑to‑peer. Share the room link after creating.</div>
       </div>
-      <div class="row" style="margin-top:8px;">
-        <button id="create" class="btn primary">Create room</button>
-        <button id="join" class="btn info">Join room</button>
-        <button id="copyLink" class="btn" disabled>Copy room link</button>
-        <button id="leave" class="btn" disabled>Leave</button>
-      </div>
-      <div class="row" style="margin-top:8px;">
-        <div class="muted">Peers: <span id="peers">0</span></div>
-        <div class="muted">You: <span id="you">—</span></div>
-        <div class="muted">Role: <span id="role">—</span></div>
-        <div class="muted">Mark: <span id="mark">—</span></div>
-        <div class="muted">Turn: <span id="turn">—</span></div>
-      </div>
-      <div class="muted" style="font-size:13px; margin-top:8px;">Zero-signup. Discovery via public y‑webrtc hubs; gameplay syncs peer‑to‑peer. Share the room link after creating.</div>
-    </div>
+    </section>
 
-    <div class="card" style="text-align:center;">
-      <div class="grid" id="board"></div>
-      <div class="row" style="justify-content:center; margin-top:12px;">
-        <button id="reset" class="btn" disabled>Reset</button>
+    <section id="view-game" class="view">
+      <div class="card" style="margin-bottom:16px;">
+        <div class="row" style="margin-top:0;">
+          <button id="leave" class="btn">Leave</button>
+          <div class="pill">Peers: <span id="peers" style="margin-left:6px;">0</span></div>
+          <div class="pill">You: <span id="you" style="margin-left:6px;">—</span></div>
+          <div class="pill">Role: <span id="role" style="margin-left:6px;">—</span></div>
+          <div class="pill">Mark: <span id="mark" style="margin-left:6px;">—</span></div>
+          <div class="pill">Turn: <span id="turn" style="margin-left:6px;">—</span></div>
+        </div>
       </div>
-    </div>
+
+      <div class="card" style="text-align:center;">
+        <div class="grid" id="board"></div>
+        <div class="row" style="justify-content:center; margin-top:12px;">
+          <button id="reset" class="btn" disabled>Reset</button>
+        </div>
+      </div>
+    </section>
 
     <footer>
       Note: Without TURN relays, very restrictive networks might not connect. Most home/Wi‑Fi networks work well.
@@ -103,6 +111,21 @@
   <script type="module">
     import * as Y from 'https://cdn.jsdelivr.net/npm/yjs@13.6.15/dist/yjs.mjs';
     import { WebrtcProvider } from 'https://cdn.jsdelivr.net/npm/y-webrtc@10.3.2/dist/y-webrtc.mjs';
+
+    // ===== Animations / views =====
+    const lobbyView = document.getElementById('view-lobby');
+    const gameView  = document.getElementById('view-game');
+    function flipTo(next){
+      const from = next === 'game' ? lobbyView : gameView;
+      const to   = next === 'game' ? gameView  : lobbyView;
+      from.classList.remove('active'); from.classList.add('leaving');
+      to.classList.add('entering');
+      // after a frame to trigger transition
+      requestAnimationFrame(()=>{
+        to.classList.add('active'); to.classList.remove('entering');
+        from.addEventListener('transitionend', ()=>{ from.classList.remove('leaving'); }, { once:true });
+      });
+    }
 
     // ===== UI refs =====
     const statusText = document.getElementById('statusText');
@@ -178,7 +201,10 @@
       provider.on('synced', setConnStatus); provider.on('status', setConnStatus); setConnStatus();
 
       // Enable controls
-      resetBtn.disabled = false; copyLinkBtn.disabled = false; leaveBtn.disabled = false;
+      resetBtn.disabled = false; leaveBtn.disabled = false;
+
+      // Transition to game view
+      flipTo('game');
     }
 
     function assignMark(){
@@ -240,21 +266,22 @@
 
     // ===== Buttons & helpers =====
     function requireInputs(){
-      const name = usernameIn.value.trim(); if(!name){ alert('Enter a username first.'); return; }
-      const room = roomInput.value.trim(); if(!room){ alert('Enter a room name.'); return; }
+      const name = usernameIn.value.trim(); if(!name){ wiggle(usernameIn); return; }
+      const room = roomInput.value.trim(); if(!room){ wiggle(roomInput); return; }
       return { name, room };
     }
 
     createBtn.onclick = () => {
-      // If room empty, generate a cute slug
+      // Generate slug first so requireInputs passes
       if (!roomInput.value.trim()) roomInput.value = genSlug();
+      if (!usernameIn.value.trim()) { wiggle(usernameIn); usernameIn.focus(); return; }
       joinFlow(true);
     };
 
     joinBtn.onclick = () => joinFlow(false);
 
     copyLinkBtn.onclick = async () => {
-      const room = roomInput.value.trim(); if(!room) return;
+      const room = roomInput.value.trim(); if(!room) { wiggle(roomInput); return; }
       const url = `${location.origin}${location.pathname}#${encodeURIComponent(room)}`;
       try { await navigator.clipboard.writeText(url); copyLinkBtn.textContent = 'Link copied!'; setTimeout(()=>copyLinkBtn.textContent='Copy room link', 1200); } catch {}
     };
@@ -265,9 +292,6 @@
 
     function joinFlow(created){
       const req = requireInputs(); if(!req) return;
-      if (created) {
-        // Creator joins immediately; they will likely get X
-      }
       createBtn.disabled = true; joinBtn.disabled = true; copyLinkBtn.disabled = false;
       usernameIn.disabled = true; roomInput.disabled = true; secretInput.disabled = true; leaveBtn.disabled = false;
       initDoc(req.room, secretInput.value.trim(), req.name);
@@ -279,6 +303,11 @@
       const adj = ['cool','minty','bubbly','lilypad','aqua','splashy','crystal','tidal','cloudy','sunny'];
       const noun= ['otter','coral','splash','shell','bubble','reef','kelp','dolphin','foam','drift'];
       return `tictactoe-${adj[Math.floor(Math.random()*adj.length)]}-${noun[Math.floor(Math.random()*noun.length)]}`;
+    }
+
+    function wiggle(el){
+      el.classList.add('wiggle');
+      el.addEventListener('animationend', ()=> el.classList.remove('wiggle'), { once:true });
     }
 
     // If URL already has a room, prefill it
