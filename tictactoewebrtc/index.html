@@ -162,9 +162,7 @@
       ydoc = new Y.Doc();
       provider = new WebrtcProvider(room, ydoc, {
         signaling: [
-          'wss://signaling.yjs.dev',
-          'wss://y-webrtc-signaling-eu.herokuapp.com',
-          'wss://y-webrtc-signaling-us.herokuapp.com'
+          'wss://signaling.yjs.dev'
         ],
         password: password || undefined,
       });
@@ -197,7 +195,12 @@
       assignMark();
 
       // Status
-      const setConnStatus = () => { statusText.textContent = provider.connected ? 'Connected' : 'Connecting…'; };
+      const setConnStatus = () => {
+        const connected = provider.connected;
+        statusText.textContent = connected ? 'Connected' : 'Connecting…';
+        // Show peer count when connected
+        if (connected) peersEl.textContent = provider.awareness.getStates().size;
+      };
       provider.on('synced', setConnStatus); provider.on('status', setConnStatus); setConnStatus();
 
       // Enable controls
@@ -292,11 +295,15 @@
 
     function joinFlow(created){
       const req = requireInputs(); if(!req) return;
+      // Flip to game view immediately for clearer UX
+      flipTo('game');
       createBtn.disabled = true; joinBtn.disabled = true; copyLinkBtn.disabled = false;
       usernameIn.disabled = true; roomInput.disabled = true; secretInput.disabled = true; leaveBtn.disabled = false;
-      initDoc(req.room, secretInput.value.trim(), req.name);
-      // Update URL hash for shareability
+      // Update URL hash early so the invite works even if signaling is slow
       history.replaceState({}, '', `#${encodeURIComponent(req.room)}`);
+      // Initialize networking
+      initDoc(req.room, secretInput.value.trim(), req.name);
+    }, '', `#${encodeURIComponent(req.room)}`);
     }
 
     function genSlug(){
