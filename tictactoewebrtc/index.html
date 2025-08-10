@@ -1,380 +1,156 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Tic‑Tac‑Toe — P2P (y‑webrtc, no signup)</title>
-  <style>
-    /* ======================= LIGHT "WATER" THEME ======================= */
-    :root {
-      --bg:#f3f8ff; --bg2:#e9f4ff; --card:#ffffff; --muted:#365ea8; --text:#0b1840; --accent:#0ea5e9; --accent-2:#22d3ee; --danger:#ef4444; --ring: rgba(14, 165, 233, .28);
-      --shadow: 0 10px 26px rgba(8, 36, 80, .12);
-    }
-    html, body { height:100%; }
-    body { margin:0; font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, Helvetica, Arial; background: radial-gradient(1200px 700px at 20% -10%, var(--bg2), var(--bg)); color:var(--text); overflow-x:hidden; }
-
-    /* ======================= BUBBLY WATER BACKGROUND ======================= */
-    .bg { position: fixed; inset: -10vmax; z-index: -1; filter: blur(40px); pointer-events:none; }
-    .blob { position: absolute; width: 46vmax; height: 46vmax; border-radius: 50%; opacity:.5; mix-blend-mode: screen; animation: float 18s ease-in-out infinite alternate; }
-    .blob1 { left: -8vmax; top: -10vmax; background: radial-gradient(circle at 30% 30%, var(--accent-2), transparent 60%); animation-duration: 19s; }
-    .blob2 { right: -12vmax; bottom: -14vmax; background: radial-gradient(circle at 70% 70%, var(--accent), transparent 60%); animation-duration: 22s; }
-    .wave { position: fixed; left:0; right:0; bottom:-2rem; height:180px; opacity:.32; }
-    @keyframes float { from { transform: translate3d(0,0,0) scale(1);} to { transform: translate3d(3vmax,-2vmax,0) scale(1.06);} }
-    @media (prefers-reduced-motion: reduce){ .blob{ animation:none; } }
-
-    /* ======================= LAYOUT ======================= */
-    .wrap { max-width: 980px; margin: 0 auto; padding: 28px; }
-    header { display:flex; align-items:center; justify-content:space-between; gap:16px; margin-bottom: 20px; }
-    h1 { font-size: clamp(22px, 3.2vw, 36px); letter-spacing: .3px; margin:0; display:flex; align-items:center; gap:8px; }
-    .card { background: linear-gradient(180deg, color-mix(in oklab, var(--card), white 0%), color-mix(in oklab, var(--card), white 4%)); border:1px solid color-mix(in oklab, var(--text), transparent 90%); border-radius: 22px; padding: 18px; box-shadow: var(--shadow); backdrop-filter: saturate(140%) blur(4px); }
-
-    .row { display:flex; gap:12px; flex-wrap: wrap; align-items:center; }
-    .input { flex:1 1 220px; min-width: 180px; padding: 12px 14px; border-radius: 16px; outline:none; border:1px solid color-mix(in oklab, var(--text), transparent 90%); background: color-mix(in oklab, var(--bg2), white 10%); color:var(--text); font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono"; box-shadow: inset 0 0 0 1px transparent; transition: box-shadow .15s ease, transform .06s ease; }
-    .input:focus { box-shadow: 0 0 0 6px var(--ring); transform: translateY(-1px); }
-
-    .btn { padding: 11px 14px; border-radius: 16px; border:1px solid color-mix(in oklab, var(--text), transparent 92%); background: linear-gradient(180deg, color-mix(in oklab, var(--bg2), white 8%), color-mix(in oklab, var(--bg2), black 4%)); color:var(--text); cursor:pointer; font-weight:700; letter-spacing:.2px; transition: transform .06s ease, box-shadow .15s ease, opacity .2s; box-shadow: 0 6px 16px rgba(5, 25, 55, .12); }
-    .btn:hover { transform: translateY(-1px); box-shadow: 0 10px 22px rgba(5, 25, 55, .16); }
-    .btn:active { transform: translateY(0); }
-    .btn:disabled { opacity:.55; cursor:not-allowed; }
-    .btn.primary { background: linear-gradient(180deg, color-mix(in oklab, var(--accent), white 12%), color-mix(in oklab, var(--accent), black 6%)); color:white; border-color: transparent; }
-    .btn.info { background: linear-gradient(180deg, color-mix(in oklab, var(--accent-2), white 14%), color-mix(in oklab, var(--accent-2), black 8%)); color:white; border-color: transparent; }
-
-    .pill { display:inline-flex; align-items:center; gap:8px; padding:8px 12px; border-radius: 999px; font-size:12px; border:1px solid color-mix(in oklab, var(--text), transparent 92%); background: color-mix(in oklab, var(--bg2), white 12%); box-shadow: var(--shadow); }
-    .muted { color: color-mix(in oklab, var(--text), white 40%); }
-
-    /* ======================= BOARD ======================= */
-    .grid { display:grid; grid-template-columns: repeat(3, minmax(90px, 120px)); grid-template-rows: repeat(3, minmax(90px, 120px)); gap: 12px; justify-content:center; margin-top:12px; }
-    .cell { display:flex; align-items:center; justify-content:center; font-weight:900; font-size:64px; background: var(--card); border-radius: 22px; border: 1px solid color-mix(in oklab, var(--text), transparent 90%); cursor:pointer; user-select:none; transition: transform .08s ease, background .2s ease, box-shadow .15s ease; box-shadow: 0 8px 20px rgba(5, 25, 55, .12); }
-    .cell:hover { transform: translateY(-1px) scale(1.01); box-shadow: 0 12px 26px rgba(5, 25, 55, .16); }
-    .cell:disabled { cursor:not-allowed; opacity:.6; }
-    .cell.placed { animation: pop .24s cubic-bezier(.2,.8,.2,1); }
-    @keyframes pop { 0%{ transform: scale(.75);} 60%{ transform: scale(1.08);} 100%{ transform: scale(1);} }
-
-    footer { opacity:.8; font-size:12px; margin-top:16px; text-align:center; }
-    /* ===== View transitions ===== */
-    .view { opacity:0; transform: translateY(8px) scale(.98); transition: opacity .28s ease, transform .28s ease; }
-    .view.active { opacity:1; transform: translateY(0) scale(1); }
-    .view.leaving { opacity:0; transform: translateY(-8px) scale(.98); }
-
-    /* ===== Wiggle for invalid input ===== */
-    @keyframes wiggle { 0%{transform:translateX(0)} 15%{transform:translateX(-6px)} 30%{transform:translateX(6px)} 45%{transform:translateX(-4px)} 60%{transform:translateX(4px)} 75%{transform:translateX(-2px)} 100%{transform:translateX(0)} }
-    .wiggle { animation: wiggle .36s ease; }
-
-    /* ===== Players list ===== */
-    .plist { list-style:none; margin:8px 0 0; padding:0; display:flex; flex-wrap:wrap; gap:8px; }
-    .pitem { display:flex; align-items:center; gap:8px; padding:8px 12px; border-radius:14px; background: color-mix(in oklab, var(--bg2), white 18%); border:1px solid color-mix(in oklab, var(--text), transparent 92%); box-shadow: var(--shadow); }
-    .me { outline: 2px solid var(--accent); outline-offset: 2px; }
-    .badge { font-weight:700; font-size:12px; padding:4px 8px; border-radius:999px; color:white; }
-    .badge.x { background: #0ea5e9; }
-    .badge.o { background: #22d3ee; }
-    .badge.s { background: #94a3b8; }
-
-  </style>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>P2P Tic-Tac-Toe (y-webrtc)</title>
+<style>
+  body { font-family: sans-serif; background: #e0f7fa; margin: 0; padding: 0; }
+  .wrap { max-width: 800px; margin: auto; padding: 16px; }
+  header { display: flex; justify-content: space-between; align-items: center; }
+  .view { display: none; }
+  .view.active { display: block; }
+  .card { background: white; padding: 16px; border-radius: 8px; margin-bottom: 16px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+  .row { display: flex; gap: 8px; flex-wrap: wrap; }
+  .btn { padding: 8px 12px; border: none; border-radius: 4px; cursor: pointer; }
+  .primary { background: #00796b; color: white; }
+  .info { background: #0288d1; color: white; }
+  .pill { background: #b2ebf2; padding: 4px 8px; border-radius: 12px; }
+  .muted { color: #666; }
+  .grid { display: grid; grid-template-columns: repeat(3, 80px); gap: 4px; justify-content: center; }
+  .cell { width: 80px; height: 80px; font-size: 2rem; }
+  #connectionLog { font-size: 0.9rem; background: #f1f8e9; padding: 8px; border-radius: 4px; max-height: 120px; overflow-y: auto; }
+</style>
 </head>
 <body>
-  <div class="bg">
-    <div class="blob blob1"></div>
-    <div class="blob blob2"></div>
-    <svg class="wave" viewBox="0 0 1440 320" preserveAspectRatio="none" aria-hidden="true"><path fill="#7dd3fc" d="M0,256L80,224C160,192,320,128,480,138.7C640,149,800,235,960,240C1120,245,1280,171,1360,133.3L1440,96L1440,320L1360,320C1280,320,1120,320,960,320C800,320,640,320,480,320C320,320,160,320,80,320L0,320Z"/></svg>
+<div class="wrap">
+<header>
+  <h1>P2P Tic-Tac-Toe</h1>
+  <div class="pill" id="statusText">Not connected</div>
+</header>
+<section id="view-lobby" class="view active">
+  <div class="card">
+    <div class="row">
+      <input id="username" placeholder="Username" />
+      <input id="room" placeholder="Room name" />
+    </div>
+    <div class="row">
+      <button id="create" class="btn primary">Create Room</button>
+      <button id="join" class="btn info">Join Room</button>
+    </div>
   </div>
-
-  <div class="wrap">
-    <header>
-      <h1>💧 Tic‑Tac‑Toe — P2P (y‑webrtc)</h1>
-      <div class="pill"><span id="statusText">Not connected</span></div>
-    </header>
-
-    <!-- VIEWS -->
-    <section id="view-lobby" class="view active">
-      <div class="card" style="margin-bottom:16px;">
-        <div class="row">
-          <input id="username" class="input" placeholder="Your username (required)" />
-          <input id="room" class="input" placeholder="Room name (e.g. tictactoe-coolfish)" />
-          <input id="secret" class="input" placeholder="(Optional) room password" />
-        </div>
-        <div class="row" style="margin-top:8px;">
-          <button id="create" class="btn primary">Create room</button>
-          <button id="join" class="btn info">Join room</button>
-          <button id="copyLink" class="btn" disabled>Copy room link</button>
-        </div>
-        <div class="muted" style="font-size:13px; margin-top:8px;">Zero-signup. Discovery via public y‑webrtc hubs; gameplay syncs peer‑to‑peer. Share the room link after creating.</div>
-      </div>
-    </section>
-
-    <section id="view-game" class="view">
-      <div class="card" style="margin-bottom:16px;">
-        <div class="row" style="margin-top:0;">
-          <button id="leave" class="btn">Leave</button>
-          <div class="pill">Peers: <span id="peers" style="margin-left:6px;">0</span></div>
-          <div class="pill">You: <span id="you" style="margin-left:6px;">—</span></div>
-          <div class="pill">Role: <span id="role" style="margin-left:6px;">—</span></div>
-          <div class="pill">Mark: <span id="mark" style="margin-left:6px;">—</span></div>
-          <div class="pill">Turn: <span id="turn" style="margin-left:6px;">—</span></div>
-        </div>
-      </div>
-
-      <div class="card" style="margin-bottom:16px;">
-        <div class="row" style="justify-content:space-between; width:100%;">
-          <div class="muted">Players in room</div>
-        </div>
-        <ul id="playersList" class="plist"></ul>
-      </div>
-
-      <div class="card" style="text-align:center;">
-        <div class="grid" id="board"></div>
-        <div class="row" style="justify-content:center; margin-top:12px;">
-          <button id="reset" class="btn" disabled>Reset</button>
-        </div>
-      </div>
-    </section>
-
-    <footer>
-      Note: Without TURN relays, very restrictive networks might not connect. Most home/Wi‑Fi networks work well.
-    </footer>
+</section>
+<section id="view-game" class="view">
+  <div class="card">
+    <div class="row">
+      <button id="leave" class="btn">Leave</button>
+      <div class="pill">You: <span id="you">—</span></div>
+      <div class="pill">Mark: <span id="mark">—</span></div>
+      <div class="pill">Turn: <span id="turn">—</span></div>
+    </div>
   </div>
+  <div class="card">
+    <div class="grid" id="board"></div>
+  </div>
+  <div class="card">
+    <div class="muted">Connection log:</div>
+    <div id="connectionLog"></div>
+  </div>
+</section>
+</div>
+<script type="module">
+import * as Y from 'https://cdn.jsdelivr.net/npm/yjs@13.6.15/dist/yjs.mjs';
+import { WebrtcProvider } from 'https://cdn.jsdelivr.net/npm/y-webrtc@10.3.2/dist/y-webrtc.mjs';
 
-  <script type="module">
-    import * as Y from 'https://cdn.jsdelivr.net/npm/yjs@13.6.15/dist/yjs.mjs';
-    import { WebrtcProvider } from 'https://cdn.jsdelivr.net/npm/y-webrtc@10.3.2/dist/y-webrtc.mjs';
+const statusText = document.getElementById('statusText');
+const connectionLog = document.getElementById('connectionLog');
+function log(msg) {
+  const time = new Date().toLocaleTimeString();
+  connectionLog.innerHTML += `<div>[${time}] ${msg}</div>`;
+  connectionLog.scrollTop = connectionLog.scrollHeight;
+}
 
-    // ===== Animations / views =====
-    const lobbyView = document.getElementById('view-lobby');
-    const gameView  = document.getElementById('view-game');
-    function flipTo(next){
-      const from = next === 'game' ? lobbyView : gameView;
-      const to   = next === 'game' ? gameView  : lobbyView;
-      from.classList.remove('active'); from.classList.add('leaving');
-      to.classList.add('entering');
-      // after a frame to trigger transition
-      requestAnimationFrame(()=>{
-        to.classList.add('active'); to.classList.remove('entering');
-        from.addEventListener('transitionend', ()=>{ from.classList.remove('leaving'); }, { once:true });
-      });
-    }
+const lobbyView = document.getElementById('view-lobby');
+const gameView = document.getElementById('view-game');
+function flipTo(view) {
+  lobbyView.classList.remove('active');
+  gameView.classList.remove('active');
+  document.getElementById(`view-${view}`).classList.add('active');
+}
 
-    // ===== UI refs =====
-    const statusText = document.getElementById('statusText');
-    const usernameIn = document.getElementById('username');
-    const roomInput  = document.getElementById('room');
-    const secretInput= document.getElementById('secret');
-    const createBtn  = document.getElementById('create');
-    const joinBtn    = document.getElementById('join');
-    const copyLinkBtn= document.getElementById('copyLink');
-    const leaveBtn   = document.getElementById('leave');
-    const peersEl    = document.getElementById('peers');
-    const youEl      = document.getElementById('you');
-    const roleEl     = document.getElementById('role');
-    const markEl     = document.getElementById('mark');
-    const turnEl     = document.getElementById('turn');
-    const boardEl    = document.getElementById('board');
-    const resetBtn   = document.getElementById('reset');
-    const playersList= document.getElementById('playersList');
+const usernameIn = document.getElementById('username');
+const roomInput = document.getElementById('room');
+const createBtn = document.getElementById('create');
+const joinBtn = document.getElementById('join');
+const leaveBtn = document.getElementById('leave');
+const youEl = document.getElementById('you');
+const markEl = document.getElementById('mark');
+const turnEl = document.getElementById('turn');
+const boardEl = document.getElementById('board');
 
-    // Build board UI
-    const cells = [];
-    for (let i = 0; i < 9; i++) {
-      const b = document.createElement('button');
-      b.className = 'cell';
-      b.addEventListener('click', () => doMove(i));
-      boardEl.appendChild(b);
-      cells.push(b);
-    }
+let provider, game, board, myMark;
+const cells = [];
+for (let i = 0; i < 9; i++) {
+  const b = document.createElement('button');
+  b.className = 'cell';
+  b.addEventListener('click', () => doMove(i));
+  boardEl.appendChild(b);
+  cells.push(b);
+}
 
-    // ===== Yjs doc & shared state =====
-    let ydoc, provider, game, board, players;
-    let myMark = null; // 'X' | 'O' | null (spectator)
+function start(room, username) {
+  flipTo('game');
+  log(`Joining room '${room}' as ${username}...`);
+  const ydoc = new Y.Doc();
+  provider = new WebrtcProvider(room, ydoc, {
+    signaling: ['wss://signaling.yjs.dev'],
+  });
+  provider.awareness.setLocalStateField('user', { name: username });
+  statusText.textContent = 'Connecting...';
 
-    function initDoc(room, password, username) {
-      ydoc = new Y.Doc();
-      provider = new WebrtcProvider(room, ydoc, {
-        signaling: [
-          'wss://signaling.yjs.dev'
-        ],
-        password: password || undefined,
-      });
+  provider.on('status', e => {
+    statusText.textContent = e.status === 'connected' ? 'Connected' : 'Connecting...';
+    log(`Status: ${e.status}`);
+  });
+  provider.on('peers', e => {
+    log(`Peers changed: ${JSON.stringify(e)}`);
+  });
 
-      // Announce ourselves (username)
-      provider.awareness.setLocalStateField('user', { name: username });
+  game = ydoc.getMap('game');
+  if (!game.has('board')) game.set('board', new Y.Array());
+  board = game.get('board');
+  if (board.length === 0) board.insert(0, Array(9).fill(null));
+  game.observeDeep(render);
+  render();
 
-      game = ydoc.getMap('game');
-      if (!game.has('players')) game.set('players', new Y.Map());
-      if (!game.has('names')) game.set('names', new Y.Map());
-      if (!game.has('turn')) game.set('turn', 'X');
-      if (!game.has('status')) game.set('status', 'playing');
-      if (!game.has('board')) game.set('board', new Y.Array());
+  myMark = 'X';
+  youEl.textContent = username;
+  markEl.textContent = myMark;
+}
 
-      players = game.get('players'); // holds clientIDs for X/O
-      const names = game.get('names'); // maps clientID -> username
-      names.set(String(ydoc.clientID), username);
+function render() {
+  if (!board) return;
+  const b = board.toArray()[0] || Array(9).fill(null);
+  cells.forEach((c, i) => c.textContent = b[i] || '');
+}
 
-      board = game.get('board');
-      if (board.length === 0) board.insert(0, Array(9).fill(null));
+function doMove(i) {
+  const b = board.toArray()[0];
+  if (b[i]) return;
+  b[i] = myMark;
+  board.delete(0,1);
+  board.insert(0, [b]);
+}
 
-      // Observe changes and re-render
-      game.observeDeep(() => { render(); renderPlayers(); });
-
-      // Peers UI
-      const updatePeers = () => { peersEl.textContent = provider.awareness.getStates().size; renderPlayers(); };
-      provider.awareness.on('update', updatePeers); updatePeers();
-
-      // Assign mark when joining
-      assignMark();
-
-      // Status
-      const setConnStatus = () => {
-        const connected = provider.connected;
-        statusText.textContent = connected ? 'Connected' : 'Connecting…';
-        // Show peer count when connected
-        if (connected) peersEl.textContent = provider.awareness.getStates().size;
-      };
-      provider.on('synced', setConnStatus); provider.on('status', setConnStatus); setConnStatus();
-
-      // Enable controls
-      resetBtn.disabled = false; leaveBtn.disabled = false;
-
-      // Transition to game view
-      flipTo('game');
-    }
-
-    function assignMark(){
-      const me = ydoc.clientID;
-      const x = players.get('X');
-      const o = players.get('O');
-      if (!x) { players.set('X', me); myMark = 'X'; }
-      else if (x && x !== me && !o) { players.set('O', me); myMark = 'O'; }
-      else if (x === me) { myMark = 'X'; }
-      else if (o === me) { myMark = 'O'; }
-      else { myMark = null; }
-      roleEl.textContent = myMark ? (myMark === 'X' ? 'Host' : 'Guest') : 'Spectator';
-      markEl.textContent = myMark || '—';
-      youEl.textContent = provider.awareness.getLocalState()?.user?.name || '—';
-      render();
-    }
-
-    function currentTurn(){ return game.get('turn'); }
-    function setTurn(t){ game.set('turn', t); }
-
-    function winner(b){
-      const lines = [[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]];
-      for (const [a,b2,c] of lines) { if (b[a] && b[a] === b[b2] && b[a] === b[c]) return b[a]; }
-      return b.every(Boolean) ? 'draw' : null;
-    }
-
-    function doMove(i){
-      if (!myMark) return; // spectators can't play
-      const b = board.toArray()[0];
-      if (game.get('status') !== 'playing') return;
-      if (b[i]) return;
-      if (currentTurn() !== myMark) return;
-      const next = b.slice(); next[i] = myMark;
-      board.delete(0,1); board.insert(0, [next]);
-      const w = winner(next);
-      if (w) { game.set('status', w === 'draw' ? 'draw' : `${w}-wins`); }
-      else { setTurn(myMark === 'X' ? 'O' : 'X'); }
-      cells[i].classList.remove('placed'); void cells[i].offsetWidth; cells[i].classList.add('placed');
-      render();
-    }
-
-    function reset(){
-      if (!game) return;
-      board.delete(0,1); board.insert(0, [Array(9).fill(null)]);
-      game.set('status', 'playing'); game.set('turn', 'X');
-      render();
-    }
-
-    function render(){
-      if (!board) return;
-      const b = board.toArray()[0] || Array(9).fill(null);
-      cells.forEach((c, idx) => { c.textContent = b[idx] || ''; });
-      const w = winner(b);
-      if (game.get('status') === 'draw' || w === 'draw') turnEl.textContent = 'Draw';
-      else if (w) turnEl.textContent = `${w} wins`;
-      else turnEl.textContent = `Turn: ${currentTurn()}`;
-      const iCanPlay = !!myMark && currentTurn() === myMark && !w; cells.forEach(c => c.disabled = !iCanPlay);
-    }
-
-    function renderPlayers(){
-      if (!provider) return;
-      const states = provider.awareness.getStates();
-      const xId = players?.get('X');
-      const oId = players?.get('O');
-      const meId = ydoc?.clientID;
-      const items = [];
-      states.forEach((st, id) => {
-        const name = (st && st.user && st.user.name) ? st.user.name : `Player ${id}`;
-        let badge = 's', label = 'Spectator';
-        if (String(id) === String(xId)) { badge = 'x'; label = 'X'; }
-        else if (String(id) === String(oId)) { badge = 'o'; label = 'O'; }
-        const meClass = (String(id) === String(meId)) ? ' me' : '';
-        items.push(`<li class="pitem${meClass}"><span class="badge ${badge}">${label}</span> ${escapeHtml(name)}</li>`);
-      });
-      playersList.innerHTML = items.join('') || '<li class="pitem"><span class="badge s">—</span> Waiting for players…</li>';
-    }
-
-    function escapeHtml(str){ return str.replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;'}[m])); });
-      const w = winner(b);
-      if (game.get('status') === 'draw' || w === 'draw') turnEl.textContent = 'Draw';
-      else if (w) turnEl.textContent = `${w} wins`;
-      else turnEl.textContent = `Turn: ${currentTurn()}`;
-      const iCanPlay = !!myMark && currentTurn() === myMark && !w; cells.forEach(c => c.disabled = !iCanPlay);
-    }
-
-    // ===== Buttons & helpers =====
-    function requireInputs(){
-      const name = usernameIn.value.trim(); if(!name){ wiggle(usernameIn); return; }
-      const room = roomInput.value.trim(); if(!room){ wiggle(roomInput); return; }
-      return { name, room };
-    }
-
-    createBtn.onclick = () => {
-      // Generate slug first so requireInputs passes
-      if (!roomInput.value.trim()) roomInput.value = genSlug();
-      if (!usernameIn.value.trim()) { wiggle(usernameIn); usernameIn.focus(); return; }
-      joinFlow(true);
-    };
-
-    joinBtn.onclick = () => joinFlow(false);
-
-    copyLinkBtn.onclick = async () => {
-      const room = roomInput.value.trim(); if(!room) { wiggle(roomInput); return; }
-      const url = `${location.origin}${location.pathname}#${encodeURIComponent(room)}`;
-      try { await navigator.clipboard.writeText(url); copyLinkBtn.textContent = 'Link copied!'; setTimeout(()=>copyLinkBtn.textContent='Copy room link', 1200); } catch {}
-    };
-
-    leaveBtn.onclick = () => { try { provider && provider.destroy(); } catch {} try { ydoc && ydoc.destroy(); } catch {} location.reload(); };
-
-    resetBtn.onclick = () => reset();
-
-    function joinFlow(created){
-      const req = requireInputs(); if(!req) return;
-      // Flip to game view immediately for clearer UX
-      flipTo('game');
-      createBtn.disabled = true; joinBtn.disabled = true; copyLinkBtn.disabled = false;
-      usernameIn.disabled = true; roomInput.disabled = true; secretInput.disabled = true; leaveBtn.disabled = false;
-      // Update URL hash early so the invite works even if signaling is slow
-      history.replaceState({}, '', `#${encodeURIComponent(req.room)}`);
-      // Initialize networking
-      initDoc(req.room, secretInput.value.trim(), req.name);
-    }, '', `#${encodeURIComponent(req.room)}`);
-    }
-
-    function genSlug(){
-      const adj = ['cool','minty','bubbly','lilypad','aqua','splashy','crystal','tidal','cloudy','sunny'];
-      const noun= ['otter','coral','splash','shell','bubble','reef','kelp','dolphin','foam','drift'];
-      return `tictactoe-${adj[Math.floor(Math.random()*adj.length)]}-${noun[Math.floor(Math.random()*noun.length)]}`;
-    }
-
-    function wiggle(el){
-      el.classList.add('wiggle');
-      el.addEventListener('animationend', ()=> el.classList.remove('wiggle'), { once:true });
-    }
-
-    // If URL already has a room, prefill it
-    const hashRoom = decodeURIComponent(location.hash.replace('#',''));
-    if (hashRoom) roomInput.value = hashRoom;
-
-    // Initial render
-    render();
-  </script>
+createBtn.onclick = () => {
+  if (!usernameIn.value.trim() || !roomInput.value.trim()) {
+    alert('Enter username and room');
+    return;
+  }
+  start(roomInput.value.trim(), usernameIn.value.trim());
+};
+joinBtn.onclick = createBtn.onclick;
+leaveBtn.onclick = () => location.reload();
+</script>
 </body>
 </html>
