@@ -51,6 +51,24 @@
     @keyframes pop { 0%{ transform: scale(.75);} 60%{ transform: scale(1.08);} 100%{ transform: scale(1);} }
 
     footer { opacity:.8; font-size:12px; margin-top:16px; text-align:center; }
+    /* ===== View transitions ===== */
+    .view { opacity:0; transform: translateY(8px) scale(.98); transition: opacity .28s ease, transform .28s ease; }
+    .view.active { opacity:1; transform: translateY(0) scale(1); }
+    .view.leaving { opacity:0; transform: translateY(-8px) scale(.98); }
+
+    /* ===== Wiggle for invalid input ===== */
+    @keyframes wiggle { 0%{transform:translateX(0)} 15%{transform:translateX(-6px)} 30%{transform:translateX(6px)} 45%{transform:translateX(-4px)} 60%{transform:translateX(4px)} 75%{transform:translateX(-2px)} 100%{transform:translateX(0)} }
+    .wiggle { animation: wiggle .36s ease; }
+
+    /* ===== Players list ===== */
+    .plist { list-style:none; margin:8px 0 0; padding:0; display:flex; flex-wrap:wrap; gap:8px; }
+    .pitem { display:flex; align-items:center; gap:8px; padding:8px 12px; border-radius:14px; background: color-mix(in oklab, var(--bg2), white 18%); border:1px solid color-mix(in oklab, var(--text), transparent 92%); box-shadow: var(--shadow); }
+    .me { outline: 2px solid var(--accent); outline-offset: 2px; }
+    .badge { font-weight:700; font-size:12px; padding:4px 8px; border-radius:999px; color:white; }
+    .badge.x { background: #0ea5e9; }
+    .badge.o { background: #22d3ee; }
+    .badge.s { background: #94a3b8; }
+
   </style>
 </head>
 <body>
@@ -93,6 +111,13 @@
           <div class="pill">Mark: <span id="mark" style="margin-left:6px;">—</span></div>
           <div class="pill">Turn: <span id="turn" style="margin-left:6px;">—</span></div>
         </div>
+      </div>
+
+      <div class="card" style="margin-bottom:16px;">
+        <div class="row" style="justify-content:space-between; width:100%;">
+          <div class="muted">Players in room</div>
+        </div>
+        <ul id="playersList" class="plist"></ul>
       </div>
 
       <div class="card" style="text-align:center;">
@@ -143,6 +168,7 @@
     const turnEl     = document.getElementById('turn');
     const boardEl    = document.getElementById('board');
     const resetBtn   = document.getElementById('reset');
+    const playersList= document.getElementById('playersList');
 
     // Build board UI
     const cells = [];
@@ -185,10 +211,10 @@
       if (board.length === 0) board.insert(0, Array(9).fill(null));
 
       // Observe changes and re-render
-      game.observeDeep(() => render());
+      game.observeDeep(() => { render(); renderPlayers(); });
 
       // Peers UI
-      const updatePeers = () => { peersEl.textContent = provider.awareness.getStates().size; };
+      const updatePeers = () => { peersEl.textContent = provider.awareness.getStates().size; renderPlayers(); };
       provider.awareness.on('update', updatePeers); updatePeers();
 
       // Assign mark when joining
@@ -260,6 +286,32 @@
       if (!board) return;
       const b = board.toArray()[0] || Array(9).fill(null);
       cells.forEach((c, idx) => { c.textContent = b[idx] || ''; });
+      const w = winner(b);
+      if (game.get('status') === 'draw' || w === 'draw') turnEl.textContent = 'Draw';
+      else if (w) turnEl.textContent = `${w} wins`;
+      else turnEl.textContent = `Turn: ${currentTurn()}`;
+      const iCanPlay = !!myMark && currentTurn() === myMark && !w; cells.forEach(c => c.disabled = !iCanPlay);
+    }
+
+    function renderPlayers(){
+      if (!provider) return;
+      const states = provider.awareness.getStates();
+      const xId = players?.get('X');
+      const oId = players?.get('O');
+      const meId = ydoc?.clientID;
+      const items = [];
+      states.forEach((st, id) => {
+        const name = (st && st.user && st.user.name) ? st.user.name : `Player ${id}`;
+        let badge = 's', label = 'Spectator';
+        if (String(id) === String(xId)) { badge = 'x'; label = 'X'; }
+        else if (String(id) === String(oId)) { badge = 'o'; label = 'O'; }
+        const meClass = (String(id) === String(meId)) ? ' me' : '';
+        items.push(`<li class="pitem${meClass}"><span class="badge ${badge}">${label}</span> ${escapeHtml(name)}</li>`);
+      });
+      playersList.innerHTML = items.join('') || '<li class="pitem"><span class="badge s">—</span> Waiting for players…</li>';
+    }
+
+    function escapeHtml(str){ return str.replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;'}[m])); });
       const w = winner(b);
       if (game.get('status') === 'draw' || w === 'draw') turnEl.textContent = 'Draw';
       else if (w) turnEl.textContent = `${w} wins`;
