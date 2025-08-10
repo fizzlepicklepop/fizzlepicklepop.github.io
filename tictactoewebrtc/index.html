@@ -1,441 +1,296 @@
 <!DOCTYPE html>
-<html>
+<html lang="en" data-theme="dark">
 <head>
-  <meta charset="utf-8"/>
-  <title>Retro Pixel Tic Tac Toe with Instructions + Copy Button</title>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Tic‑Tac‑Toe — P2P (y‑webrtc, no signup)</title>
   <style>
-    /* Retro pixel aesthetic */
-    body {
-      background-color: #202020;
-      color: #33FF33;
-      font-family: monospace;
-      margin: 0;
-      padding: 0;
+    /* ======================= THEME ======================= */
+    :root {
+      --bg: #0b1020; --bg2:#0e1530; --card:#121a33; --muted:#94a3ff; --text:#eaf0ff; --accent:#6ae6b3; --accent-2:#7ad1ff; --danger:#ff7a7a; --ring: rgba(122, 209, 255, .5);
+      --shadow: 0 10px 30px rgba(0,0,0,.35);
     }
-    .container {
-      display: flex;
-      flex-direction: row;
-      align-items: flex-start;
-      margin: 1rem;
+    [data-theme="light"]{
+      --bg:#f6f7fb; --bg2:#eef1ff; --card:#ffffff; --muted:#5563c1; --text:#0e1330; --accent:#14b8a6; --accent-2:#2563eb; --danger:#ef4444; --ring: rgba(37, 99, 235, .28);
+      --shadow: 0 8px 24px rgba(5,16,60,.12);
     }
-    .panel {
-      border: 4px solid #33FF33;
-      padding: 1rem;
-      margin-right: 1rem;
-      width: 300px;
-      min-height: 400px;
-    }
-    .boardContainer {
-      border: 4px solid #33FF33;
-      padding: 1rem;
-      min-width: 320px;
-      min-height: 320px;
-      margin-right: 1rem;
-    }
-    .instructionsPanel {
-      border: 4px solid #33FF33;
-      padding: 1rem;
-      width: 250px;
-      min-height: 320px;
-    }
-    .title {
-      font-size: 1.2rem;
-      margin-bottom: 0.5rem;
-      text-transform: uppercase;
-      letter-spacing: 1px;
-    }
-    label {
-      display: inline-block;
-      margin: 0.5rem 0;
-    }
-    textarea {
-      width: 100%;
-      background-color: #111;
-      color: #33FF33;
-      border: 2px solid #33FF33;
-      font-family: monospace;
-      font-size: 0.9rem;
-      resize: none;
-    }
-    button {
-      background-color: #111;
-      color: #33FF33;
-      border: 2px solid #33FF33;
-      font-family: monospace;
-      font-size: 1rem;
-      padding: 0.2rem 0.5rem;
-      cursor: pointer;
-      margin-bottom: 0.5rem;
-    }
-    button:disabled {
-      color: #777;
-      border-color: #777;
-      cursor: not-allowed;
-    }
-    button:hover:enabled {
-      background-color: #333;
-    }
-    #board {
-      display: grid;
-      grid-template-columns: repeat(3, 80px);
-      grid-template-rows: repeat(3, 80px);
-      gap: 4px;
-      margin-top: 10px;
-      justify-content: center;
-    }
-    .cell {
-      background-color: #111;
-      border: 2px solid #33FF33;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 2rem;
-      width: 80px;
-      height: 80px;
-      cursor: pointer;
-    }
-    .cell:hover {
-      background-color: #333;
-    }
-    #log {
-      background-color: #111;
-      color: #33FF33;
-      white-space: pre-wrap;
-      border: 2px solid #33FF33;
-      padding: 5px;
-      margin-top: 10px;
-      max-height: 150px;
-      overflow-y: auto;
-      font-size: 0.8rem;
-    }
-    input[type="checkbox"] {
-      transform: scale(1.2);
-      margin-right: 0.3rem;
-      cursor: pointer;
-    }
-    ul {
-      margin: 0;
-      padding-left: 1.4rem;
-    }
-    li {
-      margin-bottom: 0.5rem;
-    }
+    html, body { height:100%; }
+    body { margin:0; font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, Helvetica, Arial; background: radial-gradient(1200px 700px at 20% -10%, var(--bg2), var(--bg)); color:var(--text); overflow-x:hidden; }
+
+    /* ======================= BUBBLY BACKGROUND ======================= */
+    .bg { position: fixed; inset: -10vmax; z-index: -1; filter: blur(40px); pointer-events:none; }
+    .blob { position: absolute; width: 40vmax; height: 40vmax; border-radius: 50%; opacity:.45; mix-blend-mode: screen; animation: float 18s ease-in-out infinite alternate; }
+    .blob1 { left: -8vmax; top: -8vmax; background: radial-gradient(circle at 30% 30%, var(--accent), transparent 60%); animation-duration: 20s; }
+    .blob2 { right: -10vmax; bottom: -12vmax; background: radial-gradient(circle at 70% 70%, var(--accent-2), transparent 60%); animation-duration: 22s; }
+    @keyframes float { from { transform: translate3d(0,0,0) scale(1);} to { transform: translate3d(4vmax,-3vmax,0) scale(1.08);} }
+    @media (prefers-reduced-motion: reduce){ .blob{ animation:none; } }
+
+    /* ======================= LAYOUT ======================= */
+    .wrap { max-width: 980px; margin: 0 auto; padding: 28px; }
+    header { display:flex; align-items:center; justify-content:space-between; gap:16px; margin-bottom: 20px; }
+    h1 { font-size: clamp(22px, 3.2vw, 36px); letter-spacing: .3px; margin:0; display:flex; align-items:center; gap:8px; }
+    .card { background: linear-gradient(180deg, color-mix(in oklab, var(--card), transparent 90%), color-mix(in oklab, var(--card), transparent 80%)); border:1px solid color-mix(in oklab, var(--text), transparent 92%); border-radius: 22px; padding: 18px; box-shadow: var(--shadow); backdrop-filter: saturate(140%) blur(4px); }
+
+    .row { display:flex; gap:12px; flex-wrap: wrap; align-items:center; }
+    .input { flex:1 1 220px; min-width: 200px; padding: 12px 14px; border-radius: 16px; outline:none; border:1px solid color-mix(in oklab, var(--text), transparent 88%); background: color-mix(in oklab, var(--bg2), white 5%); color:var(--text); font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono"; box-shadow: inset 0 0 0 1px transparent; transition: box-shadow .15s ease, transform .06s ease; }
+    .input:focus { box-shadow: 0 0 0 6px var(--ring); transform: translateY(-1px); }
+
+    .btn { padding: 11px 14px; border-radius: 16px; border:1px solid color-mix(in oklab, var(--text), transparent 90%); background: linear-gradient(180deg, color-mix(in oklab, var(--bg2), white 8%), color-mix(in oklab, var(--bg2), black 6%)); color:var(--text); cursor:pointer; font-weight:700; letter-spacing:.2px; transition: transform .06s ease, box-shadow .15s ease, opacity .2s; box-shadow: 0 6px 16px rgba(0,0,0,.12); }
+    .btn:hover { transform: translateY(-1px); box-shadow: 0 10px 22px rgba(0,0,0,.16); }
+    .btn:active { transform: translateY(0); }
+    .btn:disabled { opacity:.55; cursor:not-allowed; }
+    .btn.primary { background: linear-gradient(180deg, color-mix(in oklab, var(--accent-2), white 6%), color-mix(in oklab, var(--accent-2), black 10%)); color:white; border-color: transparent; }
+    .btn.ghost { background: transparent; }
+
+    .pill { display:inline-flex; align-items:center; gap:8px; padding:8px 12px; border-radius: 999px; font-size:12px; border:1px solid color-mix(in oklab, var(--text), transparent 90%); background: color-mix(in oklab, var(--bg2), white 4%); box-shadow: var(--shadow); }
+    .muted { color: color-mix(in oklab, var(--text), white 40%); }
+
+    /* ======================= BOARD ======================= */
+    .grid { display:grid; grid-template-columns: repeat(3, minmax(90px, 120px)); grid-template-rows: repeat(3, minmax(90px, 120px)); gap: 12px; justify-content:center; margin-top:12px; }
+    .cell { display:flex; align-items:center; justify-content:center; font-weight:900; font-size:64px; background: var(--card); border-radius: 22px; border: 1px solid color-mix(in oklab, var(--text), transparent 90%); cursor:pointer; user-select:none; transition: transform .08s ease, background .2s ease, box-shadow .15s ease; box-shadow: 0 8px 20px rgba(0,0,0,.15); }
+    .cell:hover { transform: translateY(-1px) scale(1.01); box-shadow: 0 12px 26px rgba(0,0,0,.18); }
+    .cell:disabled { cursor:not-allowed; opacity:.6; }
+    .cell.placed { animation: pop .24s cubic-bezier(.2,.8,.2,1); }
+    @keyframes pop { 0%{ transform: scale(.75); filter: saturate(1.2);} 60%{ transform: scale(1.1);} 100%{ transform: scale(1);} }
+
+    footer { opacity:.8; font-size:12px; margin-top:16px; text-align:center; }
+
+    /* Theme toggle icon styles */
+    .toggle { display:flex; align-items:center; gap:8px; padding:8px 12px; border-radius:16px; border:1px solid color-mix(in oklab, var(--text), transparent 90%); background: color-mix(in oklab, var(--bg2), white 4%); cursor:pointer; box-shadow: var(--shadow); }
   </style>
 </head>
 <body>
-  <div class="container">
-    <!-- Left Panel: WebRTC Setup -->
-    <div class="panel">
-      <div class="title">WebRTC Setup</div>
-      <label>
-        <input type="checkbox" id="player1Check" />
-        I am the first player (X)
-      </label>
-      <br/>
-      <button id="btnOffer" disabled>Make Offer</button>
-      <button id="btnAnswer">Make Answer</button>
-
-      <div style="margin-top: 1rem;">
-        <label>Paste Encrypted Remote SDP:</label><br/>
-        <textarea id="remoteSdp" rows="6"></textarea><br/>
-        <button id="btnSetRemote">Set Remote</button>
-      </div>
-
-      <div style="margin-top:1rem;">
-        <!-- The copy button is now next to the label, not the textarea -->
-        <label>Local SDP (Encrypted):</label>
-        <button id="btnCopy">Copy</button>
-        <textarea id="localSdp" rows="6" readonly></textarea>
-      </div>
-
-      <div id="log"></div>
-    </div>
-
-    <!-- Center: Board -->
-    <div class="boardContainer">
-      <div class="title">Tic Tac Toe</div>
-      <div id="board"></div>
-    </div>
-
-    <!-- Right: Instructions -->
-    <div class="instructionsPanel">
-      <div class="title">Instructions</div>
-      <h4>How to Connect</h4>
-      <ul>
-        <li>If you are X, check "I am the first player (X)." Then click "Make Offer."</li>
-        <li>Copy the Local SDP (Encrypted) (using the Copy button) and send it to O.</li>
-        <li>O clicks "Make Answer," pastes X's encrypted SDP, then copies their own Local SDP (Encrypted) back to X.</li>
-        <li>X pastes O's encrypted SDP and clicks "Set Remote."</li>
-        <li>When both sides have set each other's SDP, the Data Channel opens.</li>
-      </ul>
-      <h4>How to Play</h4>
-      <ul>
-        <li>Player X always goes first.</li>
-        <li>Click an empty cell if it's your turn (X or O).</li>
-        <li>First to get 3 in a row wins, or it's a draw if the board fills.</li>
-      </ul>
-    </div>
+  <div class="bg">
+    <div class="blob blob1"></div>
+    <div class="blob blob2"></div>
   </div>
 
-<script>
-/* 
-  This version:
-   - Places the "Copy" button next to the label, not next to the textarea.
-   - Everything else (retro look, obfuscated AES key, instructions) is unchanged.
-*/
+  <div class="wrap">
+    <header>
+      <h1>🎮 Tic‑Tac‑Toe — P2P (y‑webrtc)</h1>
+      <div class="row">
+        <button id="themeToggle" class="toggle" title="Toggle theme">🌙 <span id="themeLabel">Dark</span></button>
+        <div class="pill"><span id="statusText">Not connected</span></div>
+      </div>
+    </header>
 
-// Game variables
-let peerConn, encryptKey = null; 
-let dataCh, inboundCh; 
-let gameBoard = ["","","","","","","","",""];
-let currentTurn = "X"; 
-let gameActive = true;
-let localSymbol = "O"; 
+    <div class="card" style="margin-bottom:16px;">
+      <div class="row">
+        <input id="room" class="input" placeholder="Room name, e.g. tictactoe-COCO" />
+        <input id="secret" class="input" placeholder="(Optional) room password" />
+        <button id="join" class="btn primary">Join room</button>
+        <button id="leave" class="btn" disabled>Leave</button>
+      </div>
+      <div class="row" style="margin-top:8px;">
+        <div class="muted">Peers: <span id="peers">0</span></div>
+        <div class="muted">You are: <span id="role">—</span></div>
+        <div class="muted">Mark: <span id="mark">—</span></div>
+        <div class="muted">Turn: <span id="turn">—</span></div>
+      </div>
+      <div class="muted" style="font-size:13px; margin-top:8px;">No signup, no servers you operate. Discovery via public y‑webrtc hubs; game data syncs peer‑to‑peer.</div>
+    </div>
 
-const player1Check = document.getElementById("player1Check");
-const btnOffer = document.getElementById("btnOffer");
-const btnAnswer = document.getElementById("btnAnswer");
-const btnSetRemote = document.getElementById("btnSetRemote");
-const remoteSdpTxt = document.getElementById("remoteSdp");
-const localSdpTxt = document.getElementById("localSdp");
-const logDiv = document.getElementById("log");
-const boardDiv = document.getElementById("board");
-const btnCopy = document.getElementById("btnCopy");
+    <div class="card" style="text-align:center;">
+      <div class="grid" id="board"></div>
+      <div class="row" style="justify-content:center; margin-top:12px;">
+        <button id="reset" class="btn" disabled>Reset</button>
+      </div>
+    </div>
 
-// Build 3x3 board
-for(let i=0; i<9; i++){
-  const cell = document.createElement("div");
-  cell.className = "cell";
-  cell.dataset.index = i;
-  cell.onclick = onCellClick;
-  boardDiv.appendChild(cell);
-}
+    <footer>
+      Heads‑up: Without TURN relays, very restrictive networks might not connect. Works great on home/Wi‑Fi.
+    </footer>
+  </div>
 
-// Logging helper
-function logMsg(msg){
-  logDiv.textContent += msg + "\n";
-  console.log(msg);
-}
+  <script type="module">
+    // ===== Imports (no signup; CDN modules) =====
+    import * as Y from 'https://cdn.jsdelivr.net/npm/yjs@13.6.15/dist/yjs.mjs';
+    import { WebrtcProvider } from 'https://cdn.jsdelivr.net/npm/y-webrtc@10.3.2/dist/y-webrtc.mjs';
 
-// Check if it's my turn
-function isMyTurn(){
-  return (gameActive && localSymbol === currentTurn);
-}
+    // ===== Theme toggle (persisted) =====
+    const themeBtn = document.getElementById('themeToggle');
+    const themeLabel = document.getElementById('themeLabel');
+    const root = document.documentElement;
+    const stored = localStorage.getItem('theme');
+    const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+    const initial = stored || (prefersDark ? 'dark' : 'light');
+    setTheme(initial);
+    themeBtn.onclick = () => setTheme(root.getAttribute('data-theme') === 'dark' ? 'light' : 'dark');
 
-// Handle cell click
-function onCellClick(e){
-  const idx = parseInt(e.target.dataset.index);
-  if(!isMyTurn() || gameBoard[idx]) return; 
-  makeMove(idx, localSymbol);
-  sendMove(idx, localSymbol);
-  switchTurn();
-}
-
-// Place local move
-function makeMove(idx, symbol){
-  gameBoard[idx] = symbol;
-  document.querySelector(`[data-index='${idx}']`).textContent = symbol;
-  const winner = checkWinner();
-  if(winner){
-    logMsg("Player " + winner + " wins!");
-    gameActive = false;
-  } else if(gameBoard.every(cell => cell !== "")){
-    logMsg("It's a draw!");
-    gameActive = false;
-  }
-}
-
-// Switch turn
-function switchTurn(){
-  currentTurn = (currentTurn === "X") ? "O" : "X";
-}
-
-// Check for winner
-function checkWinner(){
-  const lines = [
-    [0,1,2],[3,4,5],[6,7,8],
-    [0,3,6],[1,4,7],[2,5,8],
-    [0,4,8],[2,4,6]
-  ];
-  for(let [a,b,c] of lines){
-    if(gameBoard[a] && gameBoard[a]===gameBoard[b] && gameBoard[b]===gameBoard[c]){
-      return gameBoard[a];
+    function setTheme(mode){
+      root.setAttribute('data-theme', mode);
+      themeLabel.textContent = mode === 'dark' ? 'Dark' : 'Light';
+      themeBtn.firstChild.nodeValue = mode === 'dark' ? '🌙 ' : '☀️ ';
+      localStorage.setItem('theme', mode);
     }
-  }
-  return null;
-}
 
-// Send move
-function sendMove(idx, sym){
-  const msg = JSON.stringify({ index: idx, player: sym });
-  if(dataCh && dataCh.readyState === "open"){
-    dataCh.send(msg);
-  } else if(inboundCh && inboundCh.readyState === "open"){
-    inboundCh.send(msg);
-  } else {
-    logMsg("DataChannel not open. Move not sent.");
-  }
-}
+    // ===== UI refs =====
+    const statusText = document.getElementById('statusText');
+    const roomInput  = document.getElementById('room');
+    const secretInput= document.getElementById('secret');
+    const joinBtn    = document.getElementById('join');
+    const leaveBtn   = document.getElementById('leave');
+    const peersEl    = document.getElementById('peers');
+    const roleEl     = document.getElementById('role');
+    const markEl     = document.getElementById('mark');
+    const turnEl     = document.getElementById('turn');
+    const boardEl    = document.getElementById('board');
+    const resetBtn   = document.getElementById('reset');
 
-// Inbound data channel messages (remote moves)
-function onChannelMessage(e){
-  const data = JSON.parse(e.data);
-  logMsg("Received move: " + JSON.stringify(data));
-  applyRemoteMove(data.index, data.player);
-}
-
-function applyRemoteMove(idx, sym){
-  if(!gameActive || gameBoard[idx]) return;
-  makeMove(idx, sym);
-  switchTurn();
-}
-
-// Handle "I am the first player (X)" checkbox
-player1Check.onchange = ()=>{
-  if(player1Check.checked){
-    localSymbol = "X"; 
-    btnOffer.disabled = false;  
-    logMsg("You are Player X");
-  } else {
-    localSymbol = "O"; 
-    btnOffer.disabled = true;   
-    logMsg("You are Player O");
-  }
-};
-
-// Make Offer
-btnOffer.onclick = async ()=>{
-  if(!encryptKey){ logMsg("Key not ready"); return; }
-  if(localSymbol !== "X"){
-    logMsg("Cannot make offer unless you're X.");
-    return;
-  }
-  logMsg("Creating Offer...");
-  createConnection();
-  dataCh = peerConn.createDataChannel("cX");
-  dataCh.onopen = ()=>logMsg("DataChannel open (local).");
-  dataCh.onmessage = onChannelMessage;
-
-  const offer = await peerConn.createOffer();
-  await peerConn.setLocalDescription(offer);
-  logMsg("Local Desc set (Offer). Gathering ICE...");
-};
-
-// Make Answer
-btnAnswer.onclick = async ()=>{
-  if(!encryptKey){ logMsg("Key not ready"); return; }
-  logMsg("Creating Answer...");
-  createConnection();
-  peerConn.ondatachannel = (evt)=>{
-    inboundCh = evt.channel;
-    inboundCh.onmessage = onChannelMessage;
-    inboundCh.onopen = ()=>logMsg("DataChannel open (inbound).");
-    logMsg("DataChannel received from Offerer.");
-  };
-};
-
-// Set Remote
-btnSetRemote.onclick = async ()=>{
-  if(!peerConn){ logMsg("No PeerConnection yet."); return; }
-  const encSDP = remoteSdpTxt.value.trim();
-  if(!encSDP){ logMsg("No encrypted SDP pasted."); return; }
-  try {
-    logMsg("Decrypting remote SDP...");
-    const plainSDP = await decryptSDP(encSDP);
-    const desc = JSON.parse(plainSDP);
-    await peerConn.setRemoteDescription(desc);
-    logMsg("Remote Description set.");
-    if(desc.type === "offer"){
-      const answer = await peerConn.createAnswer();
-      await peerConn.setLocalDescription(answer);
-      logMsg("Answer created. Gathering ICE...");
+    // Build board UI
+    const cells = [];
+    for (let i = 0; i < 9; i++) {
+      const b = document.createElement('button');
+      b.className = 'cell';
+      b.addEventListener('click', () => doMove(i));
+      boardEl.appendChild(b);
+      cells.push(b);
     }
-  } catch(err){
-    logMsg("Error decrypting remote SDP: " + err);
-  }
-};
 
-// Copy to clipboard
-btnCopy.onclick = ()=>{
-  const text = localSdpTxt.value;
-  if(!text){
-    logMsg("Nothing to copy.");
-    return;
-  }
-  navigator.clipboard.writeText(text)
-    .then(()=>{
-      logMsg("Local SDP copied to clipboard.");
-    })
-    .catch(err=>{
-      logMsg("Failed to copy: "+err);
-    });
-};
+    // ===== Yjs doc & shared state =====
+    let ydoc, provider, game, board, players;
+    let myMark = null; // 'X' | 'O' | null (spectator)
 
-// Create the RTCPeerConnection
-function createConnection(){
-  peerConn = new RTCPeerConnection({ iceServers: [{ urls:"stun:stun.l.google.com:19302" }] });
-  peerConn.onicecandidate = async (evt)=>{
-    if(!evt.candidate){
-      // ICE done
-      try {
-        const localDescJSON = JSON.stringify(peerConn.localDescription);
-        const encrypted = await encryptSDP(localDescJSON);
-        localSdpTxt.value = encrypted;
-        logMsg("Local SDP encrypted. Copy/paste to peer.");
-      } catch(err){
-        logMsg("Encrypt error: " + err);
+    function initDoc(room, password) {
+      ydoc = new Y.Doc();
+      // Public community hubs; no signup
+      provider = new WebrtcProvider(room, ydoc, {
+        signaling: [
+          'wss://signaling.yjs.dev',
+          'wss://y-webrtc-signaling-eu.herokuapp.com',
+          'wss://y-webrtc-signaling-us.herokuapp.com'
+        ],
+        password: password || undefined,
+      });
+
+      game = ydoc.getMap('game');
+      if (!game.has('players')) game.set('players', new Y.Map());
+      if (!game.has('turn')) game.set('turn', 'X');
+      if (!game.has('status')) game.set('status', 'playing');
+      if (!game.has('board')) game.set('board', new Y.Array());
+
+      players = game.get('players');
+      board = game.get('board');
+      if (board.length === 0) board.insert(0, Array(9).fill(null));
+
+      // Observe changes and re-render
+      game.observeDeep(() => render());
+
+      // Awareness: update peers count
+      const updatePeers = () => {
+        const states = provider.awareness.getStates();
+        peersEl.textContent = states.size;
+      };
+      provider.awareness.on('update', updatePeers);
+      updatePeers();
+
+      // Assign mark
+      assignMark();
+
+      // Update status pill
+      const setConnStatus = () => {
+        const connected = provider.connected; // boolean
+        statusText.textContent = connected ? 'Connected' : 'Connecting…';
+      };
+      provider.on('synced', setConnStatus);
+      provider.on('status', setConnStatus);
+      setConnStatus();
+    }
+
+    function assignMark(){
+      const me = ydoc.clientID;
+      const x = players.get('X');
+      const o = players.get('O');
+      if (!x) { players.set('X', me); myMark = 'X'; }
+      else if (x && x !== me && !o) { players.set('O', me); myMark = 'O'; }
+      else if (x === me) { myMark = 'X'; }
+      else if (o === me) { myMark = 'O'; }
+      else { myMark = null; } // spectator if X and O already assigned
+      roleEl.textContent = myMark ? (myMark === 'X' ? 'Host' : 'Guest') : 'Spectator';
+      markEl.textContent = myMark || '—';
+      render();
+    }
+
+    function currentTurn(){ return game.get('turn'); }
+    function setTurn(t){ game.set('turn', t); }
+
+    function winner(b){
+      const lines = [[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]];
+      for (const [a,b2,c] of lines) {
+        if (b[a] && b[a] === b[b2] && b[a] === b[c]) return b[a];
       }
+      return b.every(Boolean) ? 'draw' : null;
     }
-  };
-}
 
-/* 
-  potato
-  Trivial obfuscation of a 32-byte (256-bit) AES key
-*/
-let wA="00010203040506", wB="0708090A0B0C0D0E0F0001020304", wC="05060708090A0B0C0D0E0F";
-function Zc(){ let u=wA+wB+wC; let r=""; for(let i=0;i<u.length;i++){r+=(u.charCodeAt(i)%2===0)?u[i]:u[i];} return r;}
-function I(a){let s=""; for(let i=a.length-1;i>=0;i--){s+=a[i];}return s;}
-function YR(){return I(Zc());}
-function Xf(a){let h=new Uint8Array(a.length/2); for(let i=0;i<a.length;i+=2){h[i/2]=parseInt(a.substr(i,2),16);}return h;}
+    function doMove(i){
+      if (!myMark) return; // spectators can't play
+      const b = board.toArray()[0];
+      if (game.get('status') !== 'playing') return;
+      if (b[i]) return;
+      if (currentTurn() !== myMark) return;
+      const next = b.slice();
+      next[i] = myMark;
+      board.delete(0,1); board.insert(0, [next]);
+      const w = winner(next);
+      if (w) {
+        game.set('status', w === 'draw' ? 'draw' : `${w}-wins`);
+      } else {
+        setTurn(myMark === 'X' ? 'O' : 'X');
+      }
+      // animate placed cell
+      cells[i].classList.remove('placed');
+      void cells[i].offsetWidth; // reflow to restart animation
+      cells[i].classList.add('placed');
+      render();
+    }
 
-async function loadKey(){
-  let z=YR(); 
-  let n=Xf(z);
-  encryptKey = await crypto.subtle.importKey("raw", n, "AES-GCM", false, ["encrypt","decrypt"]);
-  logMsg("Obfuscated key loaded.");
-}
+    function reset(){
+      if (!game) return;
+      board.delete(0,1); board.insert(0, [Array(9).fill(null)]);
+      game.set('status', 'playing');
+      game.set('turn', 'X');
+      render();
+    }
 
-async function encryptSDP(plain){
-  if(!encryptKey) throw "NoKey";
-  let iv=crypto.getRandomValues(new Uint8Array(12));
-  let data=new TextEncoder().encode(plain);
-  let cipher=await crypto.subtle.encrypt({name:"AES-GCM",iv},encryptKey,data);
-  let combined=new Uint8Array(iv.byteLength + cipher.byteLength);
-  combined.set(iv,0);
-  combined.set(new Uint8Array(cipher),iv.byteLength);
-  return btoa(String.fromCharCode(...combined));
-}
+    function render(){
+      if (!board) return;
+      const b = board.toArray()[0] || Array(9).fill(null);
+      cells.forEach((c, idx) => { c.textContent = b[idx] || ''; });
+      const w = winner(b);
+      if (game.get('status') === 'draw' || w === 'draw') {
+        turnEl.textContent = 'Draw';
+      } else if (w) {
+        turnEl.textContent = `${w} wins`; 
+      } else {
+        turnEl.textContent = `Turn: ${currentTurn()}`;
+      }
+      const myTurn = !!myMark && currentTurn() === myMark && !w;
+      cells.forEach(c => c.disabled = !myTurn);
+      resetBtn.disabled = !provider || !provider.connected;
+    }
 
-async function decryptSDP(enc){
-  if(!encryptKey) throw "NoKey";
-  let bytes=new Uint8Array(atob(enc).split("").map(c=>c.charCodeAt(0)));
-  let iv=bytes.slice(0,12);
-  let ciph=bytes.slice(12);
-  let plain=await crypto.subtle.decrypt({name:"AES-GCM",iv},encryptKey,ciph);
-  return new TextDecoder().decode(plain);
-}
+    // ===== Buttons =====
+    joinBtn.onclick = () => {
+      const room = roomInput.value.trim();
+      if (!room) { alert('Enter a room name first.'); return; }
+      joinBtn.disabled = true; roomInput.disabled = true; secretInput.disabled = true; leaveBtn.disabled = false;
+      initDoc(room, secretInput.value.trim());
+    };
 
-window.addEventListener("load", ()=>{
-  loadKey()
-    .then(()=>{
-      logMsg("Key init done. Ready for encryption.");
-      // If user didn't check "I am X", they're O => disable "Make Offer"
-      btnOffer.disabled = !player1Check.checked;
-      logMsg("You are Player O by default (unless you check the box).");
-    })
-    .catch(e=>logMsg("Key init err: "+e));
-});
-</script>
+    leaveBtn.onclick = () => {
+      try { provider && provider.destroy(); } catch {}
+      try { ydoc && ydoc.destroy(); } catch {}
+      location.reload();
+    };
+
+    resetBtn.onclick = () => reset();
+
+    // Auto-fill a friendly room if URL hash is present
+    const hashRoom = location.hash.replace('#','');
+    if (hashRoom) roomInput.value = hashRoom;
+
+    // Initial render
+    render();
+  </script>
 </body>
 </html>
