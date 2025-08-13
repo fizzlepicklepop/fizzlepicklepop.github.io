@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>WebRTC Tic‑Tac‑Toe — 8‑Bit Hacker</title>
+  <title>WebRTC Tic‑Tac‑Toe — Hacker Pixel Mode</title>
   <style>
     :root {
       --bg: #000;            /* black */
@@ -13,9 +13,11 @@
       --text: #c4ffda;       /* pale neon */
       --muted: #69d19e;
       --accent: #11ff88;     /* neon */
+      --accent-2: #0bc06a;
       --warn: #ffe175;
       --err: #ff8a8a;
       --scanline: rgba(17,255,136,0.05);
+      --radius: 12px;
       --border: 1px solid rgba(17,255,136,0.28);
       --shadow: 0 18px 42px rgba(0, 0, 0, 0.6);
     }
@@ -27,72 +29,87 @@
       font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
       letter-spacing: .3px;
       display: grid; place-items: start center; padding: 16px;
-      image-rendering: pixelated; /* hint */
     }
-    /* CRT scanlines + slight flicker */
-    body:before{content:"";position:fixed;inset:0;background: repeating-linear-gradient(0deg, transparent 0 2px, var(--scanline) 2px 3px);pointer-events:none;mix-blend-mode:overlay;animation: flicker 6s steps(60,end) infinite;}
-    @keyframes flicker { 0%,100%{opacity:.85} 50%{opacity:.92} }
+    /* subtle CRT scanlines + flicker */
+    body:before{content:"";position:fixed;inset:0;background: repeating-linear-gradient(0deg, transparent 0 2px, var(--scanline) 2px 3px);pointer-events:none;mix-blend-mode:overlay;animation: flicker 6s infinite steps(60);}
+    @keyframes flicker { 0%,100%{opacity:.85} 50%{opacity:.9} }
 
     .app { width: 100%; max-width: 1040px; display: grid; gap: 16px; }
 
     .card { background: linear-gradient(180deg, var(--panel) 0%, var(--panel-2) 100%);
-            border: var(--border); padding: 14px; box-shadow: var(--shadow); }
-    .card h2 { margin: 0 0 10px; font-weight: 900; text-transform: uppercase; font-size: 18px; color: var(--accent); text-shadow: 0 0 0 currentColor, 0 2px 0 currentColor, 2px 0 0 currentColor, 2px 2px 0 currentColor; }
-    .muted { color: var(--muted); opacity: .95; font-size: 12px; text-transform: uppercase; letter-spacing: 1px; text-shadow: 0 0 0 currentColor, 0 1px 0 currentColor, 1px 0 0 currentColor, 1px 1px 0 currentColor; }
+            border: var(--border); border-radius: var(--radius); padding: 14px; box-shadow: var(--shadow); }
+    .card h2 { margin: 0 0 10px; font-weight: 900; text-transform: uppercase; font-size: 18px; color: var(--accent); text-shadow: 0 0 4px rgba(17,255,136,.6), 0 0 8px rgba(17,255,136,.35); }
+    .muted { color: var(--muted); opacity: .95; font-size: 12px; }
 
     .grid { display: grid; gap: 16px; grid-template-columns: 1.1fr 1fr; }
     @media (max-width: 980px) { .grid { grid-template-columns: 1fr; } }
 
     .boardWrap { position: relative; }
-    .board { aspect-ratio: 1/1; display: grid; gap: 8px; grid-template-columns: repeat(3, 1fr); grid-template-rows: repeat(3, 1fr); background: var(--grid); padding: 8px; }
-    .cell { display: grid; place-items: center; font-size: clamp(40px, 10vw, 72px); font-weight: 900; cursor: pointer; user-select: none; color: var(--text); background: #031e11; border: var(--border); transition: transform .06s ease, background .2s ease, box-shadow .2s ease, filter .2s ease; box-shadow: inset 0 0 0 1px rgba(0,0,0,.7); text-shadow: 0 0 0 currentColor, 0 2px 0 currentColor, 2px 0 0 currentColor, 2px 2px 0 currentColor; }
+    .board { aspect-ratio: 1/1; display: grid; gap: 10px; grid-template-columns: repeat(3, 1fr); grid-template-rows: repeat(3, 1fr); background: var(--grid); border-radius: 10px; padding: 10px; }
+    .cell { display: grid; place-items: center; font-size: clamp(40px, 10vw, 72px); font-weight: 900; border-radius: 8px; cursor: pointer; user-select: none; color: var(--text); background: #031e11; border: var(--border); transition: transform .06s ease, background .2s ease, box-shadow .2s ease, filter .2s ease; box-shadow: inset 0 0 0 1px rgba(0,0,0,.7); text-shadow: 0 0 3px rgba(17,255,136,.25);
+      /* pixel-ish jag */
+      clip-path: polygon(0 2px, 2px 2px, 2px 0, calc(100% - 2px) 0, calc(100% - 2px) 2px, 100% 2px, 100% calc(100% - 2px), calc(100% - 2px) calc(100% - 2px), calc(100% - 2px) 100%, 2px 100%, 2px calc(100% - 2px), 0 calc(100% - 2px));
+    }
     .cell:hover { transform: translateY(-1px); box-shadow: 0 20px 30px rgba(0,0,0,.35), inset 0 0 0 1px rgba(0,0,0,.7); filter: brightness(1.05); }
     .cell.disabled { pointer-events: none; opacity: .55; }
-    .cell.win { animation: winPulse 600ms steps(6,end) infinite alternate; border-color: rgba(17,255,136,.8); }
+    .cell.win { animation: winPulse 600ms ease-in-out infinite alternate; border-color: rgba(17,255,136,.8); }
     @keyframes winPulse { from{ box-shadow: 0 0 16px rgba(17,255,136,.4), inset 0 0 0 1px rgba(0,0,0,.7);} to{ box-shadow: 0 0 26px rgba(17,255,136,.75), inset 0 0 0 1px rgba(0,0,0,.7);} }
 
     .panel { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: space-between; margin-top: 8px; }
-    .badge { padding: 6px 10px; border: var(--border); background: rgba(17,255,136,.08); color: var(--text); font-size: 10px; font-weight: 900; letter-spacing: 1px; text-transform: uppercase; text-shadow: 0 0 0 currentColor, 0 1px 0 currentColor, 1px 0 0 currentColor, 1px 1px 0 currentColor; }
+    .badge { padding: 6px 10px; border-radius: 999px; border: var(--border); background: rgba(17,255,136,.08); color: var(--text); font-size: 10px; font-weight: 900; letter-spacing: 1px; text-transform: uppercase; }
 
-    button { appearance: none; border: var(--border); padding: 10px 14px; font-weight: 900; color: #04130c; background: var(--accent); cursor: pointer; transition: transform .05s ease, filter .2s ease; box-shadow: none; text-transform: uppercase; letter-spacing: 1px; text-shadow: 0 0 0 currentColor, 0 1px 0 currentColor, 1px 0 0 currentColor, 1px 1px 0 currentColor; }
+    button, .btn { appearance: none; border: var(--border); padding: 10px 14px; border-radius: 10px; font-weight: 900; color: #04130c; background: var(--accent); cursor: pointer; transition: transform .05s ease, filter .2s ease; box-shadow: 0 10px 30px rgba(17,255,136,.18); }
     button:hover { transform: translateY(-1px); filter: brightness(1.06); }
-    button.ghost { background: transparent; color: var(--text); }
+    button.ghost { background: transparent; color: var(--text); border-style: dashed; box-shadow: none; }
     button.alt { background: #072116; color: var(--text); }
-    button.warn { background: var(--warn); color: #331f05; border-color: rgba(255,225,117,.35); }
+    button.warn { background: var(--warn); color: #331f05; border-color: rgba(255,225,117,.35); box-shadow: 0 10px 30px rgba(255,225,117,.15); }
 
-    textarea { width: 100%; min-height: 120px; padding: 10px 12px; background: #04150d; color: var(--text); border: var(--border); outline: none; text-transform: none; }
+    textarea, input[type="password"], input[type="text"] { width: 100%; min-height: 120px; padding: 10px 12px; border-radius: 10px; background: #04150d; color: var(--text); border: var(--border); outline: none; }
     textarea::placeholder { color: #69bf99; opacity: .8; }
 
     .steps { display: grid; gap: 10px; }
-    .step { background: #031a10; border: var(--border); padding: 12px; }
-    .step h3 { display: flex; align-items: center; gap: 8px; margin: 0 0 8px; font-size: 14px; color: var(--text); text-transform: uppercase; letter-spacing: 1px; text-shadow: 0 0 0 currentColor, 0 1px 0 currentColor, 1px 0 0 currentColor, 1px 1px 0 currentColor; }
-    .step .num { display:inline-grid; place-items:center; width: 22px; height: 22px; background: var(--accent); color:#05110c; font-weight: 900; font-size: 12px; }
+    .step { background: #031a10; border: var(--border); border-radius: 10px; padding: 12px; }
+    .step h3 { display: flex; align-items: center; gap: 8px; margin: 0 0 8px; font-size: 14px; color: var(--text); }
+    .step .num { display:inline-grid; place-items:center; width: 22px; height: 22px; border-radius: 2px; background: var(--accent); color:#05110c; font-weight: 900; font-size: 12px; box-shadow: inset 0 -2px 0 rgba(0,0,0,.25); }
 
     .tabs { display:flex; gap: 8px; margin-top: 8px; }
-    .tab { flex: 1; text-align:center; padding: 10px; cursor:pointer; border: var(--border); background:#06130f; color: var(--text); font-weight:900; text-transform: uppercase; letter-spacing: 1px; text-shadow: 0 0 0 currentColor, 0 1px 0 currentColor, 1px 0 0 currentColor, 1px 1px 0 currentColor; }
+    .tab { flex: 1; text-align:center; padding: 10px; border-radius: 8px; cursor:pointer; border: var(--border); background:#06130f; color: var(--text); font-weight:900; }
     .tab.active { background: rgba(17,255,136,.15); }
     .hidden { display:none !important; }
 
-    .log { max-height: 220px; overflow: auto; background: #04160f; border: var(--border); padding: 8px 10px; font-size: 12px; }
+    .log { max-height: 200px; overflow: auto; background: #04160f; border: var(--border); border-radius: 10px; padding: 8px 10px; font-size: 12px; }
     .log div { color: #bff7db; }
     .log .ok { color: #9cffd4; }
     .log .warn { color: var(--warn); }
     .log .err { color: var(--err); }
-    .small { font-size: 11px; color: var(--mu80% { transform: translate(0,1px) }
-      100% { transform: translate(0,0) }
+    .small { font-size: 11px; color: var(--muted) }
+
+    /* Win/Lose overlay */
+    #overlay { position: absolute; inset: -6px; display:none; align-items:center; justify-content:center; pointer-events:none; }
+    #overlay.show { display:flex; }
+    .overlayBox { background: rgba(0,0,0,.8); border: var(--border); padding: 10px 14px; border-radius: 8px; animation: overlayPop .4s ease; }
+    .overlayText { font-size: clamp(26px, 6vw, 48px); font-weight: 900; color: var(--accent); text-shadow: 0 0 8px rgba(17,255,136,.6), 0 0 20px rgba(17,255,136,.35); animation: glitch 1.2s infinite; }
+    @keyframes overlayPop { from { transform: scale(.92); opacity: .5 } to { transform: scale(1); opacity: 1 } }
+    @keyframes glitch {
+      0% { transform: translate(0,0) skew(0); }
+      20% { transform: translate(2px,-2px) skew(-.5deg); }
+      40% { transform: translate(-2px,2px) skew(.6deg); }
+      60% { transform: translate(1px,0) skew(-.3deg); }
+      80% { transform: translate(0,1px) skew(.2deg); }
+      100% { transform: translate(0,0) skew(0); }
     }
   </style>
 </head>
 <body>
   <div class="app">
     <section class="card">
-      <h2>WebRTC Tic‑Tac‑Toe — 8‑Bit Hacker</h2>
-      <div class="muted">Peer‑to‑peer via DataChannel. Manual signaling with JSON blobs <b>obscured with a fixed key</b> (not real security). No server.</div>
+      <h2 class="pixel">WebRTC Tic‑Tac‑Toe — Hacker Pixel</h2>
+      <div class="muted">Peer‑to‑peer via DataChannel. Manual signaling with JSON blobs (optionally encrypted with a shared passphrase). No server.</div>
 
       <div id="status" class="panel">
         <span class="badge" id="roleBadge">offline</span>
-        <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center">
-          <span class="small">encryption: aes‑gcm / fixed key</span>
+        <div class="rowish" style="display:flex; gap:8px; flex-wrap:wrap; align-items:center">
+          <input id="pass" type="password" placeholder="Shared passphrase (for encrypting blobs)" style="min-height:unset; width: 260px" />
           <button id="newGameBtn" class="ghost">New session</button>
           <button id="resetBtn" class="alt">Reset board</button>
           <button id="syncBtn" class="ghost">Sync</button>
@@ -116,13 +133,15 @@
 
             <!-- HOST PANEL -->
             <div id="hostPanel" class="steps" style="margin-top:10px">
-      ss="num">1</span> Create offer</h3>
-                <button id="makeOffer">Gener
+              <div class="step">
+                <h3><span class="num">1</span> Create offer</h3>
+                <button id="makeOffer">Generate Offer JSON</button>
+                <textarea id="offerOut" placeholder="Offer JSON appears here" readonly></textarea>
                 <div class="panel">
                   <button id="copyOffer" class="ghost">Copy</button>
                   <button id="downloadOffer" class="ghost">Download offer.json</button>
                 </div>
-                <div class="small">Send the offer to your friend. The blob is lightly obscured with a shared, fixed key.</div>
+                <div class="small">Send the offer to your friend. If a passphrase is set, the blob will be encrypted. Your friend must use the same passphrase.</div>
               </div>
               <div class="step">
                 <h3><span class="num">2</span> Paste answer</h3>
@@ -145,7 +164,7 @@
                   <button id="copyAnswer" class="ghost">Copy</button>
                   <button id="downloadAnswer" class="ghost">Download answer.json</button>
                 </div>
-                <div class="small">Send the answer back to the host. It will be obscured using the same fixed key.</div>
+                <div class="small">Send the answer back to the host. If the offer was encrypted, you must enter the same passphrase to decrypt it; your generated answer will be encrypted with that passphrase too.</div>
               </div>
             </div>
 
@@ -228,7 +247,14 @@
       send({ type: 'move', payload: i });
     }
 
-    functioturn s === 'X' ? 'O' : 'X'; }
+    function applyMove(i, mark) {
+      if (state.board[i] || winner(state.board)) return;
+      state.board[i] = mark;
+      state.turn = other(state.turn);
+      renderBoard();
+    }
+
+    function other(s) { return s === 'X' ? 'O' : 'X'; }
 
     function winner(b) {
       const lines = [ [0,1,2],[3,4,5],[6,7,8], [0,3,6],[1,4,7],[2,5,8], [0,4,8],[2,4,6] ];
@@ -250,6 +276,7 @@
 
     // --- WebRTC (no signaling server) ---
     let pc = null; let dc = null; let role = 'idle';
+
     const pcConfig = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
 
     function setup() {
@@ -260,6 +287,7 @@
       pc.onicegatheringstatechange = () => log(`ICE gather: ${pc.iceGatheringState}`);
       pc.ondatachannel = (e) => {
         dc = e.channel; attachDataChannel();
+        // Answerer becomes 'O' by default
         if (!state.myMark) state.myMark = 'O';
         renderBoard();
       };
@@ -275,7 +303,9 @@
 
     function attachDataChannel() {
       dc.onopen = () => { state.connected = true; roleBadge.textContent = `connected (${role})`; log('data channel open', 'ok');
+        // inform marks if not set
         if (!state.myMark) state.myMark = (role === 'host' ? 'X' : 'O');
+        // Sync state from host for consistency
         if (role === 'host') send({ type: 'sync', payload: snapshot() });
         renderBoard();
       };
@@ -328,38 +358,41 @@
       a.download = filename; a.click(); URL.revokeObjectURL(a.href);
     }
 
-    // ---- Fixed-key encryption helpers (AES-GCM + PBKDF2) ----
-    // This is intentionally weak/obscurity. Do not use for real security.
+    // ---- Simple encryption helpers (AES-GCM + PBKDF2) ----
     const encHeader = 'enc-v1';
-    const FIXED_SECRET = 'webrtc-ttt-fixed-key-v1';
-    const FIXED_SALT_B64 = 'c2FsdC1maXhlZC12MQ=='; // "salt-fixed-v1" (base64)
     function strToBuf(str){ return new TextEncoder().encode(str); }
     function bufToStr(buf){ return new TextDecoder().decode(buf); }
     function b64ab(buf){ return btoa(String.fromCharCode(...new Uint8Array(buf))); }
     function abFromB64(b64){ const bin = atob(b64); const u8 = new Uint8Array(bin.length); for(let i=0;i<bin.length;i++) u8[i]=bin.charCodeAt(i); return u8.buffer; }
 
-    async function deriveFixedKey(){
-      const salt = new Uint8Array(abFromB64(FIXED_SALT_B64));
-      const keyMaterial = await crypto.subtle.importKey('raw', strToBuf(FIXED_SECRET), 'PBKDF2', false, ['deriveKey']);
+    async function deriveKey(pass, salt){
+      const keyMaterial = await crypto.subtle.importKey('raw', strToBuf(pass), 'PBKDF2', false, ['deriveKey']);
       return crypto.subtle.deriveKey(
-        { name: 'PBKDF2', salt, iterations: 100000, hash: 'SHA-256' },
+        { name: 'PBKDF2', salt, iterations: 120000, hash: 'SHA-256' },
         keyMaterial,
         { name: 'AES-GCM', length: 256 },
         false,
         ['encrypt','decrypt']
       );
     }
-    async function encryptJSONFixed(obj){
+    async function encryptJSON(pass, obj){
       const plaintext = strToBuf(JSON.stringify(obj));
+      const salt = crypto.getRandomValues(new Uint8Array(16));
       const iv = crypto.getRandomValues(new Uint8Array(12));
-      const key = await deriveFixedKey();
+      const key = await deriveKey(pass, salt);
       const ct = await crypto.subtle.encrypt({ name:'AES-GCM', iv }, key, plaintext);
-      return { [encHeader]: true, iv: b64ab(iv), data: b64ab(ct) };
+      return { [encHeader]: true, salt: b64ab(salt), iv: b64ab(iv), data: b64ab(ct) };
     }
-    async function decryptJSONFixed(blob){
+    async function decryptJSON(pass, blob){
+      const salt = new Uint8Array(abFromB64(blob.salt));
       const iv = new Uint8Array(abFromB64(blob.iv));
-      const key = await deriveFixedKey();
-      const pt = await crypto.subtle.decrypt({ name:'AES-Gction hasEnc(b){ try{ const o=JSON.parse(b); return !!o && o[encHeader]; }catch{ return false; } }
+      const key = await deriveKey(pass, salt);
+      const pt = await crypto.subtle.decrypt({ name:'AES-GCM', iv }, key, abFromB64(blob.data));
+      return JSON.parse(bufToStr(pt));
+    }
+    function hasEnc(b){ try{ const o=JSON.parse(b); return !!o && o[encHeader]; }catch{ return false; } }
+
+    function getPass(){ return $("pass").value || ''; }
 
     // --- Host flow ---
     $("makeOffer").onclick = async () => {
@@ -369,8 +402,11 @@
       await pc.setLocalDescription(offer);
       await waitIceComplete();
       const raw = { sdp: pc.localDescription.sdp, type: pc.localDescription.type };
-      try { const enc = await encryptJSONFixed(raw); $("offerOut").value = exportBlob(enc); log('offer created (obscured)', 'ok'); }
-      catch(e){ $("offerOut").value = exportBlob(raw); log('encryption failed — using plain offer', 'warn'); }
+      const pass = getPass().trim();
+      if (pass) {
+        try { const enc = await encryptJSON(pass, raw); $("offerOut").value = exportBlob(enc); log('offer created (encrypted)', 'ok'); }
+        catch(e){ $("offerOut").value = exportBlob(raw); log('encryption failed — using plain offer', 'warn'); }
+      } else { $("offerOut").value = exportBlob(raw); log('offer created', 'ok'); }
       state.myMark = 'X'; renderBoard();
     };
 
@@ -382,9 +418,11 @@
       try {
         const txt = $("answerIn").value.trim();
         if (!txt) return log('paste an answer blob', 'warn');
+        const pass = getPass().trim();
         let payload;
         if (hasEnc(txt)) {
-          payload = await decryptJSONFixed(JSON.parse(txt));
+          if (!pass) return log('answer is encrypted — enter passphrase', 'warn');
+          payload = await decryptJSON(pass, JSON.parse(txt));
           log('answer decrypted', 'ok');
         } else { payload = JSON.parse(txt); }
         await pc.setRemoteDescription(new RTCSessionDescription(payload));
@@ -398,9 +436,11 @@
       try {
         const txt = $("offerIn").value.trim();
         if (!txt) return log('paste an offer blob', 'warn');
+        const pass = getPass().trim();
         let payload;
         if (hasEnc(txt)) {
-          payload = await decryptJSONFixed(JSON.parse(txt));
+          if (!pass) return log('offer is encrypted — enter passphrase', 'warn');
+          payload = await decryptJSON(pass, JSON.parse(txt));
           log('offer decrypted', 'ok');
         } else { payload = JSON.parse(txt); }
         await pc.setRemoteDescription(new RTCSessionDescription(payload));
@@ -408,6 +448,22 @@
         await pc.setLocalDescription(answer);
         await waitIceComplete();
         const raw = { sdp: pc.localDescription.sdp, type: pc.localDescription.type };
-        try { const enc = await encryptJSONFixed(raw); $("answerOut").value = exportBlob(enc); log('answer ready (obscured) — send it back', 'ok'); }
-        catch(e){ $("answerOut").value = exportBlob(raw); log('encryption failed — using plain answer', 'warn'); }
-        state.myMark = 'O'; renderBoard(
+        if (pass) {
+          try { const enc = await encryptJSON(pass, raw); $("answerOut").value = exportBlob(enc); log('answer ready (encrypted) — send it back', 'ok'); }
+          catch(e){ $("answerOut").value = exportBlob(raw); log('encryption failed — using plain answer', 'warn'); }
+        } else { $("answerOut").value = exportBlob(raw); log('answer ready — send it back', 'ok'); }
+        state.myMark = 'O'; renderBoard();
+      } catch (e) { log('invalid offer JSON', 'err'); }
+    };
+
+    $("downloadAnswer").onclick = () => download('answer.json', $("answerOut").value || '{}');
+    $("copyAnswer").onclick = async () => { try { await navigator.clipboard.writeText($("answerOut").value); log('answer copied', 'ok'); } catch { log('clipboard failed', 'err'); } };
+
+    // Reset button sends a reset to peer if connected
+    $("resetBtn").addEventListener('click', () => { send({ type: 'reset' }); });
+
+    // Initialize UI
+    setup();
+  </script>
+</body>
+</html>
