@@ -1,156 +1,342 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>P2P Tic-Tac-Toe (y-webrtc)</title>
-<style>
-  body { font-family: sans-serif; background: #e0f7fa; margin: 0; padding: 0; }
-  .wrap { max-width: 800px; margin: auto; padding: 16px; }
-  header { display: flex; justify-content: space-between; align-items: center; }
-  .view { display: none; }
-  .view.active { display: block; }
-  .card { background: white; padding: 16px; border-radius: 8px; margin-bottom: 16px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
-  .row { display: flex; gap: 8px; flex-wrap: wrap; }
-  .btn { padding: 8px 12px; border: none; border-radius: 4px; cursor: pointer; }
-  .primary { background: #00796b; color: white; }
-  .info { background: #0288d1; color: white; }
-  .pill { background: #b2ebf2; padding: 4px 8px; border-radius: 12px; }
-  .muted { color: #666; }
-  .grid { display: grid; grid-template-columns: repeat(3, 80px); gap: 4px; justify-content: center; }
-  .cell { width: 80px; height: 80px; font-size: 2rem; }
-  #connectionLog { font-size: 0.9rem; background: #f1f8e9; padding: 8px; border-radius: 4px; max-height: 120px; overflow-y: auto; }
-</style>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>WebRTC Tic‑Tac‑Toe — Blob Share</title>
+  <style>
+    :root {
+      --bg: #0b0f14;
+      --card: #121824;
+      --muted: #8aa0b6;
+      --accent: #5ee2a0;
+      --accent-2: #7aa9ff;
+      --text: #e9f0f8;
+      --danger: #ff7a7a;
+      --warn: #ffd36b;
+      --radius: 16px;
+    }
+    html, body { height: 100%; }
+    body {
+      margin: 0; font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, "Helvetica Neue", Arial, "Apple Color Emoji", "Segoe UI Emoji";
+      background: radial-gradient(1200px 800px at 20% -10%, #182235 0%, var(--bg) 60%);
+      color: var(--text);
+      display: grid; place-items: center; padding: 24px;
+    }
+    .app { width: 100%; max-width: 980px; display: grid; gap: 20px; grid-template-columns: 1.2fr 1fr; }
+    @media (max-width: 900px) { .app { grid-template-columns: 1fr; } }
+
+    .card { background: linear-gradient(180deg, rgba(255,255,255,0.06), rgba(255,255,255,0.02)); border: 1px solid rgba(255,255,255,0.08); border-radius: var(--radius); padding: 18px; box-shadow: 0 10px 30px rgba(0,0,0,0.25); }
+    .card h2 { margin: 0 0 10px; font-weight: 700; letter-spacing: 0.2px; }
+    .muted { color: var(--muted); font-size: 14px; }
+
+    /* Board */
+    .board { aspect-ratio: 1 / 1; display: grid; grid-template-columns: repeat(3, 1fr); grid-template-rows: repeat(3, 1fr); gap: 10px; }
+    .cell { display: grid; place-items: center; font-size: 56px; font-weight: 800; border-radius: 14px; cursor: pointer; user-select: none; background: var(--card); border: 1px solid rgba(255,255,255,0.08); transition: transform 0.08s ease, background 0.2s ease, box-shadow 0.2s ease; }
+    .cell:hover { transform: translateY(-1px); box-shadow: 0 12px 24px rgba(0,0,0,0.18) }
+    .cell.disabled { pointer-events: none; opacity: 0.6; }
+
+    .panel { display: flex; gap: 12px; align-items: center; justify-content: space-between; margin-top: 14px; }
+    .badge { padding: 6px 10px; border-radius: 999px; background: rgba(126, 170, 255, 0.15); border: 1px solid rgba(126,170,255,0.35); color: #cfe0ff; font-size: 12px; font-weight: 700; letter-spacing: 0.4px; text-transform: uppercase; }
+
+    /* Buttons */
+    button, .btn { appearance: none; border: 0; padding: 10px 14px; border-radius: 12px; font-weight: 700; color: #061018; background: var(--accent); cursor: pointer; transition: transform 0.06s ease; }
+    button:hover { transform: translateY(-1px); }
+    button.secondary { background: var(--accent-2); color: #071321; }
+    button.ghost { background: transparent; color: var(--text); border: 1px dashed rgba(255,255,255,0.28); }
+    button.danger { background: var(--danger); color: #250808; }
+
+    textarea, input[type="file"] { width: 100%; min-height: 120px; padding: 12px; border-radius: 12px; background: #0e1522; color: var(--text); border: 1px solid rgba(255,255,255,0.1); font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace; }
+    textarea::placeholder { color: #7b8aa1; }
+
+    .row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    @media (max-width: 600px) { .row { grid-template-columns: 1fr; } }
+
+    .log { max-height: 200px; overflow: auto; background: #0f1726; border: 1px solid rgba(255,255,255,0.08); border-radius: 12px; padding: 8px 10px; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace; font-size: 12px; }
+    .log div { color: #b8c7da; }
+    .log .ok { color: #98ffcd; }
+    .log .warn { color: #ffe18a; }
+    .log .err { color: #ff9f9f; }
+
+    .small { font-size: 12px; }
+  </style>
 </head>
 <body>
-<div class="wrap">
-<header>
-  <h1>P2P Tic-Tac-Toe</h1>
-  <div class="pill" id="statusText">Not connected</div>
-</header>
-<section id="view-lobby" class="view active">
-  <div class="card">
-    <div class="row">
-      <input id="username" placeholder="Username" />
-      <input id="room" placeholder="Room name" />
-    </div>
-    <div class="row">
-      <button id="create" class="btn primary">Create Room</button>
-      <button id="join" class="btn info">Join Room</button>
-    </div>
+  <div class="app">
+    <section class="card">
+      <h2>WebRTC Tic‑Tac‑Toe</h2>
+      <div class="muted">Share JSON blobs to connect. No server required.</div>
+
+      <div id="status" class="panel">
+        <span class="badge" id="roleBadge">Offline</span>
+        <div>
+          <button id="resetBtn" class="ghost">Reset board</button>
+          <button id="newGameBtn" class="secondary">New session</button>
+        </div>
+      </div>
+
+      <div class="board" id="board"></div>
+      <div class="panel">
+        <div>
+          <div class="muted">Your mark: <b id="myMark">–</b> • Turn: <b id="turn">–</b></div>
+          <div class="muted small" id="result"></div>
+        </div>
+        <div>
+          <button id="syncBtn" class="ghost">Force sync</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>Connect (Blob Share)</h2>
+      <div class="muted">Choose a role below. Exchange the generated JSON with your friend.
+        Copy‑paste or download as a file.
+      </div>
+
+      <div class="row" style="margin-top:12px">
+        <div>
+          <h3>1) Host (Offer)</h3>
+          <button id="makeOffer">Create Offer JSON</button>
+          <textarea id="offerOut" placeholder="Your offer JSON will appear here" readonly></textarea>
+          <div class="row">
+            <button id="downloadOffer" class="ghost">Download offer.json</button>
+            <button id="copyOffer" class="ghost">Copy</button>
+          </div>
+
+          <h3 style="margin-top:14px">2) Paste Answer</h3>
+          <textarea id="answerIn" placeholder="Paste friend's answer JSON here"></textarea>
+          <button id="applyAnswer">Apply Answer</button>
+        </div>
+        <div>
+          <h3>1) Join (Answer)</h3>
+          <textarea id="offerIn" placeholder="Paste host's offer JSON here"></textarea>
+          <button id="acceptOffer">Create & Return Answer JSON</button>
+          <textarea id="answerOut" placeholder="Your answer JSON will appear here" readonly></textarea>
+          <div class="row">
+            <button id="downloadAnswer" class="ghost">Download answer.json</button>
+            <button id="copyAnswer" class="ghost">Copy</button>
+          </div>
+        </div>
+      </div>
+
+      <h3 style="margin-top:16px">Connection Log</h3>
+      <div id="log" class="log" aria-live="polite"></div>
+    </section>
   </div>
-</section>
-<section id="view-game" class="view">
-  <div class="card">
-    <div class="row">
-      <button id="leave" class="btn">Leave</button>
-      <div class="pill">You: <span id="you">—</span></div>
-      <div class="pill">Mark: <span id="mark">—</span></div>
-      <div class="pill">Turn: <span id="turn">—</span></div>
-    </div>
-  </div>
-  <div class="card">
-    <div class="grid" id="board"></div>
-  </div>
-  <div class="card">
-    <div class="muted">Connection log:</div>
-    <div id="connectionLog"></div>
-  </div>
-</section>
-</div>
-<script type="module">
-import * as Y from 'https://cdn.jsdelivr.net/npm/yjs@13.6.15/dist/yjs.mjs';
-import { WebrtcProvider } from 'https://cdn.jsdelivr.net/npm/y-webrtc@10.3.2/dist/y-webrtc.mjs';
 
-const statusText = document.getElementById('statusText');
-const connectionLog = document.getElementById('connectionLog');
-function log(msg) {
-  const time = new Date().toLocaleTimeString();
-  connectionLog.innerHTML += `<div>[${time}] ${msg}</div>`;
-  connectionLog.scrollTop = connectionLog.scrollHeight;
-}
+  <script>
+    // --- UI helpers ---
+    const $ = (id) => document.getElementById(id);
+    const logEl = $("log");
+    function log(msg, cls="") { const d=document.createElement('div'); if(cls) d.className=cls; d.textContent=msg; logEl.appendChild(d); logEl.scrollTop = logEl.scrollHeight; }
 
-const lobbyView = document.getElementById('view-lobby');
-const gameView = document.getElementById('view-game');
-function flipTo(view) {
-  lobbyView.classList.remove('active');
-  gameView.classList.remove('active');
-  document.getElementById(`view-${view}`).classList.add('active');
-}
+    // --- Game state ---
+    const boardEl = $("board");
+    const turnEl = $("turn");
+    const resultEl = $("result");
+    const myMarkEl = $("myMark");
+    const roleBadge = $("roleBadge");
 
-const usernameIn = document.getElementById('username');
-const roomInput = document.getElementById('room');
-const createBtn = document.getElementById('create');
-const joinBtn = document.getElementById('join');
-const leaveBtn = document.getElementById('leave');
-const youEl = document.getElementById('you');
-const markEl = document.getElementById('mark');
-const turnEl = document.getElementById('turn');
-const boardEl = document.getElementById('board');
+    const state = {
+      board: Array(9).fill(null),
+      turn: 'X',
+      myMark: null, // 'X' or 'O'
+      connected: false,
+    };
 
-let provider, game, board, myMark;
-const cells = [];
-for (let i = 0; i < 9; i++) {
-  const b = document.createElement('button');
-  b.className = 'cell';
-  b.addEventListener('click', () => doMove(i));
-  boardEl.appendChild(b);
-  cells.push(b);
-}
+    function renderBoard() {
+      boardEl.innerHTML = '';
+      for (let i=0;i<9;i++) {
+        const cell = document.createElement('button');
+        cell.className = 'cell';
+        cell.dataset.idx = i;
+        cell.textContent = state.board[i] || '';
+        if (state.board[i] || !state.connected || state.myMark !== state.turn || winner(state.board)) {
+          cell.classList.add('disabled');
+        }
+        cell.addEventListener('click', () => onCellClick(i));
+        boardEl.appendChild(cell);
+      }
+      turnEl.textContent = state.turn;
+      myMarkEl.textContent = state.myMark || '–';
 
-function start(room, username) {
-  flipTo('game');
-  log(`Joining room '${room}' as ${username}...`);
-  const ydoc = new Y.Doc();
-  provider = new WebrtcProvider(room, ydoc, {
-    signaling: ['wss://signaling.yjs.dev'],
-  });
-  provider.awareness.setLocalStateField('user', { name: username });
-  statusText.textContent = 'Connecting...';
+      const w = winner(state.board);
+      if (w === 'draw') resultEl.textContent = 'Draw!';
+      else if (w) resultEl.textContent = `${w} wins!`;
+      else resultEl.textContent = '';
+    }
 
-  provider.on('status', e => {
-    statusText.textContent = e.status === 'connected' ? 'Connected' : 'Connecting...';
-    log(`Status: ${e.status}`);
-  });
-  provider.on('peers', e => {
-    log(`Peers changed: ${JSON.stringify(e)}`);
-  });
+    function resetBoard() {
+      state.board = Array(9).fill(null);
+      state.turn = 'X';
+      resultEl.textContent = '';
+      renderBoard();
+      send({ type: 'sync', payload: snapshot() });
+    }
 
-  game = ydoc.getMap('game');
-  if (!game.has('board')) game.set('board', new Y.Array());
-  board = game.get('board');
-  if (board.length === 0) board.insert(0, Array(9).fill(null));
-  game.observeDeep(render);
-  render();
+    function snapshot() { return { board: state.board, turn: state.turn }; }
 
-  myMark = 'X';
-  youEl.textContent = username;
-  markEl.textContent = myMark;
-}
+    function onCellClick(i) {
+      if (state.board[i] || state.myMark !== state.turn) return;
+      const w = winner(state.board); if (w) return;
+      state.board[i] = state.myMark;
+      state.turn = other(state.turn);
+      renderBoard();
+      send({ type: 'move', payload: i });
+    }
 
-function render() {
-  if (!board) return;
-  const b = board.toArray()[0] || Array(9).fill(null);
-  cells.forEach((c, i) => c.textContent = b[i] || '');
-}
+    function applyMove(i, mark) {
+      if (state.board[i] || winner(state.board)) return;
+      state.board[i] = mark;
+      state.turn = other(state.turn);
+      renderBoard();
+    }
 
-function doMove(i) {
-  const b = board.toArray()[0];
-  if (b[i]) return;
-  b[i] = myMark;
-  board.delete(0,1);
-  board.insert(0, [b]);
-}
+    function other(s) { return s === 'X' ? 'O' : 'X'; }
 
-createBtn.onclick = () => {
-  if (!usernameIn.value.trim() || !roomInput.value.trim()) {
-    alert('Enter username and room');
-    return;
-  }
-  start(roomInput.value.trim(), usernameIn.value.trim());
-};
-joinBtn.onclick = createBtn.onclick;
-leaveBtn.onclick = () => location.reload();
-</script>
+    function winner(b) {
+      const lines = [ [0,1,2],[3,4,5],[6,7,8], [0,3,6],[1,4,7],[2,5,8], [0,4,8],[2,4,6] ];
+      for (const [a,c,d] of lines) if (b[a] && b[a]===b[c] && b[a]===b[d]) return b[a];
+      return b.every(Boolean) ? 'draw' : null;
+    }
+
+    $("resetBtn").onclick = () => { resetBoard(); };
+    $("newGameBtn").onclick = () => { teardown(); setup(); };
+    $("syncBtn").onclick = () => send({ type: 'sync', payload: snapshot() });
+
+    // --- WebRTC (no signaling server) ---
+    let pc = null; let dc = null; let role = 'idle';
+
+    const pcConfig = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
+
+    function setup() {
+      teardown();
+      pc = new RTCPeerConnection(pcConfig);
+      pc.oniceconnectionstatechange = () => log(`ICE: ${pc.iceConnectionState}`);
+      pc.onconnectionstatechange = () => log(`PC: ${pc.connectionState}`);
+      pc.onicegatheringstatechange = () => log(`ICE gather: ${pc.iceGatheringState}`);
+      pc.ondatachannel = (e) => {
+        dc = e.channel; attachDataChannel();
+        // Answerer becomes 'O' by default
+        if (!state.myMark) state.myMark = 'O';
+        renderBoard();
+      };
+      renderBoard();
+    }
+
+    function teardown() {
+      if (dc) { dc.close(); dc = null; }
+      if (pc) { pc.close(); pc = null; }
+      state.connected = false; role = 'idle'; roleBadge.textContent = 'Offline';
+      state.myMark = null; resetBoard();
+    }
+
+    function attachDataChannel() {
+      dc.onopen = () => { state.connected = true; roleBadge.textContent = `Connected (${role})`; log('Data channel open', 'ok');
+        // inform marks if not set
+        if (!state.myMark) state.myMark = (role === 'host' ? 'X' : 'O');
+        // Sync state from host for consistency
+        if (role === 'host') send({ type: 'sync', payload: snapshot() });
+        renderBoard();
+      };
+      dc.onclose = () => { state.connected = false; roleBadge.textContent = 'Disconnected'; log('Data channel closed', 'warn'); };
+      dc.onmessage = (e) => {
+        try { const msg = JSON.parse(e.data); handleMsg(msg); } catch { log('Bad message', 'err'); }
+      };
+    }
+
+    function send(obj) { if (dc && dc.readyState === 'open') dc.send(JSON.stringify(obj)); }
+
+    function handleMsg(msg) {
+      switch (msg.type) {
+        case 'move':
+          applyMove(msg.payload, other(state.myMark));
+          break;
+        case 'sync':
+          if (msg.payload && msg.payload.board && msg.payload.turn) {
+            state.board = msg.payload.board.slice(0,9);
+            state.turn = msg.payload.turn;
+            renderBoard();
+          }
+          break;
+        case 'reset':
+          state.board = Array(9).fill(null); state.turn = 'X'; renderBoard();
+          break;
+      }
+    }
+
+    async function waitIceComplete() {
+      if (!pc) return;
+      if (pc.iceGatheringState === 'complete') return;
+      await new Promise(res => {
+        const check = () => {
+          if (!pc) return res();
+          if (pc.iceGatheringState === 'complete') {
+            pc.removeEventListener('icegatheringstatechange', check);
+            res();
+          }
+        };
+        pc.addEventListener('icegatheringstatechange', check);
+      });
+    }
+
+    function exportBlob(obj, pretty=true) { return JSON.stringify(obj, null, pretty ? 2 : 0); }
+
+    function download(filename, text) {
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(new Blob([text], { type: 'application/json' }));
+      a.download = filename; a.click(); URL.revokeObjectURL(a.href);
+    }
+
+    // --- Offerer flow ---
+    $("makeOffer").onclick = async () => {
+      setup(); role = 'host'; roleBadge.textContent = 'Host';
+      dc = pc.createDataChannel('ttt'); attachDataChannel();
+      const offer = await pc.createOffer({ offerToReceiveAudio: false, offerToReceiveVideo: false });
+      await pc.setLocalDescription(offer);
+      await waitIceComplete();
+      const blob = { sdp: pc.localDescription.sdp, type: pc.localDescription.type };
+      $("offerOut").value = exportBlob(blob);
+      log('Offer created. Share it with your friend.', 'ok');
+      state.myMark = 'X'; renderBoard();
+    };
+
+    $("downloadOffer").onclick = () => download('offer.json', $("offerOut").value || '{}');
+    $("copyOffer").onclick = async () => { try { await navigator.clipboard.writeText($("offerOut").value); log('Offer copied to clipboard', 'ok'); } catch { log('Clipboard failed', 'err'); } };
+
+    $("applyAnswer").onclick = async () => {
+      if (!pc) return log('Create an offer first.', 'warn');
+      try {
+        const ans = JSON.parse($("answerIn").value.trim());
+        await pc.setRemoteDescription(new RTCSessionDescription(ans));
+        log('Answer applied. Connecting…', 'ok');
+      } catch (e) { log('Invalid answer JSON', 'err'); }
+    };
+
+    // --- Answerer flow ---
+    $("acceptOffer").onclick = async () => {
+      setup(); role = 'guest'; roleBadge.textContent = 'Guest';
+      try {
+        const off = JSON.parse($("offerIn").value.trim());
+        await pc.setRemoteDescription(new RTCSessionDescription(off));
+        const answer = await pc.createAnswer();
+        await pc.setLocalDescription(answer);
+        await waitIceComplete();
+        const blob = { sdp: pc.localDescription.sdp, type: pc.localDescription.type };
+        $("answerOut").value = exportBlob(blob);
+        log('Answer ready. Send it back to host.', 'ok');
+        state.myMark = 'O'; renderBoard();
+      } catch (e) { log('Invalid offer JSON', 'err'); }
+    };
+
+    $("downloadAnswer").onclick = () => download('answer.json', $("answerOut").value || '{}');
+    $("copyAnswer").onclick = async () => { try { await navigator.clipboard.writeText($("answerOut").value); log('Answer copied to clipboard', 'ok'); } catch { log('Clipboard failed', 'err'); } };
+
+    // Reset button sends a reset to peer if connected
+    $("resetBtn").addEventListener('click', () => { send({ type: 'reset' }); });
+
+    // Initialize UI
+    setup();
+  </script>
 </body>
 </html>
