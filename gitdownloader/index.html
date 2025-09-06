@@ -1,0 +1,287 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Git SSH → ZIP Downloader</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+/* Minimal extras; Tailwind handles most styling via CDN. */
+:root { color-scheme: light dark; }
+@media (prefers-color-scheme: dark) {
+  body { background: #0b1220; color: #e5e7eb; }
+}
+
+  </style>
+  <meta name="description" content="Convert git SSH/HTTPS URLs into direct ZIP download links for GitHub, GitLab, and Bitbucket (public repos).">
+</head>
+<body class="min-h-screen bg-slate-50 text-slate-800">
+  <header class="max-w-3xl mx-auto p-6">
+    <h1 class="text-3xl font-bold">Git SSH → ZIP Downloader</h1>
+    <p class="mt-2 text-slate-600">Turn <code class="px-1 py-0.5 bg-slate-200 rounded">git@host:owner/repo.git</code> into a direct ZIP download link. Works for public repos on GitHub, GitLab, and Bitbucket.</p>
+  </header>
+
+  <main class="max-w-3xl mx-auto p-6">
+    <div class="bg-white rounded-2xl shadow p-6 space-y-4">
+      <label class="block">
+        <span class="text-sm font-medium text-slate-700">Repo URL (SSH or HTTPS)</span>
+        <input id="repoInput" class="mt-1 w-full rounded-xl border border-slate-300 px-4 py-2 focus:outline-none focus:ring-4 focus:ring-indigo-200" placeholder="e.g. git@bitbucket.org:gir489/bioshock2crashfix.git" />
+      </label>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <label class="block">
+          <span class="text-sm font-medium text-slate-700">Branch/Tag (optional)</span>
+          <input id="refInput" class="mt-1 w-full rounded-xl border border-slate-300 px-4 py-2 focus:outline-none focus:ring-4 focus:ring-indigo-200" placeholder="e.g. main, master, v1.2.3" />
+        </label>
+
+        <label class="block">
+          <span class="text-sm font-medium text-slate-700">Provider (auto-detected)</span>
+          <input id="providerOutput" disabled class="mt-1 w-full rounded-xl border border-slate-200 bg-slate-100 px-4 py-2" placeholder="—" />
+        </label>
+      </div>
+
+      <div class="flex items-center gap-3">
+        <button id="genBtn" class="rounded-xl bg-indigo-600 text-white px-4 py-2 font-medium hover:bg-indigo-500 active:bg-indigo-700 focus:outline-none focus:ring-4 focus:ring-indigo-200">Generate links</button>
+        <button id="clearBtn" class="rounded-xl bg-slate-200 text-slate-800 px-3 py-2 font-medium hover:bg-slate-300">Clear</button>
+      </div>
+
+      <div id="note" class="hidden rounded-xl border border-amber-300 bg-amber-50 p-4 text-amber-800 text-sm"></div>
+
+      <div id="results" class="space-y-3"></div>
+
+      <details class="pt-2">
+        <summary class="cursor-pointer text-sm text-slate-600">Why can’t browsers do <code>git clone</code> over SSH?</summary>
+        <div class="mt-2 text-sm text-slate-600">
+          Web pages can’t access your SSH keys or run the git protocol. This tool rewrites supported URLs to official ZIP archives provided by Git hosts. Private repos require authentication via the host site or a backend server (not included).
+        </div>
+      </details>
+    </div>
+
+    <footer class="text-xs text-slate-500 mt-6">
+      No backend. Pure static HTML/JS. • Use responsibly. • Public repos only (unless you are already signed in to the host and permitted to download).
+    </footer>
+  </main>
+
+<script type="module">
+const $ = (sel) => document.querySelector(sel);
+const repoInput = $("#repoInput");
+const refInput = $("#refInput");
+const providerOutput = $("#providerOutput");
+const results = $("#results");
+const note = $("#note");
+
+function parseGitUrl(input) {
+  const s = input.trim();
+  if (!s) return null;
+
+  // SSH: git@host:owner/repo(.git)
+  const ssh = s.match(/^git@([^:]+):(.+?)(?:\.git)?$/i);
+  if (ssh) {
+    return { host: ssh[1].toLowerCase(), path: ssh[2].replace(/\.git$/i, "") };
+  }
+
+  // HTTPS: https://host/owner/repo(.git)
+  try {
+    const u = new URL(s);
+    if (u.protocol === "http:" || u.protocol === "https:") {
+      const host = u.host.toLowerCase();
+      let path = u.pathname.replace(/^\//, "").replace(/\.git$/i, "");
+      return { host, path };
+    }
+  } catch (e) {
+    // not a URL, fall through
+  }
+
+  return null;
+}
+
+function detectProvider(host) {
+  if (!host) return null;
+  if (host.endsWith("github.com")) return "github";
+  if (host.endsWith("gitlab.com")) return "gitlab";
+  if (host.endsWith("bitbucket.org")) return "bitbucket";
+  return null;
+}
+
+function buildArchiveLinks({ host, path }, refOpt) {
+  const provider = detectProvider(host);
+  if (!provider) return { provider: null, links: [], tips: ["Unsupported host. Supported: GitHub, GitLab, Bitbucket."] };
+
+  const parts = path.split("/");
+  const owner = parts[0];
+  const repo = parts[parts.length - 1]; // supports subgroups on GitLab
+  const groupPath = parts.slice(0, -1).join("/");
+  const ref = (refOpt || "").trim();
+
+  /** Returns a link object */
+  const L = (label, href, hint="") => ({ label, href, hint });
+
+  if (provider === "github") {
+    // Prefer codeload (direct), fallback to zipball API
+    const codeload = ref ?
+      `https://codeload.github.com/${owner}/${repo}/zip/refs/heads/${ref}` :
+      null;
+    const zipball = ref ?
+      `https://api.github.com/repos/${owner}/${repo}/zipball/${ref}` :
+      `https://api.github.com/repos/${owner}/${repo}/zipball`;
+
+    const links = [];
+    if (codeload) links.push(L("Download (codeload)", codeload, "Direct ZIP if ref is a branch name."));
+    links.push(L("Download (GitHub API)", zipball, "Defaults to the repo’s default branch when no ref is provided."));
+
+    const tips = ref ? [] : ["No ref provided — will use the repository’s default branch."];
+    return { provider, links, tips };
+  }
+
+  if (provider === "gitlab") {
+    const guessed = ref || "main";
+    const archive = `https://gitlab.com/${groupPath}/${repo}/-/archive/${guessed}/${repo}-${guessed}.zip`;
+    const links = [L("Download (GitLab)", archive, ref ? "" : "Guessing ref=main; change if needed.")];
+    if (!ref) {
+      links.push(L("Try master", `https://gitlab.com/${groupPath}/${repo}/-/archive/master/${repo}-master.zip`));
+    }
+    const tips = ["If guessing fails, enter a branch/tag name."];
+    return { provider, links, tips };
+  }
+
+  if (provider === "bitbucket") {
+    const guessed = ref || "master";
+    const primary = `https://bitbucket.org/${owner}/${repo}/get/${guessed}.zip`;
+    const links = [L("Download (Bitbucket)", primary, ref ? "" : "Guessing ref=master; change if needed.")];
+    if (!ref) {
+      links.push(L("Try main", `https://bitbucket.org/${owner}/${repo}/get/main.zip`));
+      links.push(L("Try default (if configured)", `https://bitbucket.org/${owner}/${repo}/downloads/`));
+    }
+    const tips = ["Bitbucket usually needs an explicit branch/tag in the URL for direct archives."];
+    return { provider, links, tips };
+  }
+
+  return { provider: null, links: [], tips: [] };
+}
+
+function renderResults(data) {
+  results.innerHTML = "";
+  note.classList.add("hidden");
+  providerOutput.value = data.provider ? data.provider : "—";
+
+  if (!data.provider) {
+    note.textContent = (data.tips && data.tips[0]) || "Unsupported host.";
+    note.classList.remove("hidden");
+    return;
+  }
+
+  const frag = document.createDocumentFragment();
+
+  if (data.tips?.length) {
+    const n = document.createElement("div");
+    n.className = "rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm text-amber-800";
+    n.textContent = data.tips.join(" ");
+    frag.appendChild(n);
+  }
+
+  data.links.forEach((lnk) => {
+    const a = document.createElement("a");
+    a.href = lnk.href;
+    a.target = "_blank";
+    a.rel = "noopener noreferrer";
+    a.className = "block w-full text-left rounded-xl border border-slate-300 bg-white hover:bg-slate-50 px-4 py-3";
+    a.innerHTML = \`<div class="font-medium">\${lnk.label}</div><div class="text-xs text-slate-500 break-all">\${lnk.href}</div>\`;
+    if (lnk.hint) a.title = lnk.hint;
+    frag.appendChild(a);
+  });
+
+  results.appendChild(frag);
+}
+
+async function fetchGitHubDefaultBranch(owner, repo) {
+  try {
+    const r = await fetch(\`https://api.github.com/repos/\${owner}/\${repo}\`);
+    if (!r.ok) return null;
+    const j = await r.json();
+    return j.default_branch || null;
+  } catch {
+    return null;
+  }
+}
+
+$("#genBtn").addEventListener("click", async () => {
+  const parsed = parseGitUrl(repoInput.value);
+  if (!parsed) {
+    note.textContent = "Enter a valid SSH or HTTPS repository URL.";
+    note.classList.remove("hidden");
+    results.innerHTML = "";
+    providerOutput.value = "—";
+    return;
+  }
+
+  // Auto-fill provider field
+  const provider = detectProvider(parsed.host);
+  providerOutput.value = provider || "—";
+
+  // If GitHub and no ref, try to discover default branch for nicer codeload link
+  let ref = refInput.value.trim();
+  if (!ref && provider === "github") {
+    const parts = parsed.path.split("/");
+    const owner = parts[0], repo = parts[parts.length-1];
+    const def = await fetchGitHubDefaultBranch(owner, repo);
+    if (def) ref = def;
+  }
+
+  const data = buildArchiveLinks(parsed, ref);
+  renderResults(data);
+});
+
+$("#clearBtn").addEventListener("click", () => {
+  repoInput.value = "";
+  refInput.value = "";
+  providerOutput.value = "—";
+  results.innerHTML = "";
+  note.classList.add("hidden");
+});
+
+// Live update provider display
+repoInput.addEventListener("input", () => {
+  const parsed = parseGitUrl(repoInput.value || "");
+  providerOutput.value = parsed ? (detectProvider(parsed.host) || "—") : "—";
+});
+</script>
+</body>
+</html>
+
+
+<!--
+# Git SSH → ZIP Downloader (Static Web App)
+
+A single-page static site that converts Git SSH/HTTPS repo URLs into direct ZIP download links for **GitHub**, **GitLab**, and **Bitbucket**.
+
+> Example input (SSH): `git@bitbucket.org:gir489/bioshock2crashfix.git`
+
+## Why not just `git clone`?
+Browsers cannot speak SSH nor access your private keys, and they can’t run the git protocol. This app rewrites supported URLs to the host’s **official archive endpoints** so users can download a ZIP of the repository content — perfect for **public** repos or when you’re already signed in to the host in the same browser.
+
+## Supported
+- GitHub: codeload and API zipball (auto-detects default branch when possible)
+- GitLab: archive URLs (requires a branch/tag if default guess is wrong)
+- Bitbucket: archive URLs (usually requires a branch/tag — we try `master`/`main` as guesses)
+
+## Usage
+1. Open `index.html` locally or host the folder on any static host.
+2. Paste an SSH or HTTPS repo URL (e.g., `git@github.com:owner/repo.git`).
+3. Optionally enter a branch/tag (e.g., `main`, `master`, `v1.2.3`).
+4. Click **Generate links** and use a download link.
+
+## Notes
+- **Private repositories**: Direct archives may require authentication at the host and **cannot** be accessed by a static site unless a backend signs requests (not included).
+- **CORS**: We link directly to host download URLs, which generally allow cross-origin downloads. We avoid proxying.
+- **GitHub default branch**: When no ref is provided, we call the public GitHub API to discover the default branch and prefer a direct `codeload` URL when possible.
+
+## Local development
+No build steps are required. Just open `index.html` in your browser.
+
+## Security
+No secrets are needed. A `.env.example` file is included to match your team’s conventions — do **not** commit real secrets.
+
+## License
+MIT
+
+-->
