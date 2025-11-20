@@ -1,0 +1,523 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Gyro Labyrinth</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#000000" />
+
+  <!-- iOS PWA bits -->
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Gyro Labyrinth" />
+  <link rel="apple-touch-icon" href="icon-192.png" />
+
+  <link rel="manifest" href="manifest.webmanifest" />
+
+  <!-- Three.js (CDN) -->
+  <script src="https://unpkg.com/three@0.161.0/build/three.min.js"></script>
+
+  <!-- INLINE CSS -->
+  <style>
+    *,
+    *::before,
+    *::after {
+      box-sizing: border-box;
+    }
+
+    html,
+    body {
+      margin: 0;
+      padding: 0;
+      height: 100%;
+      width: 100%;
+      background: #111;
+      color: #f5f5f5;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    #game-container {
+      position: relative;
+      width: 100vw;
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    #game-canvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+
+    #overlay {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      text-align: center;
+      background: radial-gradient(circle at top, rgba(0, 0, 0, 0.8), rgba(0, 0, 0, 0.95));
+      backdrop-filter: blur(10px);
+    }
+
+    #overlay.hidden {
+      display: none;
+    }
+
+    #overlay h1 {
+      margin: 0 0 8px;
+      font-size: 2rem;
+      letter-spacing: 0.04em;
+    }
+
+    #overlay p {
+      margin: 4px 0;
+      max-width: 480px;
+      line-height: 1.4;
+    }
+
+    #overlay .hint {
+      font-size: 0.9rem;
+      opacity: 0.8;
+    }
+
+    #start-button {
+      margin-top: 16px;
+      padding: 10px 18px;
+      border-radius: 999px;
+      border: none;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      background: linear-gradient(135deg, #ffd54f, #ff9800);
+      color: #222;
+      box-shadow: 0 8px 18px rgba(0, 0, 0, 0.4);
+      transition: transform 0.1s ease, box-shadow 0.1s ease, filter 0.1s ease;
+    }
+
+    #start-button:active {
+      transform: translateY(1px) scale(0.98);
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.6);
+      filter: brightness(0.95);
+    }
+
+    #status {
+      margin-top: 12px;
+      font-size: 0.9rem;
+      color: #ffcc80;
+    }
+  </style>
+</head>
+<body>
+  <div id="game-container">
+    <canvas id="game-canvas"></canvas>
+
+    <div id="overlay">
+      <h1>Gyro Labyrinth</h1>
+      <p>Tilt your device to roll the ball through the maze.</p>
+      <button id="start-button">Tap to start</button>
+      <p class="hint">
+        If motion is blocked or you’re on desktop, use the arrow keys instead.
+      </p>
+      <p id="status"></p>
+    </div>
+  </div>
+
+  <!-- INLINE JS (main.js + SW registration) -->
+  <script type="module">
+    // ---- PWA service worker registration ----
+    if ("serviceWorker" in navigator) {
+      window.addEventListener("load", () => {
+        navigator.serviceWorker
+          .register("service-worker.js")
+          .catch(err => console.error("SW registration failed", err));
+      });
+    }
+
+    // ---- Maze definition ----
+    // # = wall, . = floor, S = start, G = goal, O = hole
+    const MAZE = [
+      "###########",
+      "#S.....O..#",
+      "#.###.###.#",
+      "#...#.....#",
+      "###.#.###.#",
+      "#...#...#.#",
+      "#.#####.#.#",
+      "#.....#...#",
+      "#.###.###.#",
+      "#..O.....G#",
+      "###########"
+    ];
+
+    const TILE_SIZE = 1;
+    const BALL_RADIUS = 0.25;
+
+    let scene, camera, renderer;
+    let ballMesh;
+    let holes = [];
+    let goal = null;
+    let wallRects = [];
+
+    let ball = {
+      x: 0,
+      z: 0,
+      vx: 0,
+      vz: 0
+    };
+
+    let tilt = { x: 0, y: 0 }; // device acceleration
+    let keyboardTilt = { x: 0, y: 0 }; // fallback controls
+    let lastTime = null;
+    let gameState = "ready"; // "ready" | "playing" | "won" | "lost"
+
+    const overlay = document.getElementById("overlay");
+    const startButton = document.getElementById("start-button");
+    const statusEl = document.getElementById("status");
+
+    // ---- THREE.js setup ----
+    function init3D() {
+      const canvas = document.getElementById("game-canvas");
+
+      renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+      renderer.setPixelRatio(window.devicePixelRatio || 1);
+      renderer.setSize(window.innerWidth, window.innerHeight);
+
+      scene = new THREE.Scene();
+      scene.background = new THREE.Color(0x101010);
+
+      const rows = MAZE.length;
+      const cols = MAZE[0].length;
+
+      const aspect = window.innerWidth / window.innerHeight;
+      camera = new THREE.PerspectiveCamera(45, aspect, 0.1, 100);
+      const centerX = 0;
+      const centerZ = 0;
+      camera.position.set(centerX, 10, rows * 0.8);
+      camera.lookAt(centerX, 0, centerZ);
+
+      // Lights
+      const ambient = new THREE.AmbientLight(0xffffff, 0.4);
+      scene.add(ambient);
+
+      const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
+      dirLight.position.set(5, 10, 7);
+      scene.add(dirLight);
+
+      // Floor
+      const floorGeom = new THREE.PlaneGeometry(cols * TILE_SIZE, rows * TILE_SIZE);
+      const floorMat = new THREE.MeshPhongMaterial({
+        color: 0x3e2723,
+        shininess: 20
+      });
+      const floor = new THREE.Mesh(floorGeom, floorMat);
+      floor.rotation.x = -Math.PI / 2;
+      scene.add(floor);
+
+      // Maze geometry
+      const wallGeom = new THREE.BoxGeometry(TILE_SIZE, 0.8, TILE_SIZE);
+      const wallMat = new THREE.MeshPhongMaterial({ color: 0x4e342e });
+
+      const holeGeom = new THREE.CylinderGeometry(0.25, 0.25, 0.1, 24);
+      const holeMat = new THREE.MeshPhongMaterial({ color: 0x000000 });
+
+      const goalGeom = new THREE.CylinderGeometry(0.3, 0.3, 0.1, 32);
+      const goalMat = new THREE.MeshPhongMaterial({ color: 0x00e676 });
+
+      const offsetX = -(cols * TILE_SIZE) / 2;
+      const offsetZ = -(rows * TILE_SIZE) / 2;
+
+      let startPos = { x: 0, z: 0 };
+
+      for (let r = 0; r < rows; r++) {
+        for (let c = 0; c < cols; c++) {
+          const ch = MAZE[r][c];
+          const worldX = offsetX + (c + 0.5) * TILE_SIZE;
+          const worldZ = offsetZ + (r + 0.5) * TILE_SIZE;
+
+          if (ch === "#") {
+            const wall = new THREE.Mesh(wallGeom, wallMat);
+            wall.position.set(worldX, 0.4, worldZ);
+            scene.add(wall);
+
+            wallRects.push({
+              xMin: worldX - TILE_SIZE / 2,
+              xMax: worldX + TILE_SIZE / 2,
+              zMin: worldZ - TILE_SIZE / 2,
+              zMax: worldZ + TILE_SIZE / 2
+            });
+          } else if (ch === "S") {
+            startPos = { x: worldX, z: worldZ };
+          } else if (ch === "O") {
+            const hole = new THREE.Mesh(holeGeom, holeMat);
+            hole.position.set(worldX, 0.05, worldZ);
+            hole.rotation.x = -Math.PI / 2;
+            scene.add(hole);
+            holes.push({ x: worldX, z: worldZ, r: 0.3 });
+          } else if (ch === "G") {
+            const g = new THREE.Mesh(goalGeom, goalMat);
+            g.position.set(worldX, 0.05, worldZ);
+            g.rotation.x = -Math.PI / 2;
+            scene.add(g);
+            goal = { x: worldX, z: worldZ, r: 0.4 };
+          }
+        }
+      }
+
+      // Ball
+      const ballGeom = new THREE.SphereGeometry(BALL_RADIUS, 32, 32);
+      const ballMat = new THREE.MeshPhongMaterial({
+        color: 0xffeb3b,
+        shininess: 100
+      });
+      ballMesh = new THREE.Mesh(ballGeom, ballMat);
+      scene.add(ballMesh);
+
+      resetBall(startPos.x, startPos.z);
+
+      window.addEventListener("resize", onResize);
+    }
+
+    function onResize() {
+      if (!renderer || !camera) return;
+      const w = window.innerWidth;
+      const h = window.innerHeight;
+      renderer.setSize(w, h);
+      camera.aspect = w / h;
+      camera.updateProjectionMatrix();
+    }
+
+    function resetBall(x, z) {
+      ball.x = x;
+      ball.z = z;
+      ball.vx = 0;
+      ball.vz = 0;
+      ballMesh.position.set(ball.x, BALL_RADIUS, ball.z);
+    }
+
+    // ---- Physics & game loop ----
+    function update(dt) {
+      if (gameState !== "playing") return;
+
+      const SENS = 0.8; // tilt acceleration scaling
+      // Combine device tilt + keyboard tilt
+      const ax = (tilt.x + keyboardTilt.x) * -SENS;
+      const az = (tilt.y + keyboardTilt.y) * SENS;
+
+      ball.vx += ax * dt;
+      ball.vz += az * dt;
+
+      const FRICTION = 0.95;
+      ball.vx *= FRICTION;
+      ball.vz *= FRICTION;
+
+      ball.x += ball.vx * dt;
+      ball.z += ball.vz * dt;
+
+      resolveCollisions();
+      ballMesh.position.set(ball.x, BALL_RADIUS, ball.z);
+
+      checkWinLose();
+    }
+
+    function resolveCollisions() {
+      for (const rect of wallRects) {
+        // Closest point on rect to ball center
+        const closestX = clamp(ball.x, rect.xMin + BALL_RADIUS, rect.xMax - BALL_RADIUS);
+        const closestZ = clamp(ball.z, rect.zMin + BALL_RADIUS, rect.zMax - BALL_RADIUS);
+
+        const dx = ball.x - closestX;
+        const dz = ball.z - closestZ;
+        const distSq = dx * dx + dz * dz;
+
+        if (distSq < BALL_RADIUS * BALL_RADIUS) {
+          const dist = Math.sqrt(distSq) || 0.0001;
+          const overlap = BALL_RADIUS - dist;
+
+          const nx = dx / dist;
+          const nz = dz / dist;
+
+          ball.x += nx * overlap;
+          ball.z += nz * overlap;
+
+          const dot = ball.vx * nx + ball.vz * nz;
+          if (dot < 0) {
+            ball.vx -= 1.2 * dot * nx;
+            ball.vz -= 1.2 * dot * nz;
+          }
+        }
+      }
+    }
+
+    function checkWinLose() {
+      if (goal) {
+        const dx = ball.x - goal.x;
+        const dz = ball.z - goal.z;
+        const d2 = dx * dx + dz * dz;
+        if (d2 < goal.r * goal.r) {
+          gameState = "won";
+          showOverlay("You win! 🎉", "Tap to play again.");
+        }
+      }
+
+      for (const hole of holes) {
+        const dx = ball.x - hole.x;
+        const dz = ball.z - hole.z;
+        const d2 = dx * dx + dz * dz;
+        if (d2 < hole.r * hole.r) {
+          gameState = "lost";
+          showOverlay("You fell in a hole! 💀", "Tap to try again.");
+          break;
+        }
+      }
+    }
+
+    function clamp(v, min, max) {
+      return Math.max(min, Math.min(max, v));
+    }
+
+    function renderLoop(timestamp) {
+      if (!lastTime) lastTime = timestamp;
+      const dt = Math.min((timestamp - lastTime) / 1000, 0.05);
+      lastTime = timestamp;
+
+      update(dt);
+      if (renderer && scene && camera) {
+        renderer.render(scene, camera);
+      }
+      requestAnimationFrame(renderLoop);
+    }
+
+    // ---- Controls ----
+    function setupMotion() {
+      function enableListeners() {
+        window.addEventListener("devicemotion", e => {
+          if (!e.accelerationIncludingGravity) return;
+          const a = e.accelerationIncludingGravity;
+          tilt.x = a.x || 0;
+          tilt.y = a.y || 0;
+        });
+      }
+
+      if (
+        typeof DeviceMotionEvent !== "undefined" &&
+        typeof DeviceMotionEvent.requestPermission === "function"
+      ) {
+        DeviceMotionEvent.requestPermission()
+          .then(response => {
+            if (response === "granted") {
+              statusEl.textContent = "Motion enabled. Tilt to play!";
+              enableListeners();
+            } else {
+              statusEl.textContent =
+                "Motion permission denied. Using keyboard arrows instead.";
+            }
+            startGame();
+          })
+          .catch(err => {
+            console.error(err);
+            statusEl.textContent =
+              "Motion access failed. Try in Safari or use arrow keys.";
+            startGame();
+          });
+      } else {
+        // Non-iOS or older
+        enableListeners();
+        statusEl.textContent = "Tilt to play (or use arrows).";
+        startGame();
+      }
+    }
+
+    function startGame() {
+      overlay.classList.add("hidden");
+      gameState = "playing";
+    }
+
+    function showOverlay(title, subtitle) {
+      const h1 = overlay.querySelector("h1");
+      const p = overlay.querySelector("p");
+      h1.textContent = title;
+      p.textContent = subtitle || "Tap to start";
+      overlay.classList.remove("hidden");
+    }
+
+    // Keyboard fallback (arrows / WASD)
+    window.addEventListener("keydown", e => {
+      switch (e.key) {
+        case "ArrowLeft":
+        case "a":
+        case "A":
+          keyboardTilt.x = -5;
+          break;
+        case "ArrowRight":
+        case "d":
+        case "D":
+          keyboardTilt.x = 5;
+          break;
+        case "ArrowUp":
+        case "w":
+        case "W":
+          keyboardTilt.y = -5;
+          break;
+        case "ArrowDown":
+        case "s":
+        case "S":
+        case "S":
+          keyboardTilt.y = 5;
+          break;
+      }
+    });
+
+    window.addEventListener("keyup", e => {
+      switch (e.key) {
+        case "ArrowLeft":
+        case "ArrowRight":
+        case "a":
+        case "A":
+        case "d":
+        case "D":
+          keyboardTilt.x = 0;
+          break;
+        case "ArrowUp":
+        case "ArrowDown":
+        case "w":
+        case "W":
+        case "s":
+        case "S":
+          keyboardTilt.y = 0;
+          break;
+      }
+    });
+
+    // Restart from overlay
+    startButton.addEventListener("click", () => {
+      // Reset ball to start position
+      const rows = MAZE.length;
+      const cols = MAZE[0].length;
+      const offsetX = -(cols * TILE_SIZE) / 2;
+      const offsetZ = -(rows * TILE_SIZE) / 2;
+      let startPos = { x: 0, z: 0 };
+
+      for (let r = 0; r < rows; r++) {
+        for (let c = 0; c < cols; c++) {
+          if (MAZE[r][c] === "S") {
+            startPos.x = offsetX + (c + 0.5) * TILE_SIZE;
+            startPos.z = offsetZ + (r + 0.5) * TILE_SIZE;
+          }
+        }
+      }
+      resetBall(startPos.x, startPos.z);
+      tilt.x = tilt.y = 0;
+      keyboardTilt.x = keyboardTilt.y = 0;
+      gameState = "ready";
+      setupMotion();
+    });
+
+    // ---- Boot ----
+    init3D();
+    requestAnimationFrame(renderLoop);
+  </script>
+</body>
+</html>
