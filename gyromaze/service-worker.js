@@ -4,8 +4,7 @@ const ASSETS = [
   "index.html",
   "manifest.webmanifest",
   "icon-192.png",
-  "icon-512.png",
-  "https://unpkg.com/three@0.161.0/build/three.min.js"
+  "icon-512.png"
 ];
 
 self.addEventListener("install", event => {
@@ -30,7 +29,7 @@ self.addEventListener("fetch", event => {
   event.respondWith(
     caches.match(event.request).then(cached => {
       if (cached) return cached;
-      return fetch(event.request).catch(() => cached);
+      return fetch(event.request);
     })
   );
 });
