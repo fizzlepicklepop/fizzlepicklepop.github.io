@@ -3,61 +3,59 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Gyro Maze</title>
+    <title>Gyro Maze Bright</title>
     <link rel="manifest" href="manifest.json">
     <style>
-        body { margin: 0; overflow: hidden; background: #222; touch-action: none; font-family: sans-serif; }
+        body { margin: 0; overflow: hidden; background: #eee; touch-action: none; font-family: 'Segoe UI', sans-serif; }
         canvas { display: block; }
         #overlay {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.8); color: white; display: flex;
+            background: rgba(255,255,255,0.9); color: #333; display: flex;
             justify-content: center; align-items: center; flex-direction: column;
             z-index: 10; text-align: center;
         }
+        h1 { margin: 0 0 20px 0; font-size: 2.5rem; color: #ff3333; text-transform: uppercase; letter-spacing: 2px; }
+        p { color: #666; font-size: 1.1rem; margin-bottom: 40px; }
         button {
-            padding: 15px 30px; font-size: 1.2rem; background: #00d2ff; border: none;
-            border-radius: 8px; cursor: pointer; margin-top: 20px; color: #000; font-weight: bold;
+            padding: 20px 50px; font-size: 1.5rem; background: #ff3333;
+            border: none; border-radius: 50px; cursor: pointer; color: white; font-weight: bold;
+            box-shadow: 0 5px 15px rgba(255, 51, 51, 0.4);
         }
+        button:active { transform: scale(0.95); }
     </style>
 </head>
 <body>
 
 <div id="overlay">
-    <h1>Gyro Maze PWA</h1>
-    <p>Tilt your phone or use Arrow Keys</p>
-    <button id="startBtn">START GAME</button>
+    <h1>Gyro Maze</h1>
+    <p>Tilt to Roll • High Visibility</p>
+    <button id="startBtn">PLAY</button>
 </div>
 <canvas id="gameCanvas"></canvas>
 
 <script>
-    // --- CONFIGURATION ---
-    const COLS = 15;
-    const ROWS = 15;
-    const WALL_THICKNESS = 4;
-    
     // --- VARIABLES ---
     const canvas = document.getElementById('gameCanvas');
-    const ctx = canvas.getContext('2d');
+    const ctx = canvas.getContext('2d', { alpha: false }); 
+    
     let width, height, cellSize;
-    let maze = []; // 2D array: { top, right, bottom, left, visited }
+    let COLS, ROWS;
+    let maze = [];
     let ball = { x: 0, y: 0, r: 0, vx: 0, vy: 0 };
-    let goal = { x: COLS - 1, y: ROWS - 1 };
+    let goal = { x: 0, y: 0 };
     
     // Textures
     let wallPattern;
-    let floorPattern;
+    let backgroundPattern;
 
     // Inputs
-    let tiltX = 0, tiltY = 0; // Gyro
+    let tiltX = 0, tiltY = 0;
     let keys = { ArrowUp: false, ArrowDown: false, ArrowLeft: false, ArrowRight: false };
 
-    // --- SETUP & PWA ---
-    if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.register('sw.js');
-    }
+    // --- SETUP ---
+    if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js');
 
     document.getElementById('startBtn').addEventListener('click', async () => {
-        // Request Gyro Permission (Required for iOS 13+)
         if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
             try {
                 const response = await DeviceOrientationEvent.requestPermission();
@@ -66,7 +64,6 @@
         } else {
             window.addEventListener('deviceorientation', handleOrientation);
         }
-        
         document.getElementById('overlay').style.display = 'none';
         initGame();
         loop();
@@ -74,17 +71,90 @@
 
     window.addEventListener('keydown', e => keys[e.code] = true);
     window.addEventListener('keyup', e => keys[e.code] = false);
-    window.addEventListener('resize', resize);
+    window.addEventListener('resize', () => { resize(); });
 
-    // --- GENERATION ---
+    // --- PROCEDURAL TEXTURES ---
+
+    function createWallPattern() {
+        const s = 64;
+        const c = document.createElement('canvas');
+        c.width = s; c.height = s;
+        const cx = c.getContext('2d');
+        
+        // Dark solid wall for contrast
+        cx.fillStyle = '#222';
+        cx.fillRect(0,0,s,s);
+        
+        // Subtle texture
+        cx.strokeStyle = '#333';
+        cx.lineWidth = 2;
+        cx.strokeRect(0,0,s,s); // Border
+        cx.beginPath(); cx.moveTo(0,0); cx.lineTo(s,s); cx.stroke(); // Cross
+        
+        return ctx.createPattern(c, 'repeat');
+    }
+
+    function createBrightBackground() {
+        const s = 100;
+        const c = document.createElement('canvas');
+        c.width = s; c.height = s;
+        const cx = c.getContext('2d');
+
+        // 1. Pick a random bright base color
+        const hues = [
+            '#e0f7fa', // Cyan
+            '#fff9c4', // Yellow
+            '#f1f8e9', // Light Green
+            '#e1bee7', // Lavender
+            '#ffe0b2', // Apricot
+            '#ffffff'  // White
+        ];
+        const baseColor = hues[Math.floor(Math.random() * hues.length)];
+        
+        cx.fillStyle = baseColor;
+        cx.fillRect(0, 0, s, s);
+
+        // 2. Pick a random pattern style
+        const style = Math.floor(Math.random() * 3);
+        cx.fillStyle = 'rgba(0,0,0,0.05)'; // Very subtle overlay
+
+        if (style === 0) {
+            // Polka Dots
+            cx.beginPath();
+            cx.arc(25, 25, 10, 0, Math.PI*2);
+            cx.arc(75, 75, 10, 0, Math.PI*2);
+            cx.fill();
+        } else if (style === 1) {
+            // Graph Paper
+            cx.strokeStyle = 'rgba(0,0,0,0.1)';
+            cx.lineWidth = 1;
+            cx.beginPath();
+            cx.moveTo(0, 50); cx.lineTo(100, 50);
+            cx.moveTo(50, 0); cx.lineTo(50, 100);
+            cx.stroke();
+        } else {
+            // Diagonals
+            cx.strokeStyle = 'rgba(0,0,0,0.05)';
+            cx.lineWidth = 5;
+            cx.beginPath();
+            cx.moveTo(0, 0); cx.lineTo(100, 100);
+            cx.moveTo(100, 0); cx.lineTo(0, 100);
+            cx.stroke();
+        }
+
+        return ctx.createPattern(c, 'repeat');
+    }
+
     function initGame() {
         resize();
-        generateTextures();
+        wallPattern = createWallPattern();
+        backgroundPattern = createBrightBackground(); // New background every level
         generateMaze();
-        // Reset Ball to center of top-left cell
+        
+        // Reset Ball
+        ball.r = cellSize * 0.35;
         ball.x = cellSize / 2;
         ball.y = cellSize / 2;
-        ball.r = cellSize * 0.3;
         ball.vx = 0; ball.vy = 0;
     }
 
@@ -93,32 +163,21 @@
         height = window.innerHeight;
         canvas.width = width;
         canvas.height = height;
-        // Calculate cell size to fit the smaller dimension
+
+        const targetSize = Math.max(width, height) < 800 ? 40 : 60;
+        COLS = Math.floor(width / targetSize);
+        ROWS = Math.floor(height / targetSize);
+        
+        if (COLS % 2 === 0) COLS--;
+        if (ROWS % 2 === 0) ROWS--;
+
         cellSize = Math.floor(Math.min(width / COLS, height / ROWS));
-    }
-
-    function generateTextures() {
-        // 1. Programmatic Wall Texture (Diagonal Stripes)
-        const wCanvas = document.createElement('canvas');
-        wCanvas.width = 20; wCanvas.height = 20;
-        const wCtx = wCanvas.getContext('2d');
-        wCtx.fillStyle = '#444'; wCtx.fillRect(0,0,20,20);
-        wCtx.strokeStyle = '#666'; wCtx.lineWidth = 2;
-        wCtx.beginPath(); wCtx.moveTo(0,20); wCtx.lineTo(20,0); wCtx.stroke();
-        wallPattern = ctx.createPattern(wCanvas, 'repeat');
-
-        // 2. Programmatic Floor Texture (Subtle Noise)
-        const fCanvas = document.createElement('canvas');
-        fCanvas.width = 50; fCanvas.height = 50;
-        const fCtx = fCanvas.getContext('2d');
-        fCtx.fillStyle = '#222'; fCtx.fillRect(0,0,50,50);
-        fCtx.fillStyle = '#2a2a2a';
-        for(let i=0; i<10; i++) fCtx.fillRect(Math.random()*50, Math.random()*50, 2, 2);
-        floorPattern = ctx.createPattern(fCanvas, 'repeat');
     }
 
     function generateMaze() {
         maze = [];
+        goal = { x: COLS - 1, y: ROWS - 1 };
+
         for (let y = 0; y < ROWS; y++) {
             let row = [];
             for (let x = 0; x < COLS; x++) {
@@ -127,7 +186,6 @@
             maze.push(row);
         }
 
-        // Recursive Backtracker
         let stack = [];
         let current = { x: 0, y: 0 };
         maze[0][0].visited = true;
@@ -136,7 +194,6 @@
         while (stack.length > 0) {
             let cell = stack[stack.length - 1];
             let neighbors = [];
-
             const dirs = [
                 { nx: cell.x, ny: cell.y - 1, wall: 'top', opp: 'bottom' },
                 { nx: cell.x + 1, ny: cell.y, wall: 'right', opp: 'left' },
@@ -162,133 +219,140 @@
         }
     }
 
-    // --- INPUT HANDLING ---
     function handleOrientation(event) {
-        // Beta: front/back (-180 to 180), Gamma: left/right (-90 to 90)
-        // We clamp values to make control easier
-        const maxTilt = 20;
-        let y = event.beta; 
-        let x = event.gamma; 
-
+        const maxTilt = 25;
+        let y = event.beta; let x = event.gamma; 
         if (y > maxTilt) y = maxTilt; if (y < -maxTilt) y = -maxTilt;
         if (x > maxTilt) x = maxTilt; if (x < -maxTilt) x = -maxTilt;
-
-        tiltX = x / maxTilt; // Normalized -1 to 1
-        tiltY = y / maxTilt;
+        tiltX = x / maxTilt; tiltY = y / maxTilt;
     }
 
-    // --- GAME LOOP ---
     function update() {
-        // Keyboard Override
         let dx = 0, dy = 0;
         if (keys.ArrowUp || keys.KeyW) dy = -1;
         if (keys.ArrowDown || keys.KeyS) dy = 1;
         if (keys.ArrowLeft || keys.KeyA) dx = -1;
         if (keys.ArrowRight || keys.KeyD) dx = 1;
 
-        // Combine inputs (Keyboard overrides tilt if used)
         let ax = dx !== 0 ? dx : tiltX;
         let ay = dy !== 0 ? dy : tiltY;
 
-        // Physics
-        ball.vx += ax * 0.5;
-        ball.vy += ay * 0.5;
-        ball.vx *= 0.9; // Friction
-        ball.vy *= 0.9;
-
-        // Proposed next position
-        let nextX = ball.x + ball.vx;
-        let nextY = ball.y + ball.vy;
-
-        // Collision Detection (Wall Sliding)
-        let colX = Math.floor(ball.x / cellSize);
-        let colY = Math.floor(ball.y / cellSize);
-        
-        // Keep inside canvas bounds
-        if (nextX - ball.r < 0) { nextX = ball.r; ball.vx = 0; }
-        if (nextX + ball.r > COLS * cellSize) { nextX = COLS * cellSize - ball.r; ball.vx = 0; }
-        if (nextY - ball.r < 0) { nextY = ball.r; ball.vy = 0; }
-        if (nextY + ball.r > ROWS * cellSize) { nextY = ROWS * cellSize - ball.r; ball.vy = 0; }
-
-        // Check Walls logic (Simplified for grid)
-        // We check if the ball crosses a cell boundary and if that boundary has a wall
-        let currentCell = maze[Math.min(ROWS-1, Math.max(0, Math.floor(ball.y / cellSize)))][Math.min(COLS-1, Math.max(0, Math.floor(ball.x / cellSize)))];
-        
-        // Relative position in cell
-        let localX = ball.x % cellSize;
-        let localY = ball.y % cellSize;
-
-        // Right Wall
-        if (currentCell.right && localX + ball.vx + ball.r > cellSize) {
-            ball.vx = -ball.vx * 0.3; // Bounce slightly
-        }
-        // Left Wall
-        if (currentCell.left && localX + ball.vx - ball.r < 0) {
-            ball.vx = -ball.vx * 0.3;
-        }
-        // Bottom Wall
-        if (currentCell.bottom && localY + ball.vy + ball.r > cellSize) {
-            ball.vy = -ball.vy * 0.3;
-        }
-        // Top Wall
-        if (currentCell.top && localY + ball.vy - ball.r < 0) {
-            ball.vy = -ball.vy * 0.3;
-        }
+        ball.vx += ax * 0.8;
+        ball.vy += ay * 0.8;
+        ball.vx *= 0.92;
+        ball.vy *= 0.92;
 
         ball.x += ball.vx;
+        checkCollisionX();
         ball.y += ball.vy;
+        checkCollisionY();
+
+        let pcx = Math.floor(ball.x / cellSize);
+        let pcy = Math.floor(ball.y / cellSize);
+        if (pcx === goal.x && pcy === goal.y) {
+            canvas.style.opacity = 0;
+            setTimeout(() => {
+                initGame();
+                canvas.style.opacity = 1;
+            }, 300);
+        }
+    }
+
+    function checkCollisionX() {
+        if (ball.x - ball.r < 0) { ball.x = ball.r; ball.vx = 0; }
+        if (ball.x + ball.r > COLS * cellSize) { ball.x = COLS * cellSize - ball.r; ball.vx = 0; }
+
+        let cx = Math.floor(ball.x / cellSize);
+        let cy = Math.floor(ball.y / cellSize);
+        cx = Math.max(0, Math.min(COLS-1, cx));
+        cy = Math.max(0, Math.min(ROWS-1, cy));
         
-        // Win Condition
-        let pCol = Math.floor(ball.x / cellSize);
-        let pRow = Math.floor(ball.y / cellSize);
-        if (pCol === goal.x && pRow === goal.y) {
-            alert("You Win! Generating new maze...");
-            initGame();
+        let cell = maze[cy][cx];
+        let localX = ball.x % cellSize;
+
+        if (cell.right && localX + ball.r > cellSize) {
+            ball.x = (cx + 1) * cellSize - ball.r;
+            ball.vx *= -0.3;
+        }
+        if (cell.left && localX - ball.r < 0) {
+            ball.x = cx * cellSize + ball.r;
+            ball.vx *= -0.3;
+        }
+    }
+
+    function checkCollisionY() {
+        if (ball.y - ball.r < 0) { ball.y = ball.r; ball.vy = 0; }
+        if (ball.y + ball.r > ROWS * cellSize) { ball.y = ROWS * cellSize - ball.r; ball.vy = 0; }
+
+        let cx = Math.floor(ball.x / cellSize);
+        let cy = Math.floor(ball.y / cellSize);
+        cx = Math.max(0, Math.min(COLS-1, cx));
+        cy = Math.max(0, Math.min(ROWS-1, cy));
+
+        let cell = maze[cy][cx];
+        let localY = ball.y % cellSize;
+
+        if (cell.bottom && localY + ball.r > cellSize) {
+            ball.y = (cy + 1) * cellSize - ball.r;
+            ball.vy *= -0.3;
+        }
+        if (cell.top && localY - ball.r < 0) {
+            ball.y = cy * cellSize + ball.r;
+            ball.vy *= -0.3;
         }
     }
 
     function draw() {
-        // Clear
-        ctx.fillStyle = floorPattern;
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        // Draw the Bright Background
+        ctx.fillStyle = backgroundPattern;
+        ctx.fillRect(0, 0, width, height);
 
-        // Center the view (optional, but here we fit screen so we just draw grid)
-        // Calculate offset to center the maze on screen
         let offsetX = (width - COLS * cellSize) / 2;
         let offsetY = (height - ROWS * cellSize) / 2;
 
         ctx.save();
         ctx.translate(offsetX, offsetY);
 
+        // Draw Goal
+        ctx.fillStyle = 'rgba(0, 200, 0, 0.5)';
+        ctx.fillRect(goal.x * cellSize, goal.y * cellSize, cellSize, cellSize);
+        ctx.strokeStyle = '#00aa00';
+        ctx.lineWidth = 3;
+        ctx.strokeRect(goal.x * cellSize + 8, goal.y * cellSize + 8, cellSize - 16, cellSize - 16);
+
         // Draw Walls
         ctx.strokeStyle = wallPattern;
-        ctx.lineWidth = WALL_THICKNESS;
+        ctx.lineWidth = 6;
         ctx.lineCap = 'round';
         ctx.beginPath();
-
         for (let y = 0; y < ROWS; y++) {
             for (let x = 0; x < COLS; x++) {
-                let cell = maze[y][x];
-                let cx = x * cellSize;
-                let cy = y * cellSize;
-
-                if (cell.top) { ctx.moveTo(cx, cy); ctx.lineTo(cx + cellSize, cy); }
-                if (cell.left) { ctx.moveTo(cx, cy); ctx.lineTo(cx, cy + cellSize); }
-                // Only draw bottom/right for last row/col to avoid double drawing
-                if (y === ROWS - 1 && cell.bottom) { ctx.moveTo(cx, cy + cellSize); ctx.lineTo(cx + cellSize, cy + cellSize); }
-                if (x === COLS - 1 && cell.right) { ctx.moveTo(cx + cellSize, cy); ctx.lineTo(cx + cellSize, cy + cellSize); }
+                let c = maze[y][x];
+                let tx = x * cellSize; 
+                let ty = y * cellSize;
+                if (c.top) { ctx.moveTo(tx, ty); ctx.lineTo(tx + cellSize, ty); }
+                if (c.left) { ctx.moveTo(tx, ty); ctx.lineTo(tx, ty + cellSize); }
+                if (y === ROWS - 1 && c.bottom) { ctx.moveTo(tx, ty + cellSize); ctx.lineTo(tx + cellSize, ty + cellSize); }
+                if (x === COLS - 1 && c.right) { ctx.moveTo(tx + cellSize, ty); ctx.lineTo(tx + cellSize, ty + cellSize); }
             }
         }
         ctx.stroke();
 
-        // Draw Goal
-        ctx.fillStyle = 'rgba(0, 255, 0, 0.3)';
-        ctx.fillRect(goal.x * cellSize + 5, goal.y * cellSize + 5, cellSize - 10, cellSize - 10);
+        // --- DRAW BALL (Simple Red + Gloss) ---
+        // Solid Red Body
+        ctx.fillStyle = '#ff0000';
+        ctx.beginPath();
+        ctx.arc(ball.x, ball.y, ball.r, 0, Math.PI * 2);
+        ctx.fill();
 
-        // Draw Ball (Programmatic Gradient)
-        let grad = ctx.createRadialGradient(ball.x, ball.y, ball.r * 0.2, ball.x, ball.y, ball.r);
-        grad.addColorStop(0, '#fff');
-        grad.addColorStop(1, '#00d2ff');
+        // Glossy Shine (Radial Gradient)
+        let grad = ctx.createRadialGradient(
+            ball.x - ball.r * 0.3, ball.y - ball.r * 0.3, ball.r * 0.1, 
+            ball.x, ball.y, ball.r
+        );
+        grad.addColorStop(0, 'rgba(255, 255, 255, 0.5)'); // Bright white highlight
+        grad.addColorStop(1, 'rgba(0, 0, 0, 0.2)'); // Slight darkening at edges
+        
         ctx.fillStyle = grad;
         ctx.beginPath();
         ctx.arc(ball.x, ball.y, ball.r, 0, Math.PI * 2);
