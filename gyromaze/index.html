@@ -3,34 +3,61 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Gyro Maze Bright</title>
+    <title>Gyro Maze Landscape</title>
     <link rel="manifest" href="manifest.json">
     <style>
         body { margin: 0; overflow: hidden; background: #eee; touch-action: none; font-family: 'Segoe UI', sans-serif; }
         canvas { display: block; }
+        
+        /* Main Menu Overlay */
         #overlay {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(255,255,255,0.9); color: #333; display: flex;
+            background: rgba(255,255,255,0.95); color: #333; display: flex;
             justify-content: center; align-items: center; flex-direction: column;
-            z-index: 10; text-align: center;
+            z-index: 10; text-align: center; transition: opacity 0.3s;
         }
-        h1 { margin: 0 0 20px 0; font-size: 2.5rem; color: #ff3333; text-transform: uppercase; letter-spacing: 2px; }
-        p { color: #666; font-size: 1.1rem; margin-bottom: 40px; }
+
+        /* "Please Rotate" Overlay - Hidden by default */
+        #rotate-message {
+            display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: #111; color: white; z-index: 20;
+            flex-direction: column; justify-content: center; align-items: center; text-align: center;
+        }
+
+        h1 { margin: 0 0 10px 0; font-size: 3rem; color: #ff3333; text-transform: uppercase; letter-spacing: 2px; }
+        p { color: #666; font-size: 1.2rem; margin-bottom: 30px; font-weight: 500; }
+        .stats { font-size: 1.5rem; color: #333; margin-bottom: 20px; font-weight: bold; }
+        
         button {
-            padding: 20px 50px; font-size: 1.5rem; background: #ff3333;
+            padding: 20px 60px; font-size: 1.5rem; background: #ff3333;
             border: none; border-radius: 50px; cursor: pointer; color: white; font-weight: bold;
             box-shadow: 0 5px 15px rgba(255, 51, 51, 0.4);
+            transition: transform 0.1s;
         }
         button:active { transform: scale(0.95); }
+
+        /* Force Landscape Mode via CSS Warning */
+        @media screen and (orientation: portrait) {
+            #rotate-message { display: flex; }
+            #overlay, canvas { display: none; }
+        }
     </style>
 </head>
 <body>
 
+<div id="rotate-message">
+    <h1>Please Rotate</h1>
+    <p>This game is designed for Landscape Mode.</p>
+    <div style="font-size: 3rem;">↻</div>
+</div>
+
 <div id="overlay">
-    <h1>Gyro Maze</h1>
-    <p>Tilt to Roll • High Visibility</p>
+    <h1 id="titleText">Gyro Maze</h1>
+    <p id="subText">Tilt to Roll • Landscape Mode</p>
+    <div id="stats" class="stats"></div>
     <button id="startBtn">PLAY</button>
 </div>
+
 <canvas id="gameCanvas"></canvas>
 
 <script>
@@ -44,6 +71,10 @@
     let ball = { x: 0, y: 0, r: 0, vx: 0, vy: 0 };
     let goal = { x: 0, y: 0 };
     
+    // Timer Variables
+    let startTime = 0;
+    let isPlaying = false;
+    
     // Textures
     let wallPattern;
     let backgroundPattern;
@@ -56,6 +87,7 @@
     if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js');
 
     document.getElementById('startBtn').addEventListener('click', async () => {
+        // iOS 13+ Gyro Permission
         if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
             try {
                 const response = await DeviceOrientationEvent.requestPermission();
@@ -64,33 +96,79 @@
         } else {
             window.addEventListener('deviceorientation', handleOrientation);
         }
-        document.getElementById('overlay').style.display = 'none';
-        initGame();
-        loop();
+        
+        startGame();
     });
 
     window.addEventListener('keydown', e => keys[e.code] = true);
     window.addEventListener('keyup', e => keys[e.code] = false);
-    window.addEventListener('resize', () => { resize(); });
+    
+    // Handle resize (only redraw, don't reset if game is running to prevent scrambling)
+    window.addEventListener('resize', () => { 
+        if(!isPlaying) resize(); // Only full reset if in menu
+        else {
+            // Just update canvas dims, might stretch slightly but prevents progress loss
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+            draw();
+        }
+    });
 
-    // --- PROCEDURAL TEXTURES ---
+    // --- GAME LOGIC ---
 
+    function startGame() {
+        document.getElementById('overlay').style.opacity = '0';
+        setTimeout(() => { document.getElementById('overlay').style.display = 'none'; }, 300);
+        
+        resize(); // Recalculate grid based on current landscape size
+        wallPattern = createWallPattern();
+        backgroundPattern = createBrightBackground();
+        generateMaze();
+        
+        // Ball Reset
+        ball.r = cellSize * 0.35;
+        ball.x = cellSize / 2;
+        ball.y = cellSize / 2;
+        ball.vx = 0; ball.vy = 0;
+
+        // Timer Start
+        startTime = Date.now();
+        isPlaying = true;
+
+        loop();
+    }
+
+    function winGame() {
+        isPlaying = false;
+        const endTime = Date.now();
+        const duration = ((endTime - startTime) / 1000).toFixed(2); // Seconds
+
+        const overlay = document.getElementById('overlay');
+        const title = document.getElementById('titleText');
+        const sub = document.getElementById('subText');
+        const stats = document.getElementById('stats');
+        const btn = document.getElementById('startBtn');
+
+        title.innerText = "MAZE COMPLETE!";
+        title.style.color = "#00aa00";
+        sub.innerText = "Excellent rolling.";
+        stats.innerText = `Time: ${duration} seconds`;
+        btn.innerText = "NEXT LEVEL";
+
+        overlay.style.display = 'flex';
+        setTimeout(() => { overlay.style.opacity = '1'; }, 10);
+    }
+
+    // --- PROCEDURAL ASSETS ---
     function createWallPattern() {
         const s = 64;
         const c = document.createElement('canvas');
         c.width = s; c.height = s;
         const cx = c.getContext('2d');
-        
-        // Dark solid wall for contrast
-        cx.fillStyle = '#222';
-        cx.fillRect(0,0,s,s);
-        
-        // Subtle texture
-        cx.strokeStyle = '#333';
-        cx.lineWidth = 2;
-        cx.strokeRect(0,0,s,s); // Border
-        cx.beginPath(); cx.moveTo(0,0); cx.lineTo(s,s); cx.stroke(); // Cross
-        
+        cx.fillStyle = '#222'; cx.fillRect(0,0,s,s);
+        cx.strokeStyle = '#444'; cx.lineWidth = 2;
+        cx.strokeRect(0,0,s,s);
+        cx.beginPath(); cx.moveTo(0,0); cx.lineTo(s,s); cx.stroke();
         return ctx.createPattern(c, 'repeat');
     }
 
@@ -99,63 +177,12 @@
         const c = document.createElement('canvas');
         c.width = s; c.height = s;
         const cx = c.getContext('2d');
-
-        // 1. Pick a random bright base color
-        const hues = [
-            '#e0f7fa', // Cyan
-            '#fff9c4', // Yellow
-            '#f1f8e9', // Light Green
-            '#e1bee7', // Lavender
-            '#ffe0b2', // Apricot
-            '#ffffff'  // White
-        ];
-        const baseColor = hues[Math.floor(Math.random() * hues.length)];
-        
-        cx.fillStyle = baseColor;
+        const hues = ['#e0f7fa', '#fff9c4', '#f1f8e9', '#e1bee7', '#ffe0b2', '#ffffff'];
+        cx.fillStyle = hues[Math.floor(Math.random() * hues.length)];
         cx.fillRect(0, 0, s, s);
-
-        // 2. Pick a random pattern style
-        const style = Math.floor(Math.random() * 3);
-        cx.fillStyle = 'rgba(0,0,0,0.05)'; // Very subtle overlay
-
-        if (style === 0) {
-            // Polka Dots
-            cx.beginPath();
-            cx.arc(25, 25, 10, 0, Math.PI*2);
-            cx.arc(75, 75, 10, 0, Math.PI*2);
-            cx.fill();
-        } else if (style === 1) {
-            // Graph Paper
-            cx.strokeStyle = 'rgba(0,0,0,0.1)';
-            cx.lineWidth = 1;
-            cx.beginPath();
-            cx.moveTo(0, 50); cx.lineTo(100, 50);
-            cx.moveTo(50, 0); cx.lineTo(50, 100);
-            cx.stroke();
-        } else {
-            // Diagonals
-            cx.strokeStyle = 'rgba(0,0,0,0.05)';
-            cx.lineWidth = 5;
-            cx.beginPath();
-            cx.moveTo(0, 0); cx.lineTo(100, 100);
-            cx.moveTo(100, 0); cx.lineTo(0, 100);
-            cx.stroke();
-        }
-
+        cx.fillStyle = 'rgba(0,0,0,0.05)';
+        cx.beginPath(); cx.arc(50, 50, 20, 0, Math.PI*2); cx.fill();
         return ctx.createPattern(c, 'repeat');
-    }
-
-    function initGame() {
-        resize();
-        wallPattern = createWallPattern();
-        backgroundPattern = createBrightBackground(); // New background every level
-        generateMaze();
-        
-        // Reset Ball
-        ball.r = cellSize * 0.35;
-        ball.x = cellSize / 2;
-        ball.y = cellSize / 2;
-        ball.vx = 0; ball.vy = 0;
     }
 
     function resize() {
@@ -164,33 +191,26 @@
         canvas.width = width;
         canvas.height = height;
 
-        const targetSize = Math.max(width, height) < 800 ? 40 : 60;
+        // Larger cells for iPad readability
+        const targetSize = Math.max(width, height) < 800 ? 40 : 70;
         COLS = Math.floor(width / targetSize);
         ROWS = Math.floor(height / targetSize);
         
         if (COLS % 2 === 0) COLS--;
         if (ROWS % 2 === 0) ROWS--;
-
         cellSize = Math.floor(Math.min(width / COLS, height / ROWS));
     }
 
     function generateMaze() {
         maze = [];
         goal = { x: COLS - 1, y: ROWS - 1 };
-
         for (let y = 0; y < ROWS; y++) {
             let row = [];
-            for (let x = 0; x < COLS; x++) {
-                row.push({ top: true, right: true, bottom: true, left: true, visited: false });
-            }
+            for (let x = 0; x < COLS; x++) row.push({ top: true, right: true, bottom: true, left: true, visited: false });
             maze.push(row);
         }
-
-        let stack = [];
-        let current = { x: 0, y: 0 };
+        let stack = [{x:0, y:0}];
         maze[0][0].visited = true;
-        stack.push(current);
-
         while (stack.length > 0) {
             let cell = stack[stack.length - 1];
             let neighbors = [];
@@ -200,43 +220,64 @@
                 { nx: cell.x, ny: cell.y + 1, wall: 'bottom', opp: 'top' },
                 { nx: cell.x - 1, ny: cell.y, wall: 'left', opp: 'right' }
             ];
-
             for (let d of dirs) {
-                if (d.nx >= 0 && d.nx < COLS && d.ny >= 0 && d.ny < ROWS && !maze[d.ny][d.nx].visited) {
-                    neighbors.push(d);
-                }
+                if (d.nx >= 0 && d.nx < COLS && d.ny >= 0 && d.ny < ROWS && !maze[d.ny][d.nx].visited) neighbors.push(d);
             }
-
             if (neighbors.length > 0) {
                 let next = neighbors[Math.floor(Math.random() * neighbors.length)];
                 maze[cell.y][cell.x][next.wall] = false;
                 maze[next.ny][next.nx][next.opp] = false;
                 maze[next.ny][next.nx].visited = true;
                 stack.push({ x: next.nx, y: next.ny });
-            } else {
-                stack.pop();
-            }
+            } else stack.pop();
         }
     }
 
+    // --- PHYSICS & CONTROLS ---
+
     function handleOrientation(event) {
         const maxTilt = 25;
-        let y = event.beta; let x = event.gamma; 
+        let beta = event.beta;   // Typically Front/Back
+        let gamma = event.gamma; // Typically Left/Right
+
+        // LANDSCAPE MAPPING FIX:
+        // In Landscape, Gamma becomes Up/Down (X-axis rotation)
+        // Beta becomes Left/Right (Y-axis rotation)
+        
+        // Check for basic landscape orientation
+        // (If user holds Home button to right, Beta is negative for Up)
+        
+        let x = beta; 
+        let y = gamma;
+
+        // Simple swap for standard landscape usage
+        // Note: Depending on holding direction (home button left vs right), these might need inversion.
+        // This is tuned for Home Button Right / Standard Landscape.
+        
         if (y > maxTilt) y = maxTilt; if (y < -maxTilt) y = -maxTilt;
         if (x > maxTilt) x = maxTilt; if (x < -maxTilt) x = -maxTilt;
-        tiltX = x / maxTilt; tiltY = y / maxTilt;
+
+        // Swap axes for Landscape:
+        // Tilt Left/Right (Beta) -> Controls X
+        // Tilt Away/Towards (Gamma) -> Controls Y
+        tiltX = x / maxTilt; 
+        tiltY = y / maxTilt;
     }
 
     function update() {
+        if (!isPlaying) return;
+
         let dx = 0, dy = 0;
         if (keys.ArrowUp || keys.KeyW) dy = -1;
         if (keys.ArrowDown || keys.KeyS) dy = 1;
         if (keys.ArrowLeft || keys.KeyA) dx = -1;
         if (keys.ArrowRight || keys.KeyD) dx = 1;
 
+        // Use Keyboard if active, otherwise Gyro
         let ax = dx !== 0 ? dx : tiltX;
         let ay = dy !== 0 ? dy : tiltY;
 
+        // Speed settings
         ball.vx += ax * 0.8;
         ball.vy += ay * 0.8;
         ball.vx *= 0.92;
@@ -247,14 +288,11 @@
         ball.y += ball.vy;
         checkCollisionY();
 
+        // Win Condition
         let pcx = Math.floor(ball.x / cellSize);
         let pcy = Math.floor(ball.y / cellSize);
         if (pcx === goal.x && pcy === goal.y) {
-            canvas.style.opacity = 0;
-            setTimeout(() => {
-                initGame();
-                canvas.style.opacity = 1;
-            }, 300);
+            winGame();
         }
     }
 
@@ -270,14 +308,8 @@
         let cell = maze[cy][cx];
         let localX = ball.x % cellSize;
 
-        if (cell.right && localX + ball.r > cellSize) {
-            ball.x = (cx + 1) * cellSize - ball.r;
-            ball.vx *= -0.3;
-        }
-        if (cell.left && localX - ball.r < 0) {
-            ball.x = cx * cellSize + ball.r;
-            ball.vx *= -0.3;
-        }
+        if (cell.right && localX + ball.r > cellSize) { ball.x = (cx + 1) * cellSize - ball.r; ball.vx *= -0.3; }
+        if (cell.left && localX - ball.r < 0) { ball.x = cx * cellSize + ball.r; ball.vx *= -0.3; }
     }
 
     function checkCollisionY() {
@@ -292,18 +324,13 @@
         let cell = maze[cy][cx];
         let localY = ball.y % cellSize;
 
-        if (cell.bottom && localY + ball.r > cellSize) {
-            ball.y = (cy + 1) * cellSize - ball.r;
-            ball.vy *= -0.3;
-        }
-        if (cell.top && localY - ball.r < 0) {
-            ball.y = cy * cellSize + ball.r;
-            ball.vy *= -0.3;
-        }
+        if (cell.bottom && localY + ball.r > cellSize) { ball.y = (cy + 1) * cellSize - ball.r; ball.vy *= -0.3; }
+        if (cell.top && localY - ball.r < 0) { ball.y = cy * cellSize + ball.r; ball.vy *= -0.3; }
     }
 
     function draw() {
-        // Draw the Bright Background
+        if (!isPlaying) return;
+
         ctx.fillStyle = backgroundPattern;
         ctx.fillRect(0, 0, width, height);
 
@@ -313,23 +340,19 @@
         ctx.save();
         ctx.translate(offsetX, offsetY);
 
-        // Draw Goal
+        // Goal
         ctx.fillStyle = 'rgba(0, 200, 0, 0.5)';
         ctx.fillRect(goal.x * cellSize, goal.y * cellSize, cellSize, cellSize);
-        ctx.strokeStyle = '#00aa00';
-        ctx.lineWidth = 3;
+        ctx.strokeStyle = '#00aa00'; ctx.lineWidth = 3;
         ctx.strokeRect(goal.x * cellSize + 8, goal.y * cellSize + 8, cellSize - 16, cellSize - 16);
 
-        // Draw Walls
-        ctx.strokeStyle = wallPattern;
-        ctx.lineWidth = 6;
-        ctx.lineCap = 'round';
+        // Walls
+        ctx.strokeStyle = wallPattern; ctx.lineWidth = 6; ctx.lineCap = 'round';
         ctx.beginPath();
         for (let y = 0; y < ROWS; y++) {
             for (let x = 0; x < COLS; x++) {
                 let c = maze[y][x];
-                let tx = x * cellSize; 
-                let ty = y * cellSize;
+                let tx = x * cellSize; let ty = y * cellSize;
                 if (c.top) { ctx.moveTo(tx, ty); ctx.lineTo(tx + cellSize, ty); }
                 if (c.left) { ctx.moveTo(tx, ty); ctx.lineTo(tx, ty + cellSize); }
                 if (y === ROWS - 1 && c.bottom) { ctx.moveTo(tx, ty + cellSize); ctx.lineTo(tx + cellSize, ty + cellSize); }
@@ -338,25 +361,11 @@
         }
         ctx.stroke();
 
-        // --- DRAW BALL (Simple Red + Gloss) ---
-        // Solid Red Body
-        ctx.fillStyle = '#ff0000';
-        ctx.beginPath();
-        ctx.arc(ball.x, ball.y, ball.r, 0, Math.PI * 2);
-        ctx.fill();
-
-        // Glossy Shine (Radial Gradient)
-        let grad = ctx.createRadialGradient(
-            ball.x - ball.r * 0.3, ball.y - ball.r * 0.3, ball.r * 0.1, 
-            ball.x, ball.y, ball.r
-        );
-        grad.addColorStop(0, 'rgba(255, 255, 255, 0.5)'); // Bright white highlight
-        grad.addColorStop(1, 'rgba(0, 0, 0, 0.2)'); // Slight darkening at edges
-        
-        ctx.fillStyle = grad;
-        ctx.beginPath();
-        ctx.arc(ball.x, ball.y, ball.r, 0, Math.PI * 2);
-        ctx.fill();
+        // Ball
+        ctx.fillStyle = '#ff0000'; ctx.beginPath(); ctx.arc(ball.x, ball.y, ball.r, 0, Math.PI * 2); ctx.fill();
+        let grad = ctx.createRadialGradient(ball.x - ball.r * 0.3, ball.y - ball.r * 0.3, ball.r * 0.1, ball.x, ball.y, ball.r);
+        grad.addColorStop(0, 'rgba(255, 255, 255, 0.5)'); grad.addColorStop(1, 'rgba(0, 0, 0, 0.2)');
+        ctx.fillStyle = grad; ctx.beginPath(); ctx.arc(ball.x, ball.y, ball.r, 0, Math.PI * 2); ctx.fill();
 
         ctx.restore();
     }
@@ -364,7 +373,7 @@
     function loop() {
         update();
         draw();
-        requestAnimationFrame(loop);
+        if (isPlaying) requestAnimationFrame(loop);
     }
 </script>
 </body>
