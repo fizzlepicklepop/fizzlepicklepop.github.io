@@ -3,11 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Gyro Maze: Final Polish</title>
+    <title>Gyro Maze: Prism</title>
     <link rel="manifest" href="manifest.json">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <style>
-        /* CSS Fix for Mobile Address Bars: Use absolute positioning instead of vh/vw */
         body { margin: 0; overflow: hidden; background: #111; touch-action: none; font-family: 'Segoe UI', sans-serif; user-select: none; -webkit-user-select: none; }
         
         canvas { 
@@ -80,7 +79,7 @@
     let visualTiltX = 0, visualTiltY = 0; 
     let keys = { ArrowUp: false, ArrowDown: false, ArrowLeft: false, ArrowRight: false };
     let audioCtx = null;
-    let lastBumpTime = 0; // For audio cooldown
+    let lastBumpTime = 0;
 
     // Three.js
     let scene, camera, renderer;
@@ -89,27 +88,15 @@
     let wallsGroup; 
     let lightDir, lightAmbient;
 
-    // --- PROCEDURAL TEXTURES ---
-    
+    // --- TEXTURES ---
     function createStripedBallTexture() {
         const canvas = document.createElement('canvas');
         canvas.width = 512; canvas.height = 256; 
         const ctx = canvas.getContext('2d');
-        
-        // White Base
-        ctx.fillStyle = '#ffffff';
-        ctx.fillRect(0,0,512,256);
-        
-        // Bright Red Stripes
+        ctx.fillStyle = '#ffffff'; ctx.fillRect(0,0,512,256);
         ctx.fillStyle = '#ff0033'; 
-        
-        const stripeHeight = 25;
-        const positions = [50, 100, 150, 200];
-        
-        positions.forEach(y => { ctx.fillRect(0, y, 512, stripeHeight); });
-        ctx.fillRect(0, 0, 512, 15); // Top Pole
-        ctx.fillRect(0, 241, 512, 15); // Bottom Pole
-
+        [50, 100, 150, 200].forEach(y => ctx.fillRect(0, y, 512, 25));
+        ctx.fillRect(0, 0, 512, 15); ctx.fillRect(0, 241, 512, 15); 
         return new THREE.CanvasTexture(canvas);
     }
 
@@ -117,68 +104,34 @@
         const canvas = document.createElement('canvas');
         canvas.width = 512; canvas.height = 512;
         const ctx = canvas.getContext('2d');
-
-        // --- PALETTES ---
         const palettes = [
-            { bg: '#E0F7FA', accent: '#00BCD4' }, // Cyan
-            { bg: '#F3E5F5', accent: '#E040FB' }, // Purple
-            { bg: '#E8F5E9', accent: '#00E676' }, // Neon Green
-            { bg: '#FFF3E0', accent: '#FF9100' }, // Orange
-            { bg: '#FFEBEE', accent: '#FF1744' }, // Red/Pink
-            { bg: '#E1F5FE', accent: '#29B6F6' }  // Sky Blue
+            { bg: '#E0F7FA', accent: '#00BCD4' }, { bg: '#F3E5F5', accent: '#E040FB' },
+            { bg: '#E8F5E9', accent: '#00E676' }, { bg: '#FFF3E0', accent: '#FF9100' },
+            { bg: '#FFEBEE', accent: '#FF1744' }, { bg: '#E1F5FE', accent: '#29B6F6' }
         ];
-        
         const theme = palettes[Math.floor(Math.random() * palettes.length)];
-        const patternType = Math.floor(Math.random() * 3); // 0=Dots, 1=Stripes, 2=Triangles
+        const patternType = Math.floor(Math.random() * 3); 
 
-        // Background
-        ctx.fillStyle = theme.bg;
-        ctx.fillRect(0,0,512,512);
+        ctx.fillStyle = theme.bg; ctx.fillRect(0,0,512,512);
+        ctx.fillStyle = theme.accent; ctx.globalAlpha = 0.3;
 
-        // Pattern
-        ctx.fillStyle = theme.accent;
-        ctx.globalAlpha = 0.3;
-
-        if (patternType === 0) {
-            // POLKA DOTS
-            const step = 64;
-            for(let x=32; x<512; x+=step){
-                for(let y=32; y<512; y+=step){
-                    ctx.beginPath();
-                    ctx.arc(x, y, 16, 0, Math.PI*2);
-                    ctx.fill();
-                }
+        if (patternType === 0) { // Dots
+            for(let x=32; x<512; x+=64) for(let y=32; y<512; y+=64) {
+                ctx.beginPath(); ctx.arc(x, y, 16, 0, Math.PI*2); ctx.fill();
             }
-        } 
-        else if (patternType === 1) {
-            // DIAGONAL STRIPES
-            ctx.lineWidth = 20;
-            ctx.strokeStyle = theme.accent;
+        } else if (patternType === 1) { // Stripes
+            ctx.lineWidth = 20; ctx.strokeStyle = theme.accent;
             for(let i=-512; i<1024; i+=64) {
-                ctx.beginPath();
-                ctx.moveTo(i, 0);
-                ctx.lineTo(i+512, 512);
-                ctx.stroke();
+                ctx.beginPath(); ctx.moveTo(i, 0); ctx.lineTo(i+512, 512); ctx.stroke();
             }
-        }
-        else if (patternType === 2) {
-            // TRIANGLES (Geometric Shapes)
+        } else { // Triangles
             for(let i=0; i<30; i++){
-                const cx = Math.random() * 512;
-                const cy = Math.random() * 512;
-                const s = 20 + Math.random() * 30;
-                ctx.beginPath();
-                ctx.moveTo(cx, cy - s);
-                ctx.lineTo(cx - s, cy + s);
-                ctx.lineTo(cx + s, cy + s);
-                ctx.closePath();
-                ctx.fill();
+                const cx = Math.random()*512, cy = Math.random()*512, s = 20+Math.random()*30;
+                ctx.beginPath(); ctx.moveTo(cx, cy-s); ctx.lineTo(cx-s, cy+s); ctx.lineTo(cx+s, cy+s); ctx.fill();
             }
         }
-
         const tex = new THREE.CanvasTexture(canvas);
-        tex.wrapS = THREE.RepeatWrapping;
-        tex.wrapT = THREE.RepeatWrapping;
+        tex.wrapS = THREE.RepeatWrapping; tex.wrapT = THREE.RepeatWrapping;
         tex.repeat.set(8, 8); 
         return tex;
     }
@@ -202,139 +155,105 @@
         } else {
             window.addEventListener('deviceorientation', handleOrientation);
         }
-        
         startGame();
     });
 
     window.addEventListener('keydown', e => keys[e.code] = true);
     window.addEventListener('keyup', e => keys[e.code] = false);
     
-    // Robust Resize for Mobile
     function onWindowResize() {
         if (!camera || !renderer) return;
-        
-        width = window.innerWidth;
-        height = window.innerHeight;
-        
-        camera.aspect = width / height;
-        camera.updateProjectionMatrix();
+        width = window.innerWidth; height = window.innerHeight;
+        camera.aspect = width / height; camera.updateProjectionMatrix();
         renderer.setSize(width, height);
-        
-        if (!isPlaying) resizeLogic(); // Update grid calculations only if game not running
-        else repositionCamera(); // Update camera pos if game running
+        if (!isPlaying) resizeLogic(); else repositionCamera();
     }
-    
     window.addEventListener('resize', onWindowResize);
     window.addEventListener('orientationchange', () => { setTimeout(onWindowResize, 100); });
 
-    // --- THREE.JS INIT ---
+    // --- THREE.JS ---
     function initThreeJS() {
         if (typeof THREE === 'undefined') return false;
-
-        scene = new THREE.Scene();
-        scene.background = new THREE.Color(0x111111);
-
-        camera = new THREE.PerspectiveCamera(40, window.innerWidth / window.innerHeight, 0.1, 5000);
-        
+        scene = new THREE.Scene(); scene.background = new THREE.Color(0x111111);
+        camera = new THREE.PerspectiveCamera(40, window.innerWidth/window.innerHeight, 0.1, 5000);
         renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
-        // Setting specific size and ensuring pixel ratio handles retina screens
         renderer.setSize(window.innerWidth, window.innerHeight);
         renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-        renderer.shadowMap.enabled = true;
-        renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+        renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap;
         document.body.appendChild(renderer.domElement);
 
-        lightAmbient = new THREE.AmbientLight(0xffffff, 0.7);
-        scene.add(lightAmbient);
-
+        lightAmbient = new THREE.AmbientLight(0xffffff, 0.7); scene.add(lightAmbient);
         lightDir = new THREE.DirectionalLight(0xffffff, 0.6);
-        lightDir.position.set(50, 200, 100);
-        lightDir.castShadow = true;
-        lightDir.shadow.mapSize.width = 2048;
-        lightDir.shadow.mapSize.height = 2048;
-        lightDir.shadow.camera.left = -1000;
-        lightDir.shadow.camera.right = 1000;
-        lightDir.shadow.camera.top = 1000;
-        lightDir.shadow.camera.bottom = -1000;
+        lightDir.position.set(50, 200, 100); lightDir.castShadow = true;
+        lightDir.shadow.mapSize.width = 2048; lightDir.shadow.mapSize.height = 2048;
+        lightDir.shadow.camera.left = -1000; lightDir.shadow.camera.right = 1000;
+        lightDir.shadow.camera.top = 1000; lightDir.shadow.camera.bottom = -1000;
         scene.add(lightDir);
 
-        worldContainer = new THREE.Group();
-        scene.add(worldContainer);
+        worldContainer = new THREE.Group(); scene.add(worldContainer);
+        wallsGroup = new THREE.Group(); worldContainer.add(wallsGroup);
 
-        wallsGroup = new THREE.Group();
-        worldContainer.add(wallsGroup);
-
-        // Ball
         const ballGeo = new THREE.SphereGeometry(1, 32, 32);
         const ballTex = createStripedBallTexture();
         const ballMat = new THREE.MeshStandardMaterial({ map: ballTex, roughness: 0.2, metalness: 0.1 });
         ballMesh = new THREE.Mesh(ballGeo, ballMat);
-        ballMesh.castShadow = true;
-        worldContainer.add(ballMesh);
+        ballMesh.castShadow = true; worldContainer.add(ballMesh);
 
-        // Goal
-        const goalGeo = new THREE.BoxGeometry(1, 0.2, 1);
-        const goalMat = new THREE.MeshStandardMaterial({ color: 0x00ff00, emissive: 0x00aa00, emissiveIntensity: 0.5 });
+        // Z-FIGHTING FIX 1: Material settings
+        const goalGeo = new THREE.BoxGeometry(1, 0.1, 1);
+        const goalMat = new THREE.MeshStandardMaterial({ 
+            color: 0x00ff00, 
+            emissive: 0x00aa00, 
+            emissiveIntensity: 0.5,
+            // POLYGON OFFSET: Forces GPU to render this on top of the floor
+            polygonOffset: true,
+            polygonOffsetFactor: -4, 
+            polygonOffsetUnits: -4
+        });
         goalMesh = new THREE.Mesh(goalGeo, goalMat);
         worldContainer.add(goalMesh);
 
-        // Floor
         const floorGeo = new THREE.PlaneGeometry(5000, 5000);
         const floorTex = createVibrantFloorTexture();
         const floorMat = new THREE.MeshStandardMaterial({ map: floorTex, roughness: 0.8 });
         floorMesh = new THREE.Mesh(floorGeo, floorMat);
-        floorMesh.rotation.x = -Math.PI / 2;
-        floorMesh.position.y = -0.1;
-        floorMesh.receiveShadow = true;
-        worldContainer.add(floorMesh);
+        // Z-FIGHTING FIX 2: Physical separation
+        floorMesh.rotation.x = -Math.PI / 2; floorMesh.position.y = -0.5;
+        floorMesh.receiveShadow = true; worldContainer.add(floorMesh);
 
         return true;
     }
 
     // --- GAME LOGIC ---
-
     function startGame() {
         document.getElementById('overlay').style.opacity = '0';
         setTimeout(() => { document.getElementById('overlay').style.display = 'none'; }, 300);
-        
-        resizeLogic(); 
-        
-        // New Floor
+        resizeLogic();
         floorMesh.material.map = createVibrantFloorTexture();
+        generateMaze(); build3DMaze();
         
-        generateMaze(); 
-        build3DMaze(); 
-        
-        ball.r = cellSize * 0.35;
+        ball.r = cellSize * 0.35; 
         ballMesh.scale.set(ball.r, ball.r, ball.r);
         
-        ball.x = cellSize / 2;
-        ball.y = cellSize / 2;
+        ball.x = cellSize / 2; ball.y = cellSize / 2;
         ball.vx = 0; ball.vy = 0;
-
         ballMesh.rotation.set(0,0,0);
         visualTiltX = 0; visualTiltY = 0;
 
         const offsetX = (COLS * cellSize) / 2;
         const offsetY = (ROWS * cellSize) / 2;
-        goalMesh.position.set(
-            (goal.x * cellSize) + (cellSize/2) - offsetX, 
-            0.1, 
-            (goal.y * cellSize) + (cellSize/2) - offsetY
-        );
-        goalMesh.scale.set(cellSize * 0.8, 1, cellSize * 0.8);
+        
+        // Goal Position
+        goalMesh.position.set((goal.x*cellSize)+(cellSize/2)-offsetX, 0.05, (goal.y*cellSize)+(cellSize/2)-offsetY);
+        goalMesh.scale.set(cellSize*0.8, 1, cellSize*0.8);
 
-        startTime = Date.now();
-        isPlaying = true;
-        loop();
+        startTime = Date.now(); isPlaying = true; loop();
     }
 
     function resizeLogic() {
-        width = window.innerWidth;
-        height = window.innerHeight;
+        width = window.innerWidth; height = window.innerHeight;
         const targetSize = Math.max(width, height) < 800 ? 40 : 65;
-        COLS = Math.floor(width / targetSize);
-        ROWS = Math.floor(height / targetSize);
+        COLS = Math.floor(width / targetSize); ROWS = Math.floor(height / targetSize);
         if (COLS < 2) COLS = 2; if (ROWS < 2) ROWS = 2;
         if (COLS % 2 === 0) COLS--; if (ROWS % 2 === 0) ROWS--;
         cellSize = Math.floor(Math.min((width - 20) / COLS, (height - 20) / ROWS));
@@ -342,45 +261,39 @@
     }
 
     function generateMaze() {
-        maze = [];
-        goal = { x: COLS - 1, y: ROWS - 1 };
+        maze = []; goal = { x: COLS - 1, y: ROWS - 1 };
         for (let y = 0; y < ROWS; y++) {
             let row = [];
             for (let x = 0; x < COLS; x++) row.push({ top: true, right: true, bottom: true, left: true, visited: false });
             maze.push(row);
         }
-        let stack = [{x:0, y:0}];
-        maze[0][0].visited = true;
+        let stack = [{x:0, y:0}]; maze[0][0].visited = true;
         while (stack.length > 0) {
             let cell = stack[stack.length - 1];
             let neighbors = [];
-            const dirs = [
-                { nx: cell.x, ny: cell.y - 1, wall: 'top', opp: 'bottom' },
-                { nx: cell.x + 1, ny: cell.y, wall: 'right', opp: 'left' },
-                { nx: cell.x, ny: cell.y + 1, wall: 'bottom', opp: 'top' },
-                { nx: cell.x - 1, ny: cell.y, wall: 'left', opp: 'right' }
-            ];
-            for (let d of dirs) {
-                if (d.nx >= 0 && d.nx < COLS && d.ny >= 0 && d.ny < ROWS && !maze[d.ny][d.nx].visited) neighbors.push(d);
-            }
+            const dirs = [ { nx: cell.x, ny: cell.y - 1, wall: 'top', opp: 'bottom' }, { nx: cell.x + 1, ny: cell.y, wall: 'right', opp: 'left' }, { nx: cell.x, ny: cell.y + 1, wall: 'bottom', opp: 'top' }, { nx: cell.x - 1, ny: cell.y, wall: 'left', opp: 'right' } ];
+            for (let d of dirs) if (d.nx >= 0 && d.nx < COLS && d.ny >= 0 && d.ny < ROWS && !maze[d.ny][d.nx].visited) neighbors.push(d);
             if (neighbors.length > 0) {
                 let next = neighbors[Math.floor(Math.random() * neighbors.length)];
-                maze[cell.y][cell.x][next.wall] = false;
-                maze[next.ny][next.nx][next.opp] = false;
-                maze[next.ny][next.nx].visited = true;
-                stack.push({ x: next.nx, y: next.ny });
+                maze[cell.y][cell.x][next.wall] = false; maze[next.ny][next.nx][next.opp] = false;
+                maze[next.ny][next.nx].visited = true; stack.push({ x: next.nx, y: next.ny });
             } else stack.pop();
         }
     }
 
     function build3DMaze() {
-        while(wallsGroup.children.length > 0){ wallsGroup.remove(wallsGroup.children[0]); }
+        while(wallsGroup.children.length > 0) wallsGroup.remove(wallsGroup.children[0]);
+        
+        // WALL COLOR MODIFIER: Generate random color per level
+        // We use HSL to get a random hue, but keep saturation/lightness balanced (darkish)
+        const wallHue = Math.random(); 
+        const wallColor = new THREE.Color().setHSL(wallHue, 0.6, 0.35);
 
-        const wallMaterial = new THREE.MeshStandardMaterial({ color: 0x333333, roughness: 0.5 });
-        const wallHeight = cellSize * 0.7; 
+        const wallMaterial = new THREE.MeshStandardMaterial({ color: wallColor, roughness: 0.4 });
+        
+        const wallHeight = cellSize * 0.55; 
         const wallThickness = Math.max(3, cellSize * 0.15); 
-        const offsetX = (COLS * cellSize) / 2;
-        const offsetY = (ROWS * cellSize) / 2;
+        const offsetX = (COLS * cellSize) / 2; const offsetY = (ROWS * cellSize) / 2;
 
         const geometryV = new THREE.BoxGeometry(wallThickness, wallHeight, cellSize + wallThickness);
         const geometryH = new THREE.BoxGeometry(cellSize + wallThickness, wallHeight, wallThickness);
@@ -388,9 +301,7 @@
         for (let y = 0; y < ROWS; y++) {
             for (let x = 0; x < COLS; x++) {
                 let c = maze[y][x];
-                let tx = (x * cellSize) - offsetX + (cellSize/2); 
-                let ty = (y * cellSize) - offsetY + (cellSize/2);
-
+                let tx = (x * cellSize) - offsetX + (cellSize/2); let ty = (y * cellSize) - offsetY + (cellSize/2);
                 if (c.top) createWall(geometryH, tx, ty - cellSize/2, wallMaterial, wallHeight);
                 if (c.left) createWall(geometryV, tx - cellSize/2, ty, wallMaterial, wallHeight);
                 if (y === ROWS - 1 && c.bottom) createWall(geometryH, tx, ty + cellSize/2, wallMaterial, wallHeight);
@@ -403,34 +314,28 @@
     function createWall(geo, x, z, mat, h) {
         const mesh = new THREE.Mesh(geo, mat);
         mesh.position.set(x, h/2, z);
-        mesh.castShadow = true;
-        mesh.receiveShadow = true;
+        mesh.castShadow = true; mesh.receiveShadow = true;
         wallsGroup.add(mesh);
     }
 
     function repositionCamera() {
         const mazeHeight = ROWS * cellSize;
         const fov = camera.fov * (Math.PI / 180);
-        // ZOOM FIX: Set to 1.2 (Balanced between 1.1 and 1.3)
         let dist = Math.abs(mazeHeight / (2 * Math.tan(fov / 2))) * 1.2; 
-        camera.position.set(0, dist, 0); 
-        camera.lookAt(0, 0, 0);
-        camera.position.z += dist * 0.1;
-        camera.lookAt(0,0,0);
+        camera.position.set(0, dist, 0); camera.lookAt(0, 0, 0);
+        camera.position.z += dist * 0.1; camera.lookAt(0,0,0);
     }
 
-    // --- PHYSICS (CCD) ---
+    // --- PHYSICS ---
     function handleOrientation(event) {
-        const maxTilt = 25;
-        let x = event.beta; let y = event.gamma;
-        if (y > maxTilt) y = maxTilt; if (y < -maxTilt) y = -maxTilt;
-        if (x > maxTilt) x = maxTilt; if (x < -maxTilt) x = -maxTilt;
-        tiltX = x / maxTilt; tiltY = -(y / maxTilt);
+        let x = event.beta, y = event.gamma;
+        if (y > 25) y = 25; if (y < -25) y = -25;
+        if (x > 25) x = 25; if (x < -25) x = -25;
+        tiltX = x / 25; tiltY = -(y / 25);
     }
 
     function update() {
         if (!isPlaying) return;
-
         let keyDx = 0, keyDy = 0;
         if (keys.ArrowUp || keys.KeyW) keyDy = -1;
         if (keys.ArrowDown || keys.KeyS) keyDy = 1;
@@ -440,146 +345,100 @@
         let ax = keyDx !== 0 ? keyDx : tiltX;
         let ay = keyDy !== 0 ? keyDy : tiltY;
 
-        let targetVisualX = keyDx !== 0 ? keyDx : tiltX;
-        let targetVisualY = keyDy !== 0 ? keyDy : tiltY;
+        visualTiltX += ((keyDx !== 0 ? keyDx : tiltX) - visualTiltX) * 0.1;
+        visualTiltY += ((keyDy !== 0 ? keyDy : tiltY) - visualTiltY) * 0.1;
 
-        visualTiltX += (targetVisualX - visualTiltX) * 0.1;
-        visualTiltY += (targetVisualY - visualTiltY) * 0.1;
+        ball.vx += ax * 0.8; ball.vy += ay * 0.8;
+        ball.vx *= 0.92; ball.vy *= 0.92;
 
-        ball.vx += ax * 0.8;
-        ball.vy += ay * 0.8;
-        ball.vx *= 0.92; 
-        ball.vy *= 0.92;
-
-        const steps = 8; 
-        const subVx = ball.vx / steps;
-        const subVy = ball.vy / steps;
-
+        const steps = 8; const subVx = ball.vx / steps; const subVy = ball.vy / steps;
         for (let i = 0; i < steps; i++) {
-            ball.x += subVx;
-            checkCollisionX(); 
-            ball.y += subVy;
-            checkCollisionY(); 
+            ball.x += subVx; checkCollisionX(); 
+            ball.y += subVy; checkCollisionY();
         }
 
-        let pcx = Math.floor(ball.x / cellSize);
-        let pcy = Math.floor(ball.y / cellSize);
+        let pcx = Math.floor(ball.x / cellSize); let pcy = Math.floor(ball.y / cellSize);
         if (pcx === goal.x && pcy === goal.y) winGame();
 
-        const offsetX = (COLS * cellSize) / 2;
-        const offsetY = (ROWS * cellSize) / 2;
-        
+        const offsetX = (COLS * cellSize) / 2; const offsetY = (ROWS * cellSize) / 2;
         ballMesh.position.x = ball.x - offsetX;
         ballMesh.position.z = ball.y - offsetY;
         ballMesh.position.y = ball.r;
+        ballMesh.rotation.x -= ball.vy * 0.05; ballMesh.rotation.z -= ball.vx * 0.05;
 
-        ballMesh.rotation.x -= ball.vy * 0.05; 
-        ballMesh.rotation.z -= ball.vx * 0.05; 
-
-        const maxTiltRad = 0.25; 
-        worldContainer.rotation.x = visualTiltY * maxTiltRad;
-        worldContainer.rotation.z = -visualTiltX * maxTiltRad; 
+        worldContainer.rotation.x = visualTiltY * 0.25;
+        worldContainer.rotation.z = -visualTiltX * 0.25; 
     }
 
     function winGame() {
-        if (!isPlaying) return;
-        isPlaying = false;
-        playWinSound();
-        const endTime = Date.now();
-        const duration = ((endTime - startTime) / 1000).toFixed(2);
-        const overlay = document.getElementById('overlay');
+        if (!isPlaying) return; isPlaying = false; playWinSound();
+        const duration = ((Date.now() - startTime) / 1000).toFixed(2);
+        document.getElementById('overlay').style.display = 'flex';
         document.getElementById('titleText').innerText = "MAZE COMPLETE!";
         document.getElementById('stats').innerText = `Time: ${duration}s`;
         document.getElementById('startBtn').innerText = "NEXT LEVEL";
-        overlay.style.display = 'flex';
-        setTimeout(() => { overlay.style.opacity = '1'; }, 10);
+        setTimeout(() => { document.getElementById('overlay').style.opacity = '1'; }, 10);
     }
+
+    const physMargin = 0.25;
 
     function checkCollisionX() {
         if (ball.x - ball.r < 0) { ball.x = ball.r; bounceX(); }
         if (ball.x + ball.r > COLS * cellSize) { ball.x = COLS * cellSize - ball.r; bounceX(); }
-
-        let cx = Math.floor(ball.x / cellSize);
-        let cy = Math.floor(ball.y / cellSize);
-        cx = Math.max(0, Math.min(COLS-1, cx));
-        cy = Math.max(0, Math.min(ROWS-1, cy));
-        
-        let cell = maze[cy][cx];
-        let localX = ball.x % cellSize;
-
-        if (cell.right && localX + ball.r > cellSize) { bounceX(); ball.x = (cx + 1) * cellSize - ball.r - 0.1; }
-        if (cell.left && localX - ball.r < 0) { bounceX(); ball.x = cx * cellSize + ball.r + 0.1; }
+        let cx = Math.floor(ball.x / cellSize), cy = Math.floor(ball.y / cellSize);
+        cx = Math.max(0, Math.min(COLS-1, cx)); cy = Math.max(0, Math.min(ROWS-1, cy));
+        let cell = maze[cy][cx], localX = ball.x % cellSize;
+        if (cell.right && localX + ball.r + physMargin > cellSize) { bounceX(); ball.x = (cx + 1) * cellSize - ball.r - physMargin; }
+        if (cell.left && localX - ball.r - physMargin < 0) { bounceX(); ball.x = cx * cellSize + ball.r + physMargin; }
     }
     
-    function bounceX() { 
-        if(Math.abs(ball.vx) > 0.5) playBump(); 
-        ball.vx *= -0.3; 
-    }
+    function bounceX() { if(Math.abs(ball.vx) > 1.5) playBump(); ball.vx *= -0.3; }
 
     function checkCollisionY() {
         if (ball.y - ball.r < 0) { ball.y = ball.r; bounceY(); }
         if (ball.y + ball.r > ROWS * cellSize) { ball.y = ROWS * cellSize - ball.r; bounceY(); }
-
-        let cx = Math.floor(ball.x / cellSize);
-        let cy = Math.floor(ball.y / cellSize);
-        cx = Math.max(0, Math.min(COLS-1, cx));
-        cy = Math.max(0, Math.min(ROWS-1, cy));
-        
-        let cell = maze[cy][cx];
-        let localY = ball.y % cellSize;
-
-        if (cell.bottom && localY + ball.r > cellSize) { bounceY(); ball.y = (cy + 1) * cellSize - ball.r - 0.1; }
-        if (cell.top && localY - ball.r < 0) { bounceY(); ball.y = cy * cellSize + ball.r + 0.1; }
+        let cx = Math.floor(ball.x / cellSize), cy = Math.floor(ball.y / cellSize);
+        cx = Math.max(0, Math.min(COLS-1, cx)); cy = Math.max(0, Math.min(ROWS-1, cy));
+        let cell = maze[cy][cx], localY = ball.y % cellSize;
+        if (cell.bottom && localY + ball.r + physMargin > cellSize) { bounceY(); ball.y = (cy + 1) * cellSize - ball.r - physMargin; }
+        if (cell.top && localY - ball.r - physMargin < 0) { bounceY(); ball.y = cy * cellSize + ball.r + physMargin; }
     }
     
-    function bounceY() { 
-        if(Math.abs(ball.vy) > 0.5) playBump(); 
-        ball.vy *= -0.3; 
-    }
+    function bounceY() { if(Math.abs(ball.vy) > 1.5) playBump(); ball.vy *= -0.3; }
 
     function playBump() {
         if (!audioCtx) return;
-        // AUDIO FIX: Debounce to prevent machine-gun sound in corners
-        const now = Date.now();
-        if (now - lastBumpTime < 150) return; 
-        lastBumpTime = now;
+        const now = audioCtx.currentTime;
+        if (Date.now() - lastBumpTime < 200) return; lastBumpTime = Date.now();
 
         const osc = audioCtx.createOscillator();
         const gain = audioCtx.createGain();
-        osc.type = 'triangle';
-        osc.frequency.setValueAtTime(150 + Math.random() * 50, audioCtx.currentTime);
-        
-        gain.gain.setValueAtTime(0, audioCtx.currentTime);
-        gain.gain.linearRampToValueAtTime(0.5, audioCtx.currentTime + 0.01);
-        gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.1);
-        osc.connect(gain);
-        gain.connect(audioCtx.destination);
-        osc.start();
-        osc.stop(audioCtx.currentTime + 0.15);
+        osc.type = 'sine'; 
+        osc.frequency.setValueAtTime(150, now);
+        osc.frequency.exponentialRampToValueAtTime(40, now + 0.1);
+        gain.gain.setValueAtTime(0, now);
+        gain.gain.linearRampToValueAtTime(0.8, now + 0.01);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.12);
+        osc.connect(gain); gain.connect(audioCtx.destination);
+        osc.start(); osc.stop(now + 0.15);
     }
 
     function playWinSound() {
-        if (!audioCtx) return;
-        const now = audioCtx.currentTime;
+        if (!audioCtx) return; const now = audioCtx.currentTime;
         [523.25, 659.25, 783.99, 1046.50].forEach((freq, i) => {
-            const osc = audioCtx.createOscillator();
-            const gain = audioCtx.createGain();
-            osc.type = 'sine';
-            osc.frequency.setValueAtTime(freq, now + (i * 0.1));
+            const osc = audioCtx.createOscillator(); const gain = audioCtx.createGain();
+            osc.type = 'sine'; osc.frequency.setValueAtTime(freq, now + (i * 0.1));
             gain.gain.setValueAtTime(0, now + (i * 0.1));
             gain.gain.linearRampToValueAtTime(0.2, now + (i * 0.1) + 0.05);
             gain.gain.exponentialRampToValueAtTime(0.001, now + (i * 0.1) + 0.4);
-            osc.connect(gain);
-            gain.connect(audioCtx.destination);
-            osc.start(now + (i * 0.1));
-            osc.stop(now + (i * 0.1) + 0.5);
+            osc.connect(gain); gain.connect(audioCtx.destination);
+            osc.start(now + (i * 0.1)); osc.stop(now + (i * 0.1) + 0.5);
         });
     }
 
     function loop() {
         if (!isPlaying) return;
-        update();
-        renderer.render(scene, camera);
+        update(); renderer.render(scene, camera);
         requestAnimationFrame(loop);
     }
 </script>
