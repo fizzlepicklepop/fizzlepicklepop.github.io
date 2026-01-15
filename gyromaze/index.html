@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Gyro Maze: Silky Smooth</title>
+    <title>Gyro Maze: Silk</title>
     <link rel="manifest" href="manifest.json">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <style>
@@ -201,7 +201,6 @@
         ballMesh = new THREE.Mesh(ballGeo, ballMat);
         ballMesh.castShadow = true; worldContainer.add(ballMesh);
 
-        // Z-Fighting Fix
         const goalGeo = new THREE.BoxGeometry(1, 0.1, 1);
         const goalMat = new THREE.MeshStandardMaterial({ 
             color: 0x00ff00, 
@@ -376,7 +375,6 @@
         setTimeout(() => { document.getElementById('overlay').style.opacity = '1'; }, 10);
     }
 
-    // --- COLLISION LOGIC (PLANAR) ---
     const physMargin = 0.25;
 
     function checkCollisionX() {
@@ -401,7 +399,7 @@
     }
     function bounceY() { if(Math.abs(ball.vy) > 1.5) playBump(); ball.vy *= -0.3; }
 
-    // --- COLLISION LOGIC (CORNER GHOST FIX) ---
+    // --- FIX: QUADRANT EXCLUSION for Ghost Walls ---
     function checkCornerCollision() {
         let ix = Math.round(ball.x / cellSize);
         let iy = Math.round(ball.y / cellSize);
@@ -415,21 +413,29 @@
         let minDist = ball.r + pillarR;
         
         if (distSq < minDist * minDist) {
-            // "Ghost Wall" Fix:
-            // Calculate which wall segments exist at this intersection
+            // Determine existing wall segments at this intersection
             let segUp = (iy > 0 && ix > 0) ? maze[iy-1][ix-1].right : false;
             let segDown = (iy < ROWS && ix > 0) ? maze[iy][ix-1].right : false;
             let segLeft = (iy > 0 && ix > 0) ? maze[iy-1][ix-1].bottom : false;
             let segRight = (iy > 0 && ix < COLS) ? maze[iy-1][ix].bottom : false;
 
-            // SMOOTHNESS CHECK:
-            // If the wall is continuous vertically, and we are hitting the face (not the tip), SKIP.
-            if (segUp && segDown && Math.abs(dx) > Math.abs(dy)) return;
-            // If the wall is continuous horizontally, and we are hitting the face, SKIP.
-            if (segLeft && segRight && Math.abs(dy) > Math.abs(dx)) return;
+            // QUADRANT CHECK: Only enable pillar if NO flat wall exists in that quadrant
+            let inTL = dx < 0 && dy < 0;
+            let inTR = dx > 0 && dy < 0;
+            let inBL = dx < 0 && dy > 0;
+            let inBR = dx > 0 && dy > 0;
 
-            // If we are here, we are hitting an actual exposed corner tip.
-            if (segUp || segDown || segLeft || segRight) {
+            let block = false;
+            // Top-Left Quadrant: Requires NO Up Wall AND NO Left Wall
+            if (inTL && !segUp && !segLeft) block = true;
+            // Top-Right Quadrant: Requires NO Up Wall AND NO Right Wall
+            if (inTR && !segUp && !segRight) block = true;
+            // Bottom-Left Quadrant: Requires NO Down Wall AND NO Left Wall
+            if (inBL && !segDown && !segLeft) block = true;
+            // Bottom-Right Quadrant: Requires NO Down Wall AND NO Right Wall
+            if (inBR && !segDown && !segRight) block = true;
+
+            if (block) {
                 let dist = Math.sqrt(distSq);
                 if (dist < 0.001) { dx = 1; dy = 0; dist = 1; }
                 let overlap = minDist - dist;
@@ -446,7 +452,6 @@
         }
     }
 
-    // --- AUDIO ---
     function playBump() {
         if (!audioCtx) return;
         const now = audioCtx.currentTime;
