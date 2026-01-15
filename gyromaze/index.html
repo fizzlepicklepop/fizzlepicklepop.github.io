@@ -1,522 +1,307 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <title>Gyro Labyrinth</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-  <meta name="theme-color" content="#000000" />
-
-  <!-- iOS PWA bits -->
-  <meta name="apple-mobile-web-app-capable" content="yes" />
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-  <meta name="apple-mobile-web-app-title" content="Gyro Labyrinth" />
-  <link rel="apple-touch-icon" href="icon-192.png" />
-
-  <link rel="manifest" href="manifest.webmanifest" />
-
-  <!-- Three.js (CDN) -->
-  <script src="https://unpkg.com/three@0.161.0/build/three.min.js"></script>
-
-  <!-- INLINE CSS -->
-  <style>
-    *,
-    *::before,
-    *::after {
-      box-sizing: border-box;
-    }
-
-    html,
-    body {
-      margin: 0;
-      padding: 0;
-      height: 100%;
-      width: 100%;
-      background: #111;
-      color: #f5f5f5;
-      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-    }
-
-    #game-container {
-      position: relative;
-      width: 100vw;
-      height: 100vh;
-      overflow: hidden;
-    }
-
-    #game-canvas {
-      width: 100%;
-      height: 100%;
-      display: block;
-    }
-
-    #overlay {
-      position: absolute;
-      inset: 0;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      padding: 24px;
-      text-align: center;
-      background: radial-gradient(circle at top, rgba(0, 0, 0, 0.8), rgba(0, 0, 0, 0.95));
-      backdrop-filter: blur(10px);
-    }
-
-    #overlay.hidden {
-      display: none;
-    }
-
-    #overlay h1 {
-      margin: 0 0 8px;
-      font-size: 2rem;
-      letter-spacing: 0.04em;
-    }
-
-    #overlay p {
-      margin: 4px 0;
-      max-width: 480px;
-      line-height: 1.4;
-    }
-
-    #overlay .hint {
-      font-size: 0.9rem;
-      opacity: 0.8;
-    }
-
-    #start-button {
-      margin-top: 16px;
-      padding: 10px 18px;
-      border-radius: 999px;
-      border: none;
-      font-size: 1rem;
-      font-weight: 600;
-      cursor: pointer;
-      background: linear-gradient(135deg, #ffd54f, #ff9800);
-      color: #222;
-      box-shadow: 0 8px 18px rgba(0, 0, 0, 0.4);
-      transition: transform 0.1s ease, box-shadow 0.1s ease, filter 0.1s ease;
-    }
-
-    #start-button:active {
-      transform: translateY(1px) scale(0.98);
-      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.6);
-      filter: brightness(0.95);
-    }
-
-    #status {
-      margin-top: 12px;
-      font-size: 0.9rem;
-      color: #ffcc80;
-    }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Gyro Maze</title>
+    <link rel="manifest" href="manifest.json">
+    <style>
+        body { margin: 0; overflow: hidden; background: #222; touch-action: none; font-family: sans-serif; }
+        canvas { display: block; }
+        #overlay {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.8); color: white; display: flex;
+            justify-content: center; align-items: center; flex-direction: column;
+            z-index: 10; text-align: center;
+        }
+        button {
+            padding: 15px 30px; font-size: 1.2rem; background: #00d2ff; border: none;
+            border-radius: 8px; cursor: pointer; margin-top: 20px; color: #000; font-weight: bold;
+        }
+    </style>
 </head>
 <body>
-  <div id="game-container">
-    <canvas id="game-canvas"></canvas>
 
-    <div id="overlay">
-      <h1>Gyro Labyrinth</h1>
-      <p>Tilt your device to roll the ball through the maze.</p>
-      <button id="start-button">Tap to start</button>
-      <p class="hint">
-        If motion is blocked or you’re on desktop, use the arrow keys instead.
-      </p>
-      <p id="status"></p>
-    </div>
-  </div>
+<div id="overlay">
+    <h1>Gyro Maze PWA</h1>
+    <p>Tilt your phone or use Arrow Keys</p>
+    <button id="startBtn">START GAME</button>
+</div>
+<canvas id="gameCanvas"></canvas>
 
-  <!-- INLINE JS (game + SW registration) -->
-  <script type="module">
-    // ---- PWA service worker registration ----
-    if ("serviceWorker" in navigator) {
-      window.addEventListener("load", () => {
-        navigator.serviceWorker
-          .register("service-worker.js")
-          .catch(err => console.error("SW registration failed", err));
-      });
+<script>
+    // --- CONFIGURATION ---
+    const COLS = 15;
+    const ROWS = 15;
+    const WALL_THICKNESS = 4;
+    
+    // --- VARIABLES ---
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+    let width, height, cellSize;
+    let maze = []; // 2D array: { top, right, bottom, left, visited }
+    let ball = { x: 0, y: 0, r: 0, vx: 0, vy: 0 };
+    let goal = { x: COLS - 1, y: ROWS - 1 };
+    
+    // Textures
+    let wallPattern;
+    let floorPattern;
+
+    // Inputs
+    let tiltX = 0, tiltY = 0; // Gyro
+    let keys = { ArrowUp: false, ArrowDown: false, ArrowLeft: false, ArrowRight: false };
+
+    // --- SETUP & PWA ---
+    if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('sw.js');
     }
 
-    // ---- Maze definition ----
-    // # = wall, . = floor, S = start, G = goal, O = hole
-    const MAZE = [
-      "###########",
-      "#S.....O..#",
-      "#.###.###.#",
-      "#...#.....#",
-      "###.#.###.#",
-      "#...#...#.#",
-      "#.#####.#.#",
-      "#.....#...#",
-      "#.###.###.#",
-      "#..O.....G#",
-      "###########"
-    ];
-
-    const TILE_SIZE = 1;
-    const BALL_RADIUS = 0.25;
-
-    let scene, camera, renderer;
-    let ballMesh;
-    let holes = [];
-    let goal = null;
-    let wallRects = [];
-
-    let ball = {
-      x: 0,
-      z: 0,
-      vx: 0,
-      vz: 0
-    };
-
-    let tilt = { x: 0, y: 0 }; // device acceleration
-    let keyboardTilt = { x: 0, y: 0 }; // fallback controls
-    let lastTime = null;
-    let gameState = "ready"; // "ready" | "playing" | "won" | "lost"
-
-    const overlay = document.getElementById("overlay");
-    const startButton = document.getElementById("start-button");
-    const statusEl = document.getElementById("status");
-
-    // ---- THREE.js setup ----
-    function init3D() {
-      const canvas = document.getElementById("game-canvas");
-
-      renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
-      renderer.setPixelRatio(window.devicePixelRatio || 1);
-      renderer.setSize(window.innerWidth, window.innerHeight);
-
-      scene = new THREE.Scene();
-      scene.background = new THREE.Color(0x101010);
-
-      const rows = MAZE.length;
-      const cols = MAZE[0].length;
-
-      const aspect = window.innerWidth / window.innerHeight;
-      camera = new THREE.PerspectiveCamera(45, aspect, 0.1, 100);
-      const centerX = 0;
-      const centerZ = 0;
-      camera.position.set(centerX, 10, rows * 0.8);
-      camera.lookAt(centerX, 0, centerZ);
-
-      // Lights
-      const ambient = new THREE.AmbientLight(0xffffff, 0.4);
-      scene.add(ambient);
-
-      const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
-      dirLight.position.set(5, 10, 7);
-      scene.add(dirLight);
-
-      // Floor
-      const floorGeom = new THREE.PlaneGeometry(cols * TILE_SIZE, rows * TILE_SIZE);
-      const floorMat = new THREE.MeshPhongMaterial({
-        color: 0x3e2723,
-        shininess: 20
-      });
-      const floor = new THREE.Mesh(floorGeom, floorMat);
-      floor.rotation.x = -Math.PI / 2;
-      scene.add(floor);
-
-      // Maze geometry
-      const wallGeom = new THREE.BoxGeometry(TILE_SIZE, 0.8, TILE_SIZE);
-      const wallMat = new THREE.MeshPhongMaterial({ color: 0x4e342e });
-
-      const holeGeom = new THREE.CylinderGeometry(0.25, 0.25, 0.1, 24);
-      const holeMat = new THREE.MeshPhongMaterial({ color: 0x000000 });
-
-      const goalGeom = new THREE.CylinderGeometry(0.3, 0.3, 0.1, 32);
-      const goalMat = new THREE.MeshPhongMaterial({ color: 0x00e676 });
-
-      const offsetX = -(cols * TILE_SIZE) / 2;
-      const offsetZ = -(rows * TILE_SIZE) / 2;
-
-      let startPos = { x: 0, z: 0 };
-
-      for (let r = 0; r < rows; r++) {
-        for (let c = 0; c < cols; c++) {
-          const ch = MAZE[r][c];
-          const worldX = offsetX + (c + 0.5) * TILE_SIZE;
-          const worldZ = offsetZ + (r + 0.5) * TILE_SIZE;
-
-          if (ch === "#") {
-            const wall = new THREE.Mesh(wallGeom, wallMat);
-            wall.position.set(worldX, 0.4, worldZ);
-            scene.add(wall);
-
-            wallRects.push({
-              xMin: worldX - TILE_SIZE / 2,
-              xMax: worldX + TILE_SIZE / 2,
-              zMin: worldZ - TILE_SIZE / 2,
-              zMax: worldZ + TILE_SIZE / 2
-            });
-          } else if (ch === "S") {
-            startPos = { x: worldX, z: worldZ };
-          } else if (ch === "O") {
-            const hole = new THREE.Mesh(holeGeom, holeMat);
-            hole.position.set(worldX, 0.05, worldZ);
-            hole.rotation.x = -Math.PI / 2;
-            scene.add(hole);
-            holes.push({ x: worldX, z: worldZ, r: 0.3 });
-          } else if (ch === "G") {
-            const g = new THREE.Mesh(goalGeom, goalMat);
-            g.position.set(worldX, 0.05, worldZ);
-            g.rotation.x = -Math.PI / 2;
-            scene.add(g);
-            goal = { x: worldX, z: worldZ, r: 0.4 };
-          }
+    document.getElementById('startBtn').addEventListener('click', async () => {
+        // Request Gyro Permission (Required for iOS 13+)
+        if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
+            try {
+                const response = await DeviceOrientationEvent.requestPermission();
+                if (response === 'granted') window.addEventListener('deviceorientation', handleOrientation);
+            } catch (e) { console.error(e); }
+        } else {
+            window.addEventListener('deviceorientation', handleOrientation);
         }
-      }
+        
+        document.getElementById('overlay').style.display = 'none';
+        initGame();
+        loop();
+    });
 
-      // Ball
-      const ballGeom = new THREE.SphereGeometry(BALL_RADIUS, 32, 32);
-      const ballMat = new THREE.MeshPhongMaterial({
-        color: 0xffeb3b,
-        shininess: 100
-      });
-      ballMesh = new THREE.Mesh(ballGeom, ballMat);
-      scene.add(ballMesh);
+    window.addEventListener('keydown', e => keys[e.code] = true);
+    window.addEventListener('keyup', e => keys[e.code] = false);
+    window.addEventListener('resize', resize);
 
-      resetBall(startPos.x, startPos.z);
-
-      window.addEventListener("resize", onResize);
+    // --- GENERATION ---
+    function initGame() {
+        resize();
+        generateTextures();
+        generateMaze();
+        // Reset Ball to center of top-left cell
+        ball.x = cellSize / 2;
+        ball.y = cellSize / 2;
+        ball.r = cellSize * 0.3;
+        ball.vx = 0; ball.vy = 0;
     }
 
-    function onResize() {
-      if (!renderer || !camera) return;
-      const w = window.innerWidth;
-      const h = window.innerHeight;
-      renderer.setSize(w, h);
-      camera.aspect = w / h;
-      camera.updateProjectionMatrix();
+    function resize() {
+        width = window.innerWidth;
+        height = window.innerHeight;
+        canvas.width = width;
+        canvas.height = height;
+        // Calculate cell size to fit the smaller dimension
+        cellSize = Math.floor(Math.min(width / COLS, height / ROWS));
     }
 
-    function resetBall(x, z) {
-      ball.x = x;
-      ball.z = z;
-      ball.vx = 0;
-      ball.vz = 0;
-      ballMesh.position.set(ball.x, BALL_RADIUS, ball.z);
+    function generateTextures() {
+        // 1. Programmatic Wall Texture (Diagonal Stripes)
+        const wCanvas = document.createElement('canvas');
+        wCanvas.width = 20; wCanvas.height = 20;
+        const wCtx = wCanvas.getContext('2d');
+        wCtx.fillStyle = '#444'; wCtx.fillRect(0,0,20,20);
+        wCtx.strokeStyle = '#666'; wCtx.lineWidth = 2;
+        wCtx.beginPath(); wCtx.moveTo(0,20); wCtx.lineTo(20,0); wCtx.stroke();
+        wallPattern = ctx.createPattern(wCanvas, 'repeat');
+
+        // 2. Programmatic Floor Texture (Subtle Noise)
+        const fCanvas = document.createElement('canvas');
+        fCanvas.width = 50; fCanvas.height = 50;
+        const fCtx = fCanvas.getContext('2d');
+        fCtx.fillStyle = '#222'; fCtx.fillRect(0,0,50,50);
+        fCtx.fillStyle = '#2a2a2a';
+        for(let i=0; i<10; i++) fCtx.fillRect(Math.random()*50, Math.random()*50, 2, 2);
+        floorPattern = ctx.createPattern(fCanvas, 'repeat');
     }
 
-    // ---- Physics & game loop ----
-    function update(dt) {
-      if (gameState !== "playing") return;
-
-      const SENS = 0.8; // tilt acceleration scaling
-      // Combine device tilt + keyboard tilt
-      const ax = (tilt.x + keyboardTilt.x) * -SENS;
-      const az = (tilt.y + keyboardTilt.y) * SENS;
-
-      ball.vx += ax * dt;
-      ball.vz += az * dt;
-
-      const FRICTION = 0.95;
-      ball.vx *= FRICTION;
-      ball.vz *= FRICTION;
-
-      ball.x += ball.vx * dt;
-      ball.z += ball.vz * dt;
-
-      resolveCollisions();
-      ballMesh.position.set(ball.x, BALL_RADIUS, ball.z);
-
-      checkWinLose();
-    }
-
-    function resolveCollisions() {
-      for (const rect of wallRects) {
-        // Closest point on rect to ball center
-        const closestX = clamp(ball.x, rect.xMin + BALL_RADIUS, rect.xMax - BALL_RADIUS);
-        const closestZ = clamp(ball.z, rect.zMin + BALL_RADIUS, rect.zMax - BALL_RADIUS);
-
-        const dx = ball.x - closestX;
-        const dz = ball.z - closestZ;
-        const distSq = dx * dx + dz * dz;
-
-        if (distSq < BALL_RADIUS * BALL_RADIUS) {
-          const dist = Math.sqrt(distSq) || 0.0001;
-          const overlap = BALL_RADIUS - dist;
-
-          const nx = dx / dist;
-          const nz = dz / dist;
-
-          ball.x += nx * overlap;
-          ball.z += nz * overlap;
-
-          const dot = ball.vx * nx + ball.vz * nz;
-          if (dot < 0) {
-            ball.vx -= 1.2 * dot * nx;
-            ball.vz -= 1.2 * dot * nz;
-          }
-        }
-      }
-    }
-
-    function checkWinLose() {
-      if (goal) {
-        const dx = ball.x - goal.x;
-        const dz = ball.z - goal.z;
-        const d2 = dx * dx + dz * dz;
-        if (d2 < goal.r * goal.r) {
-          gameState = "won";
-          showOverlay("You win! 🎉", "Tap to play again.");
-        }
-      }
-
-      for (const hole of holes) {
-        const dx = ball.x - hole.x;
-        const dz = ball.z - hole.z;
-        const d2 = dx * dx + dz * dz;
-        if (d2 < hole.r * hole.r) {
-          gameState = "lost";
-          showOverlay("You fell in a hole! 💀", "Tap to try again.");
-          break;
-        }
-      }
-    }
-
-    function clamp(v, min, max) {
-      return Math.max(min, Math.min(max, v));
-    }
-
-    function renderLoop(timestamp) {
-      if (!lastTime) lastTime = timestamp;
-      const dt = Math.min((timestamp - lastTime) / 1000, 0.05);
-      lastTime = timestamp;
-
-      update(dt);
-      if (renderer && scene && camera) {
-        renderer.render(scene, camera);
-      }
-      requestAnimationFrame(renderLoop);
-    }
-
-    // ---- Controls ----
-    function setupMotion() {
-      function enableListeners() {
-        window.addEventListener("devicemotion", e => {
-          if (!e.accelerationIncludingGravity) return;
-          const a = e.accelerationIncludingGravity;
-          tilt.x = a.x || 0;
-          tilt.y = a.y || 0;
-        });
-      }
-
-      if (
-        typeof DeviceMotionEvent !== "undefined" &&
-        typeof DeviceMotionEvent.requestPermission === "function"
-      ) {
-        DeviceMotionEvent.requestPermission()
-          .then(response => {
-            if (response === "granted") {
-              statusEl.textContent = "Motion enabled. Tilt to play!";
-              enableListeners();
-            } else {
-              statusEl.textContent =
-                "Motion permission denied. Using keyboard arrows instead.";
+    function generateMaze() {
+        maze = [];
+        for (let y = 0; y < ROWS; y++) {
+            let row = [];
+            for (let x = 0; x < COLS; x++) {
+                row.push({ top: true, right: true, bottom: true, left: true, visited: false });
             }
-            startGame();
-          })
-          .catch(err => {
-            console.error(err);
-            statusEl.textContent =
-              "Motion access failed. Try in Safari or use arrow keys.";
-            startGame();
-          });
-      } else {
-        // Non-iOS or older
-        enableListeners();
-        statusEl.textContent = "Tilt to play (or use arrows).";
-        startGame();
-      }
-    }
-
-    function startGame() {
-      overlay.classList.add("hidden");
-      gameState = "playing";
-    }
-
-    function showOverlay(title, subtitle) {
-      const h1 = overlay.querySelector("h1");
-      const p = overlay.querySelector("p");
-      h1.textContent = title;
-      p.textContent = subtitle || "Tap to start";
-      overlay.classList.remove("hidden");
-    }
-
-    // Keyboard fallback (arrows / WASD)
-    window.addEventListener("keydown", e => {
-      switch (e.key) {
-        case "ArrowLeft":
-        case "a":
-        case "A":
-          keyboardTilt.x = -5;
-          break;
-        case "ArrowRight":
-        case "d":
-        case "D":
-          keyboardTilt.x = 5;
-          break;
-        case "ArrowUp":
-        case "w":
-        case "W":
-          keyboardTilt.y = -5;
-          break;
-        case "ArrowDown":
-        case "s":
-        case "S":
-          keyboardTilt.y = 5;
-          break;
-      }
-    });
-
-    window.addEventListener("keyup", e => {
-      switch (e.key) {
-        case "ArrowLeft":
-        case "ArrowRight":
-        case "a":
-        case "A":
-        case "d":
-        case "D":
-          keyboardTilt.x = 0;
-          break;
-        case "ArrowUp":
-        case "ArrowDown":
-        case "w":
-        case "W":
-        case "s":
-        case "S":
-          keyboardTilt.y = 0;
-          break;
-      }
-    });
-
-    // Restart from overlay
-    startButton.addEventListener("click", () => {
-      // Reset ball to start position
-      const rows = MAZE.length;
-      const cols = MAZE[0].length;
-      const offsetX = -(cols * TILE_SIZE) / 2;
-      const offsetZ = -(rows * TILE_SIZE) / 2;
-      let startPos = { x: 0, z: 0 };
-
-      for (let r = 0; r < rows; r++) {
-        for (let c = 0; c < cols; c++) {
-          if (MAZE[r][c] === "S") {
-            startPos.x = offsetX + (c + 0.5) * TILE_SIZE;
-            startPos.z = offsetZ + (r + 0.5) * TILE_SIZE;
-          }
+            maze.push(row);
         }
-      }
-      resetBall(startPos.x, startPos.z);
-      tilt.x = tilt.y = 0;
-      keyboardTilt.x = keyboardTilt.y = 0;
-      gameState = "ready";
-      setupMotion();
-    });
 
-    // ---- Boot ----
-    init3D();
-    requestAnimationFrame(renderLoop);
-  </script>
+        // Recursive Backtracker
+        let stack = [];
+        let current = { x: 0, y: 0 };
+        maze[0][0].visited = true;
+        stack.push(current);
+
+        while (stack.length > 0) {
+            let cell = stack[stack.length - 1];
+            let neighbors = [];
+
+            const dirs = [
+                { nx: cell.x, ny: cell.y - 1, wall: 'top', opp: 'bottom' },
+                { nx: cell.x + 1, ny: cell.y, wall: 'right', opp: 'left' },
+                { nx: cell.x, ny: cell.y + 1, wall: 'bottom', opp: 'top' },
+                { nx: cell.x - 1, ny: cell.y, wall: 'left', opp: 'right' }
+            ];
+
+            for (let d of dirs) {
+                if (d.nx >= 0 && d.nx < COLS && d.ny >= 0 && d.ny < ROWS && !maze[d.ny][d.nx].visited) {
+                    neighbors.push(d);
+                }
+            }
+
+            if (neighbors.length > 0) {
+                let next = neighbors[Math.floor(Math.random() * neighbors.length)];
+                maze[cell.y][cell.x][next.wall] = false;
+                maze[next.ny][next.nx][next.opp] = false;
+                maze[next.ny][next.nx].visited = true;
+                stack.push({ x: next.nx, y: next.ny });
+            } else {
+                stack.pop();
+            }
+        }
+    }
+
+    // --- INPUT HANDLING ---
+    function handleOrientation(event) {
+        // Beta: front/back (-180 to 180), Gamma: left/right (-90 to 90)
+        // We clamp values to make control easier
+        const maxTilt = 20;
+        let y = event.beta; 
+        let x = event.gamma; 
+
+        if (y > maxTilt) y = maxTilt; if (y < -maxTilt) y = -maxTilt;
+        if (x > maxTilt) x = maxTilt; if (x < -maxTilt) x = -maxTilt;
+
+        tiltX = x / maxTilt; // Normalized -1 to 1
+        tiltY = y / maxTilt;
+    }
+
+    // --- GAME LOOP ---
+    function update() {
+        // Keyboard Override
+        let dx = 0, dy = 0;
+        if (keys.ArrowUp || keys.KeyW) dy = -1;
+        if (keys.ArrowDown || keys.KeyS) dy = 1;
+        if (keys.ArrowLeft || keys.KeyA) dx = -1;
+        if (keys.ArrowRight || keys.KeyD) dx = 1;
+
+        // Combine inputs (Keyboard overrides tilt if used)
+        let ax = dx !== 0 ? dx : tiltX;
+        let ay = dy !== 0 ? dy : tiltY;
+
+        // Physics
+        ball.vx += ax * 0.5;
+        ball.vy += ay * 0.5;
+        ball.vx *= 0.9; // Friction
+        ball.vy *= 0.9;
+
+        // Proposed next position
+        let nextX = ball.x + ball.vx;
+        let nextY = ball.y + ball.vy;
+
+        // Collision Detection (Wall Sliding)
+        let colX = Math.floor(ball.x / cellSize);
+        let colY = Math.floor(ball.y / cellSize);
+        
+        // Keep inside canvas bounds
+        if (nextX - ball.r < 0) { nextX = ball.r; ball.vx = 0; }
+        if (nextX + ball.r > COLS * cellSize) { nextX = COLS * cellSize - ball.r; ball.vx = 0; }
+        if (nextY - ball.r < 0) { nextY = ball.r; ball.vy = 0; }
+        if (nextY + ball.r > ROWS * cellSize) { nextY = ROWS * cellSize - ball.r; ball.vy = 0; }
+
+        // Check Walls logic (Simplified for grid)
+        // We check if the ball crosses a cell boundary and if that boundary has a wall
+        let currentCell = maze[Math.min(ROWS-1, Math.max(0, Math.floor(ball.y / cellSize)))][Math.min(COLS-1, Math.max(0, Math.floor(ball.x / cellSize)))];
+        
+        // Relative position in cell
+        let localX = ball.x % cellSize;
+        let localY = ball.y % cellSize;
+
+        // Right Wall
+        if (currentCell.right && localX + ball.vx + ball.r > cellSize) {
+            ball.vx = -ball.vx * 0.3; // Bounce slightly
+        }
+        // Left Wall
+        if (currentCell.left && localX + ball.vx - ball.r < 0) {
+            ball.vx = -ball.vx * 0.3;
+        }
+        // Bottom Wall
+        if (currentCell.bottom && localY + ball.vy + ball.r > cellSize) {
+            ball.vy = -ball.vy * 0.3;
+        }
+        // Top Wall
+        if (currentCell.top && localY + ball.vy - ball.r < 0) {
+            ball.vy = -ball.vy * 0.3;
+        }
+
+        ball.x += ball.vx;
+        ball.y += ball.vy;
+        
+        // Win Condition
+        let pCol = Math.floor(ball.x / cellSize);
+        let pRow = Math.floor(ball.y / cellSize);
+        if (pCol === goal.x && pRow === goal.y) {
+            alert("You Win! Generating new maze...");
+            initGame();
+        }
+    }
+
+    function draw() {
+        // Clear
+        ctx.fillStyle = floorPattern;
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        // Center the view (optional, but here we fit screen so we just draw grid)
+        // Calculate offset to center the maze on screen
+        let offsetX = (width - COLS * cellSize) / 2;
+        let offsetY = (height - ROWS * cellSize) / 2;
+
+        ctx.save();
+        ctx.translate(offsetX, offsetY);
+
+        // Draw Walls
+        ctx.strokeStyle = wallPattern;
+        ctx.lineWidth = WALL_THICKNESS;
+        ctx.lineCap = 'round';
+        ctx.beginPath();
+
+        for (let y = 0; y < ROWS; y++) {
+            for (let x = 0; x < COLS; x++) {
+                let cell = maze[y][x];
+                let cx = x * cellSize;
+                let cy = y * cellSize;
+
+                if (cell.top) { ctx.moveTo(cx, cy); ctx.lineTo(cx + cellSize, cy); }
+                if (cell.left) { ctx.moveTo(cx, cy); ctx.lineTo(cx, cy + cellSize); }
+                // Only draw bottom/right for last row/col to avoid double drawing
+                if (y === ROWS - 1 && cell.bottom) { ctx.moveTo(cx, cy + cellSize); ctx.lineTo(cx + cellSize, cy + cellSize); }
+                if (x === COLS - 1 && cell.right) { ctx.moveTo(cx + cellSize, cy); ctx.lineTo(cx + cellSize, cy + cellSize); }
+            }
+        }
+        ctx.stroke();
+
+        // Draw Goal
+        ctx.fillStyle = 'rgba(0, 255, 0, 0.3)';
+        ctx.fillRect(goal.x * cellSize + 5, goal.y * cellSize + 5, cellSize - 10, cellSize - 10);
+
+        // Draw Ball (Programmatic Gradient)
+        let grad = ctx.createRadialGradient(ball.x, ball.y, ball.r * 0.2, ball.x, ball.y, ball.r);
+        grad.addColorStop(0, '#fff');
+        grad.addColorStop(1, '#00d2ff');
+        ctx.fillStyle = grad;
+        ctx.beginPath();
+        ctx.arc(ball.x, ball.y, ball.r, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.restore();
+    }
+
+    function loop() {
+        update();
+        draw();
+        requestAnimationFrame(loop);
+    }
+</script>
 </body>
 </html>
