@@ -3,13 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Gyro Maze Landscape</title>
+    <title>Gyro Maze Final</title>
     <link rel="manifest" href="manifest.json">
     <style>
-        body { margin: 0; overflow: hidden; background: #eee; touch-action: none; font-family: 'Segoe UI', sans-serif; }
+        body { margin: 0; overflow: hidden; background: #eee; touch-action: none; font-family: 'Segoe UI', sans-serif; user-select: none; -webkit-user-select: none; }
         canvas { display: block; }
         
-        /* Main Menu Overlay */
         #overlay {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
             background: rgba(255,255,255,0.95); color: #333; display: flex;
@@ -17,7 +16,6 @@
             z-index: 10; text-align: center; transition: opacity 0.3s;
         }
 
-        /* "Please Rotate" Overlay - Hidden by default */
         #rotate-message {
             display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%;
             background: #111; color: white; z-index: 20;
@@ -36,7 +34,6 @@
         }
         button:active { transform: scale(0.95); }
 
-        /* Force Landscape Mode via CSS Warning */
         @media screen and (orientation: portrait) {
             #rotate-message { display: flex; }
             #overlay, canvas { display: none; }
@@ -47,13 +44,13 @@
 
 <div id="rotate-message">
     <h1>Please Rotate</h1>
-    <p>This game is designed for Landscape Mode.</p>
+    <p>Landscape Mode Required</p>
     <div style="font-size: 3rem;">↻</div>
 </div>
 
 <div id="overlay">
     <h1 id="titleText">Gyro Maze</h1>
-    <p id="subText">Tilt to Roll • Landscape Mode</p>
+    <p id="subText">Tilt to Roll • Sound On</p>
     <div id="stats" class="stats"></div>
     <button id="startBtn">PLAY</button>
 </div>
@@ -71,23 +68,24 @@
     let ball = { x: 0, y: 0, r: 0, vx: 0, vy: 0 };
     let goal = { x: 0, y: 0 };
     
-    // Timer Variables
     let startTime = 0;
     let isPlaying = false;
     
-    // Textures
     let wallPattern;
     let backgroundPattern;
 
-    // Inputs
     let tiltX = 0, tiltY = 0;
     let keys = { ArrowUp: false, ArrowDown: false, ArrowLeft: false, ArrowRight: false };
+
+    let audioCtx = null;
 
     // --- SETUP ---
     if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js');
 
     document.getElementById('startBtn').addEventListener('click', async () => {
-        // iOS 13+ Gyro Permission
+        if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        if (audioCtx.state === 'suspended') audioCtx.resume();
+
         if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
             try {
                 const response = await DeviceOrientationEvent.requestPermission();
@@ -103,45 +101,86 @@
     window.addEventListener('keydown', e => keys[e.code] = true);
     window.addEventListener('keyup', e => keys[e.code] = false);
     
-    // Handle resize (only redraw, don't reset if game is running to prevent scrambling)
     window.addEventListener('resize', () => { 
-        if(!isPlaying) resize(); // Only full reset if in menu
+        if(!isPlaying) resize(); 
         else {
-            // Just update canvas dims, might stretch slightly but prevents progress loss
             canvas.width = window.innerWidth;
             canvas.height = window.innerHeight;
             draw();
         }
     });
 
-    // --- GAME LOGIC ---
+    // --- AUDIO ---
+    function playBump(force) {
+        if (!audioCtx) return;
+        if (force < 1.0) return; // Lower threshold slightly
+
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(150 + Math.random() * 50, audioCtx.currentTime);
+        
+        const vol = Math.min(0.8, force / 15);
+        
+        gain.gain.setValueAtTime(0, audioCtx.currentTime);
+        gain.gain.linearRampToValueAtTime(vol, audioCtx.currentTime + 0.01);
+        gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.1);
+
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        
+        osc.start();
+        osc.stop(audioCtx.currentTime + 0.15);
+    }
+
+    function playWinSound() {
+        if (!audioCtx) return;
+        const now = audioCtx.currentTime;
+        const notes = [523.25, 659.25, 783.99, 1046.50]; 
+        notes.forEach((freq, i) => {
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(freq, now + (i * 0.1));
+            gain.gain.setValueAtTime(0, now + (i * 0.1));
+            gain.gain.linearRampToValueAtTime(0.3, now + (i * 0.1) + 0.05);
+            gain.gain.exponentialRampToValueAtTime(0.001, now + (i * 0.1) + 0.4);
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.start(now + (i * 0.1));
+            osc.stop(now + (i * 0.1) + 0.5);
+        });
+    }
+
+    // --- GAME ---
 
     function startGame() {
         document.getElementById('overlay').style.opacity = '0';
         setTimeout(() => { document.getElementById('overlay').style.display = 'none'; }, 300);
         
-        resize(); // Recalculate grid based on current landscape size
+        resize();
         wallPattern = createWallPattern();
         backgroundPattern = createBrightBackground();
         generateMaze();
         
-        // Ball Reset
         ball.r = cellSize * 0.35;
         ball.x = cellSize / 2;
         ball.y = cellSize / 2;
         ball.vx = 0; ball.vy = 0;
 
-        // Timer Start
         startTime = Date.now();
         isPlaying = true;
-
         loop();
     }
 
     function winGame() {
+        if (!isPlaying) return;
         isPlaying = false;
+        playWinSound();
+
         const endTime = Date.now();
-        const duration = ((endTime - startTime) / 1000).toFixed(2); // Seconds
+        const duration = ((endTime - startTime) / 1000).toFixed(2);
 
         const overlay = document.getElementById('overlay');
         const title = document.getElementById('titleText');
@@ -151,15 +190,14 @@
 
         title.innerText = "MAZE COMPLETE!";
         title.style.color = "#00aa00";
-        sub.innerText = "Excellent rolling.";
-        stats.innerText = `Time: ${duration} seconds`;
+        sub.innerText = "Nice moves.";
+        stats.innerText = `Time: ${duration}s`;
         btn.innerText = "NEXT LEVEL";
 
         overlay.style.display = 'flex';
         setTimeout(() => { overlay.style.opacity = '1'; }, 10);
     }
 
-    // --- PROCEDURAL ASSETS ---
     function createWallPattern() {
         const s = 64;
         const c = document.createElement('canvas');
@@ -190,15 +228,15 @@
         height = window.innerHeight;
         canvas.width = width;
         canvas.height = height;
-
-        // Larger cells for iPad readability
-        const targetSize = Math.max(width, height) < 800 ? 40 : 70;
+        // iPad Tuning
+        const targetSize = Math.max(width, height) < 800 ? 40 : 65;
         COLS = Math.floor(width / targetSize);
         ROWS = Math.floor(height / targetSize);
-        
         if (COLS % 2 === 0) COLS--;
         if (ROWS % 2 === 0) ROWS--;
-        cellSize = Math.floor(Math.min(width / COLS, height / ROWS));
+        
+        // Add padding calculation to prevent clipping
+        cellSize = Math.floor(Math.min((width - 20) / COLS, (height - 20) / ROWS));
     }
 
     function generateMaze() {
@@ -233,35 +271,19 @@
         }
     }
 
-    // --- PHYSICS & CONTROLS ---
-
     function handleOrientation(event) {
         const maxTilt = 25;
-        let beta = event.beta;   // Typically Front/Back
-        let gamma = event.gamma; // Typically Left/Right
-
-        // LANDSCAPE MAPPING FIX:
-        // In Landscape, Gamma becomes Up/Down (X-axis rotation)
-        // Beta becomes Left/Right (Y-axis rotation)
-        
-        // Check for basic landscape orientation
-        // (If user holds Home button to right, Beta is negative for Up)
+        let beta = event.beta;
+        let gamma = event.gamma;
         
         let x = beta; 
         let y = gamma;
 
-        // Simple swap for standard landscape usage
-        // Note: Depending on holding direction (home button left vs right), these might need inversion.
-        // This is tuned for Home Button Right / Standard Landscape.
-        
         if (y > maxTilt) y = maxTilt; if (y < -maxTilt) y = -maxTilt;
         if (x > maxTilt) x = maxTilt; if (x < -maxTilt) x = -maxTilt;
 
-        // Swap axes for Landscape:
-        // Tilt Left/Right (Beta) -> Controls X
-        // Tilt Away/Towards (Gamma) -> Controls Y
         tiltX = x / maxTilt; 
-        tiltY = y / maxTilt;
+        tiltY = -(y / maxTilt); // Inverted Y for natural feel
     }
 
     function update() {
@@ -273,11 +295,9 @@
         if (keys.ArrowLeft || keys.KeyA) dx = -1;
         if (keys.ArrowRight || keys.KeyD) dx = 1;
 
-        // Use Keyboard if active, otherwise Gyro
         let ax = dx !== 0 ? dx : tiltX;
         let ay = dy !== 0 ? dy : tiltY;
 
-        // Speed settings
         ball.vx += ax * 0.8;
         ball.vy += ay * 0.8;
         ball.vx *= 0.92;
@@ -288,7 +308,6 @@
         ball.y += ball.vy;
         checkCollisionY();
 
-        // Win Condition
         let pcx = Math.floor(ball.x / cellSize);
         let pcy = Math.floor(ball.y / cellSize);
         if (pcx === goal.x && pcy === goal.y) {
@@ -296,9 +315,20 @@
         }
     }
 
+    // --- PHYSICS + SOUND FIXES ---
+
     function checkCollisionX() {
-        if (ball.x - ball.r < 0) { ball.x = ball.r; ball.vx = 0; }
-        if (ball.x + ball.r > COLS * cellSize) { ball.x = COLS * cellSize - ball.r; ball.vx = 0; }
+        // SCREEN BOUNDARY CHECKS
+        if (ball.x - ball.r < 0) { 
+            ball.x = ball.r; 
+            if(Math.abs(ball.vx) > 0) playBump(Math.abs(ball.vx)); // Play Sound
+            ball.vx = 0; 
+        }
+        if (ball.x + ball.r > COLS * cellSize) { 
+            ball.x = COLS * cellSize - ball.r; 
+            if(Math.abs(ball.vx) > 0) playBump(Math.abs(ball.vx)); // Play Sound
+            ball.vx = 0; 
+        }
 
         let cx = Math.floor(ball.x / cellSize);
         let cy = Math.floor(ball.y / cellSize);
@@ -308,13 +338,30 @@
         let cell = maze[cy][cx];
         let localX = ball.x % cellSize;
 
-        if (cell.right && localX + ball.r > cellSize) { ball.x = (cx + 1) * cellSize - ball.r; ball.vx *= -0.3; }
-        if (cell.left && localX - ball.r < 0) { ball.x = cx * cellSize + ball.r; ball.vx *= -0.3; }
+        if (cell.right && localX + ball.r > cellSize) { 
+            if(Math.abs(ball.vx) > 0) playBump(Math.abs(ball.vx));
+            ball.x = (cx + 1) * cellSize - ball.r; 
+            ball.vx *= -0.3; 
+        }
+        if (cell.left && localX - ball.r < 0) { 
+            if(Math.abs(ball.vx) > 0) playBump(Math.abs(ball.vx));
+            ball.x = cx * cellSize + ball.r; 
+            ball.vx *= -0.3; 
+        }
     }
 
     function checkCollisionY() {
-        if (ball.y - ball.r < 0) { ball.y = ball.r; ball.vy = 0; }
-        if (ball.y + ball.r > ROWS * cellSize) { ball.y = ROWS * cellSize - ball.r; ball.vy = 0; }
+        // SCREEN BOUNDARY CHECKS
+        if (ball.y - ball.r < 0) { 
+            ball.y = ball.r; 
+            if(Math.abs(ball.vy) > 0) playBump(Math.abs(ball.vy)); // Play Sound
+            ball.vy = 0; 
+        }
+        if (ball.y + ball.r > ROWS * cellSize) { 
+            ball.y = ROWS * cellSize - ball.r; 
+            if(Math.abs(ball.vy) > 0) playBump(Math.abs(ball.vy)); // Play Sound
+            ball.vy = 0; 
+        }
 
         let cx = Math.floor(ball.x / cellSize);
         let cy = Math.floor(ball.y / cellSize);
@@ -324,8 +371,16 @@
         let cell = maze[cy][cx];
         let localY = ball.y % cellSize;
 
-        if (cell.bottom && localY + ball.r > cellSize) { ball.y = (cy + 1) * cellSize - ball.r; ball.vy *= -0.3; }
-        if (cell.top && localY - ball.r < 0) { ball.y = cy * cellSize + ball.r; ball.vy *= -0.3; }
+        if (cell.bottom && localY + ball.r > cellSize) { 
+            if(Math.abs(ball.vy) > 0) playBump(Math.abs(ball.vy));
+            ball.y = (cy + 1) * cellSize - ball.r; 
+            ball.vy *= -0.3; 
+        }
+        if (cell.top && localY - ball.r < 0) { 
+            if(Math.abs(ball.vy) > 0) playBump(Math.abs(ball.vy));
+            ball.y = cy * cellSize + ball.r; 
+            ball.vy *= -0.3; 
+        }
     }
 
     function draw() {
@@ -360,6 +415,11 @@
             }
         }
         ctx.stroke();
+
+        // ** DRAW OUTER BORDER MANUALLY **
+        ctx.strokeStyle = '#222';
+        ctx.lineWidth = 8;
+        ctx.strokeRect(0, 0, COLS * cellSize, ROWS * cellSize);
 
         // Ball
         ctx.fillStyle = '#ff0000'; ctx.beginPath(); ctx.arc(ball.x, ball.y, ball.r, 0, Math.PI * 2); ctx.fill();
