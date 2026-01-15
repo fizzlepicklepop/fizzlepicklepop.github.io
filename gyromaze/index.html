@@ -3,12 +3,20 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Gyro Maze: Vibrant</title>
+    <title>Gyro Maze: Final Polish</title>
     <link rel="manifest" href="manifest.json">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <style>
+        /* CSS Fix for Mobile Address Bars: Use absolute positioning instead of vh/vw */
         body { margin: 0; overflow: hidden; background: #111; touch-action: none; font-family: 'Segoe UI', sans-serif; user-select: none; -webkit-user-select: none; }
-        canvas { display: block; width: 100vw; height: 100vh; outline: none; }
+        
+        canvas { 
+            display: block; 
+            position: absolute; 
+            top: 0; left: 0; right: 0; bottom: 0; 
+            width: 100%; height: 100%; 
+            outline: none; 
+        }
         
         #overlay {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
@@ -72,6 +80,7 @@
     let visualTiltX = 0, visualTiltY = 0; 
     let keys = { ArrowUp: false, ArrowDown: false, ArrowLeft: false, ArrowRight: false };
     let audioCtx = null;
+    let lastBumpTime = 0; // For audio cooldown
 
     // Three.js
     let scene, camera, renderer;
@@ -87,27 +96,21 @@
         canvas.width = 512; canvas.height = 256; 
         const ctx = canvas.getContext('2d');
         
-        // 1. Base White
+        // White Base
         ctx.fillStyle = '#ffffff';
         ctx.fillRect(0,0,512,256);
         
-        // 2. Bright Red Stripes
-        ctx.fillStyle = '#ff0022'; // Brighter red
+        // Bright Red Stripes
+        ctx.fillStyle = '#ff0033'; 
         
-        // Draw 4 Stripes for high visibility
         const stripeHeight = 25;
         const positions = [50, 100, 150, 200];
         
-        positions.forEach(y => {
-            ctx.fillRect(0, y, 512, stripeHeight);
-        });
+        positions.forEach(y => { ctx.fillRect(0, y, 512, stripeHeight); });
+        ctx.fillRect(0, 0, 512, 15); // Top Pole
+        ctx.fillRect(0, 241, 512, 15); // Bottom Pole
 
-        // Poles
-        ctx.fillRect(0, 0, 512, 15); 
-        ctx.fillRect(0, 241, 512, 15); 
-
-        const tex = new THREE.CanvasTexture(canvas);
-        return tex;
+        return new THREE.CanvasTexture(canvas);
     }
 
     function createVibrantFloorTexture() {
@@ -121,68 +124,62 @@
             { bg: '#F3E5F5', accent: '#E040FB' }, // Purple
             { bg: '#E8F5E9', accent: '#00E676' }, // Neon Green
             { bg: '#FFF3E0', accent: '#FF9100' }, // Orange
-            { bg: '#212121', accent: '#FFEB3B' }, // Dark/Yellow
-            { bg: '#FFEBEE', accent: '#FF1744' }  // Red/Pink
+            { bg: '#FFEBEE', accent: '#FF1744' }, // Red/Pink
+            { bg: '#E1F5FE', accent: '#29B6F6' }  // Sky Blue
         ];
         
         const theme = palettes[Math.floor(Math.random() * palettes.length)];
-        const patternType = Math.floor(Math.random() * 3); // 0=Grid, 1=Dots, 2=Checkers
+        const patternType = Math.floor(Math.random() * 3); // 0=Dots, 1=Stripes, 2=Triangles
 
-        // Fill Background
+        // Background
         ctx.fillStyle = theme.bg;
         ctx.fillRect(0,0,512,512);
 
+        // Pattern
+        ctx.fillStyle = theme.accent;
+        ctx.globalAlpha = 0.3;
+
         if (patternType === 0) {
-            // GRID MOTIF
-            ctx.strokeStyle = theme.accent;
-            ctx.lineWidth = 4;
-            ctx.globalAlpha = 0.2;
-            const step = 64;
-            for(let i=0; i<=512; i+=step) {
-                ctx.beginPath(); ctx.moveTo(i,0); ctx.lineTo(i,512); ctx.stroke();
-                ctx.beginPath(); ctx.moveTo(0,i); ctx.lineTo(512,i); ctx.stroke();
-            }
-        } 
-        else if (patternType === 1) {
-            // POLKA DOT MOTIF
-            ctx.fillStyle = theme.accent;
-            ctx.globalAlpha = 0.2;
+            // POLKA DOTS
             const step = 64;
             for(let x=32; x<512; x+=step){
                 for(let y=32; y<512; y+=step){
                     ctx.beginPath();
-                    ctx.arc(x, y, 12, 0, Math.PI*2);
+                    ctx.arc(x, y, 16, 0, Math.PI*2);
                     ctx.fill();
                 }
             }
-        }
-        else if (patternType === 2) {
-            // CHECKERBOARD MOTIF
-            ctx.fillStyle = theme.accent;
-            ctx.globalAlpha = 0.1;
-            const step = 128;
-            for(let x=0; x<512; x+=step){
-                for(let y=0; y<512; y+=step){
-                    if ((x+y)%256 === 0) ctx.fillRect(x,y,step,step);
-                }
+        } 
+        else if (patternType === 1) {
+            // DIAGONAL STRIPES
+            ctx.lineWidth = 20;
+            ctx.strokeStyle = theme.accent;
+            for(let i=-512; i<1024; i+=64) {
+                ctx.beginPath();
+                ctx.moveTo(i, 0);
+                ctx.lineTo(i+512, 512);
+                ctx.stroke();
             }
         }
-
-        // Add random "Confetti" for vibrancy
-        ctx.globalAlpha = 0.4;
-        ctx.fillStyle = theme.accent;
-        for(let i=0; i<15; i++){
-            const s = Math.random() * 40 + 10;
-            const x = Math.random() * 512;
-            const y = Math.random() * 512;
-            ctx.fillRect(x, y, s, s);
+        else if (patternType === 2) {
+            // TRIANGLES (Geometric Shapes)
+            for(let i=0; i<30; i++){
+                const cx = Math.random() * 512;
+                const cy = Math.random() * 512;
+                const s = 20 + Math.random() * 30;
+                ctx.beginPath();
+                ctx.moveTo(cx, cy - s);
+                ctx.lineTo(cx - s, cy + s);
+                ctx.lineTo(cx + s, cy + s);
+                ctx.closePath();
+                ctx.fill();
+            }
         }
 
         const tex = new THREE.CanvasTexture(canvas);
         tex.wrapS = THREE.RepeatWrapping;
         tex.wrapT = THREE.RepeatWrapping;
-        // Increase texture repeat for higher density
-        tex.repeat.set(10, 10); 
+        tex.repeat.set(8, 8); 
         return tex;
     }
 
@@ -212,15 +209,23 @@
     window.addEventListener('keydown', e => keys[e.code] = true);
     window.addEventListener('keyup', e => keys[e.code] = false);
     
-    window.addEventListener('resize', () => { 
-        resize();
-        if (camera && renderer) {
-            camera.aspect = window.innerWidth / window.innerHeight;
-            camera.updateProjectionMatrix();
-            renderer.setSize(window.innerWidth, window.innerHeight);
-            if(isPlaying) repositionCamera();
-        }
-    });
+    // Robust Resize for Mobile
+    function onWindowResize() {
+        if (!camera || !renderer) return;
+        
+        width = window.innerWidth;
+        height = window.innerHeight;
+        
+        camera.aspect = width / height;
+        camera.updateProjectionMatrix();
+        renderer.setSize(width, height);
+        
+        if (!isPlaying) resizeLogic(); // Update grid calculations only if game not running
+        else repositionCamera(); // Update camera pos if game running
+    }
+    
+    window.addEventListener('resize', onWindowResize);
+    window.addEventListener('orientationchange', () => { setTimeout(onWindowResize, 100); });
 
     // --- THREE.JS INIT ---
     function initThreeJS() {
@@ -232,6 +237,7 @@
         camera = new THREE.PerspectiveCamera(40, window.innerWidth / window.innerHeight, 0.1, 5000);
         
         renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
+        // Setting specific size and ensuring pixel ratio handles retina screens
         renderer.setSize(window.innerWidth, window.innerHeight);
         renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
         renderer.shadowMap.enabled = true;
@@ -291,10 +297,10 @@
         document.getElementById('overlay').style.opacity = '0';
         setTimeout(() => { document.getElementById('overlay').style.display = 'none'; }, 300);
         
-        resize(); 
-        // NEW: Generate random vibrant floor every level
-        const newFloorTex = createVibrantFloorTexture();
-        floorMesh.material.map = newFloorTex;
+        resizeLogic(); 
+        
+        // New Floor
+        floorMesh.material.map = createVibrantFloorTexture();
         
         generateMaze(); 
         build3DMaze(); 
@@ -323,7 +329,7 @@
         loop();
     }
 
-    function resize() {
+    function resizeLogic() {
         width = window.innerWidth;
         height = window.innerHeight;
         const targetSize = Math.max(width, height) < 800 ? 40 : 65;
@@ -405,15 +411,15 @@
     function repositionCamera() {
         const mazeHeight = ROWS * cellSize;
         const fov = camera.fov * (Math.PI / 180);
-        // TIGHTER ZOOM: Reduced multiplier from 1.3 to 1.1
-        let dist = Math.abs(mazeHeight / (2 * Math.tan(fov / 2))) * 1.1; 
+        // ZOOM FIX: Set to 1.2 (Balanced between 1.1 and 1.3)
+        let dist = Math.abs(mazeHeight / (2 * Math.tan(fov / 2))) * 1.2; 
         camera.position.set(0, dist, 0); 
         camera.lookAt(0, 0, 0);
-        camera.position.z += dist * 0.1; // Small tilt offset
+        camera.position.z += dist * 0.1;
         camera.lookAt(0,0,0);
     }
 
-    // --- PHYSICS (CCD Enabled) ---
+    // --- PHYSICS (CCD) ---
     function handleOrientation(event) {
         const maxTilt = 25;
         let x = event.beta; let y = event.gamma;
@@ -445,7 +451,6 @@
         ball.vx *= 0.92; 
         ball.vy *= 0.92;
 
-        // Sub-stepping for collision
         const steps = 8; 
         const subVx = ball.vx / steps;
         const subVy = ball.vy / steps;
@@ -506,7 +511,10 @@
         if (cell.left && localX - ball.r < 0) { bounceX(); ball.x = cx * cellSize + ball.r + 0.1; }
     }
     
-    function bounceX() { if(Math.abs(ball.vx)>0.5) playBump(Math.abs(ball.vx)); ball.vx *= -0.3; }
+    function bounceX() { 
+        if(Math.abs(ball.vx) > 0.5) playBump(); 
+        ball.vx *= -0.3; 
+    }
 
     function checkCollisionY() {
         if (ball.y - ball.r < 0) { ball.y = ball.r; bounceY(); }
@@ -524,17 +532,25 @@
         if (cell.top && localY - ball.r < 0) { bounceY(); ball.y = cy * cellSize + ball.r + 0.1; }
     }
     
-    function bounceY() { if(Math.abs(ball.vy)>0.5) playBump(Math.abs(ball.vy)); ball.vy *= -0.3; }
+    function bounceY() { 
+        if(Math.abs(ball.vy) > 0.5) playBump(); 
+        ball.vy *= -0.3; 
+    }
 
-    function playBump(force) {
+    function playBump() {
         if (!audioCtx) return;
+        // AUDIO FIX: Debounce to prevent machine-gun sound in corners
+        const now = Date.now();
+        if (now - lastBumpTime < 150) return; 
+        lastBumpTime = now;
+
         const osc = audioCtx.createOscillator();
         const gain = audioCtx.createGain();
         osc.type = 'triangle';
         osc.frequency.setValueAtTime(150 + Math.random() * 50, audioCtx.currentTime);
-        const vol = Math.min(0.5, force / 20); 
+        
         gain.gain.setValueAtTime(0, audioCtx.currentTime);
-        gain.gain.linearRampToValueAtTime(vol, audioCtx.currentTime + 0.01);
+        gain.gain.linearRampToValueAtTime(0.5, audioCtx.currentTime + 0.01);
         gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.1);
         osc.connect(gain);
         gain.connect(audioCtx.destination);
