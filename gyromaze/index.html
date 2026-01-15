@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Gyro Maze: Prism</title>
+    <title>Gyro Maze: Silky Smooth</title>
     <link rel="manifest" href="manifest.json">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <style>
@@ -80,6 +80,7 @@
     let keys = { ArrowUp: false, ArrowDown: false, ArrowLeft: false, ArrowRight: false };
     let audioCtx = null;
     let lastBumpTime = 0;
+    let wallThicknessVal = 0; 
 
     // Three.js
     let scene, camera, renderer;
@@ -87,6 +88,7 @@
     let ballMesh, goalMesh, floorMesh;
     let wallsGroup; 
     let lightDir, lightAmbient;
+    let currentWallMaterial;
 
     // --- TEXTURES ---
     function createStripedBallTexture() {
@@ -199,16 +201,13 @@
         ballMesh = new THREE.Mesh(ballGeo, ballMat);
         ballMesh.castShadow = true; worldContainer.add(ballMesh);
 
-        // Z-FIGHTING FIX 1: Material settings
+        // Z-Fighting Fix
         const goalGeo = new THREE.BoxGeometry(1, 0.1, 1);
         const goalMat = new THREE.MeshStandardMaterial({ 
             color: 0x00ff00, 
             emissive: 0x00aa00, 
             emissiveIntensity: 0.5,
-            // POLYGON OFFSET: Forces GPU to render this on top of the floor
-            polygonOffset: true,
-            polygonOffsetFactor: -4, 
-            polygonOffsetUnits: -4
+            polygonOffset: true, polygonOffsetFactor: -4, polygonOffsetUnits: -4
         });
         goalMesh = new THREE.Mesh(goalGeo, goalMat);
         worldContainer.add(goalMesh);
@@ -217,7 +216,6 @@
         const floorTex = createVibrantFloorTexture();
         const floorMat = new THREE.MeshStandardMaterial({ map: floorTex, roughness: 0.8 });
         floorMesh = new THREE.Mesh(floorGeo, floorMat);
-        // Z-FIGHTING FIX 2: Physical separation
         floorMesh.rotation.x = -Math.PI / 2; floorMesh.position.y = -0.5;
         floorMesh.receiveShadow = true; worldContainer.add(floorMesh);
 
@@ -243,7 +241,6 @@
         const offsetX = (COLS * cellSize) / 2;
         const offsetY = (ROWS * cellSize) / 2;
         
-        // Goal Position
         goalMesh.position.set((goal.x*cellSize)+(cellSize/2)-offsetX, 0.05, (goal.y*cellSize)+(cellSize/2)-offsetY);
         goalMesh.scale.set(cellSize*0.8, 1, cellSize*0.8);
 
@@ -258,6 +255,8 @@
         if (COLS % 2 === 0) COLS--; if (ROWS % 2 === 0) ROWS--;
         cellSize = Math.floor(Math.min((width - 20) / COLS, (height - 20) / ROWS));
         if (cellSize < 10) cellSize = 10;
+        
+        wallThicknessVal = Math.max(3, cellSize * 0.15);
     }
 
     function generateMaze() {
@@ -284,28 +283,24 @@
     function build3DMaze() {
         while(wallsGroup.children.length > 0) wallsGroup.remove(wallsGroup.children[0]);
         
-        // WALL COLOR MODIFIER: Generate random color per level
-        // We use HSL to get a random hue, but keep saturation/lightness balanced (darkish)
-        const wallHue = Math.random(); 
-        const wallColor = new THREE.Color().setHSL(wallHue, 0.6, 0.35);
-
-        const wallMaterial = new THREE.MeshStandardMaterial({ color: wallColor, roughness: 0.4 });
+        const hue = Math.random();
+        const wallColor = new THREE.Color().setHSL(hue, 0.6, 0.3);
+        currentWallMaterial = new THREE.MeshStandardMaterial({ color: wallColor, roughness: 0.3, metalness: 0.2 });
         
         const wallHeight = cellSize * 0.55; 
-        const wallThickness = Math.max(3, cellSize * 0.15); 
         const offsetX = (COLS * cellSize) / 2; const offsetY = (ROWS * cellSize) / 2;
 
-        const geometryV = new THREE.BoxGeometry(wallThickness, wallHeight, cellSize + wallThickness);
-        const geometryH = new THREE.BoxGeometry(cellSize + wallThickness, wallHeight, wallThickness);
+        const geometryV = new THREE.BoxGeometry(wallThicknessVal, wallHeight, cellSize + wallThicknessVal);
+        const geometryH = new THREE.BoxGeometry(cellSize + wallThicknessVal, wallHeight, wallThicknessVal);
 
         for (let y = 0; y < ROWS; y++) {
             for (let x = 0; x < COLS; x++) {
                 let c = maze[y][x];
                 let tx = (x * cellSize) - offsetX + (cellSize/2); let ty = (y * cellSize) - offsetY + (cellSize/2);
-                if (c.top) createWall(geometryH, tx, ty - cellSize/2, wallMaterial, wallHeight);
-                if (c.left) createWall(geometryV, tx - cellSize/2, ty, wallMaterial, wallHeight);
-                if (y === ROWS - 1 && c.bottom) createWall(geometryH, tx, ty + cellSize/2, wallMaterial, wallHeight);
-                if (x === COLS - 1 && c.right) createWall(geometryV, tx + cellSize/2, ty, wallMaterial, wallHeight);
+                if (c.top) createWall(geometryH, tx, ty - cellSize/2, currentWallMaterial, wallHeight);
+                if (c.left) createWall(geometryV, tx - cellSize/2, ty, currentWallMaterial, wallHeight);
+                if (y === ROWS - 1 && c.bottom) createWall(geometryH, tx, ty + cellSize/2, currentWallMaterial, wallHeight);
+                if (x === COLS - 1 && c.right) createWall(geometryV, tx + cellSize/2, ty, currentWallMaterial, wallHeight);
             }
         }
         repositionCamera();
@@ -355,6 +350,7 @@
         for (let i = 0; i < steps; i++) {
             ball.x += subVx; checkCollisionX(); 
             ball.y += subVy; checkCollisionY();
+            checkCornerCollision();
         }
 
         let pcx = Math.floor(ball.x / cellSize); let pcy = Math.floor(ball.y / cellSize);
@@ -380,6 +376,7 @@
         setTimeout(() => { document.getElementById('overlay').style.opacity = '1'; }, 10);
     }
 
+    // --- COLLISION LOGIC (PLANAR) ---
     const physMargin = 0.25;
 
     function checkCollisionX() {
@@ -391,7 +388,6 @@
         if (cell.right && localX + ball.r + physMargin > cellSize) { bounceX(); ball.x = (cx + 1) * cellSize - ball.r - physMargin; }
         if (cell.left && localX - ball.r - physMargin < 0) { bounceX(); ball.x = cx * cellSize + ball.r + physMargin; }
     }
-    
     function bounceX() { if(Math.abs(ball.vx) > 1.5) playBump(); ball.vx *= -0.3; }
 
     function checkCollisionY() {
@@ -403,18 +399,61 @@
         if (cell.bottom && localY + ball.r + physMargin > cellSize) { bounceY(); ball.y = (cy + 1) * cellSize - ball.r - physMargin; }
         if (cell.top && localY - ball.r - physMargin < 0) { bounceY(); ball.y = cy * cellSize + ball.r + physMargin; }
     }
-    
     function bounceY() { if(Math.abs(ball.vy) > 1.5) playBump(); ball.vy *= -0.3; }
 
+    // --- COLLISION LOGIC (CORNER GHOST FIX) ---
+    function checkCornerCollision() {
+        let ix = Math.round(ball.x / cellSize);
+        let iy = Math.round(ball.y / cellSize);
+        let px = ix * cellSize;
+        let py = iy * cellSize;
+        
+        let dx = ball.x - px;
+        let dy = ball.y - py;
+        let distSq = dx*dx + dy*dy;
+        let pillarR = wallThicknessVal * 0.5;
+        let minDist = ball.r + pillarR;
+        
+        if (distSq < minDist * minDist) {
+            // "Ghost Wall" Fix:
+            // Calculate which wall segments exist at this intersection
+            let segUp = (iy > 0 && ix > 0) ? maze[iy-1][ix-1].right : false;
+            let segDown = (iy < ROWS && ix > 0) ? maze[iy][ix-1].right : false;
+            let segLeft = (iy > 0 && ix > 0) ? maze[iy-1][ix-1].bottom : false;
+            let segRight = (iy > 0 && ix < COLS) ? maze[iy-1][ix].bottom : false;
+
+            // SMOOTHNESS CHECK:
+            // If the wall is continuous vertically, and we are hitting the face (not the tip), SKIP.
+            if (segUp && segDown && Math.abs(dx) > Math.abs(dy)) return;
+            // If the wall is continuous horizontally, and we are hitting the face, SKIP.
+            if (segLeft && segRight && Math.abs(dy) > Math.abs(dx)) return;
+
+            // If we are here, we are hitting an actual exposed corner tip.
+            if (segUp || segDown || segLeft || segRight) {
+                let dist = Math.sqrt(distSq);
+                if (dist < 0.001) { dx = 1; dy = 0; dist = 1; }
+                let overlap = minDist - dist;
+                let nx = dx / dist; let ny = dy / dist;
+                ball.x += nx * overlap;
+                ball.y += ny * overlap;
+                let dot = ball.vx * nx + ball.vy * ny;
+                if (dot < 0) {
+                    ball.vx -= 2 * dot * nx; ball.vy -= 2 * dot * ny;
+                    ball.vx *= 0.5; ball.vy *= 0.5;
+                    if (Math.abs(dot) > 1.0) playBump();
+                }
+            }
+        }
+    }
+
+    // --- AUDIO ---
     function playBump() {
         if (!audioCtx) return;
         const now = audioCtx.currentTime;
         if (Date.now() - lastBumpTime < 200) return; lastBumpTime = Date.now();
-
         const osc = audioCtx.createOscillator();
         const gain = audioCtx.createGain();
-        osc.type = 'sine'; 
-        osc.frequency.setValueAtTime(150, now);
+        osc.type = 'sine'; osc.frequency.setValueAtTime(150, now);
         osc.frequency.exponentialRampToValueAtTime(40, now + 0.1);
         gain.gain.setValueAtTime(0, now);
         gain.gain.linearRampToValueAtTime(0.8, now + 0.01);
