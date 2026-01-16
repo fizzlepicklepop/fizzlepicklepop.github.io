@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Gyro Maze: Void</title>
+    <title>Gyro Maze: Bulletproof</title>
     <link rel="manifest" href="manifest.json">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <style>
@@ -23,6 +23,12 @@
             justify-content: center; align-items: center; flex-direction: column;
             z-index: 10; text-align: center; transition: opacity 0.3s;
             backdrop-filter: blur(5px);
+        }
+
+        #debug-hud {
+            position: absolute; bottom: 10px; left: 0; width: 100%;
+            text-align: center; color: #444; font-family: monospace; font-size: 10px;
+            pointer-events: none; z-index: 5;
         }
 
         #rotate-message {
@@ -57,9 +63,11 @@
     <div style="font-size: 3rem;">↻</div>
 </div>
 
+<div id="debug-hud">System Ready</div>
+
 <div id="overlay">
     <h1 id="titleText">Gyro Maze</h1>
-    <p id="subText">Tilt to Roll • Sound On</p>
+    <p id="subText">Tilt • Keys • Gamepad</p>
     <div id="stats" class="stats"></div>
     <button id="startBtn">PLAY</button>
 </div>
@@ -75,6 +83,7 @@
     let goal = { x: 0, y: 0 };
     let startTime = 0;
     let isPlaying = false;
+    let gameEndedTime = 0; 
     let tiltX = 0, tiltY = 0; 
     let visualTiltX = 0, visualTiltY = 0; 
     let keys = { ArrowUp: false, ArrowDown: false, ArrowLeft: false, ArrowRight: false };
@@ -117,16 +126,16 @@
         ctx.fillStyle = theme.bg; ctx.fillRect(0,0,512,512);
         ctx.fillStyle = theme.accent; ctx.globalAlpha = 0.3;
 
-        if (patternType === 0) { // Dots
+        if (patternType === 0) { 
             for(let x=32; x<512; x+=64) for(let y=32; y<512; y+=64) {
                 ctx.beginPath(); ctx.arc(x, y, 16, 0, Math.PI*2); ctx.fill();
             }
-        } else if (patternType === 1) { // Stripes
+        } else if (patternType === 1) { 
             ctx.lineWidth = 20; ctx.strokeStyle = theme.accent;
             for(let i=-512; i<1024; i+=64) {
                 ctx.beginPath(); ctx.moveTo(i, 0); ctx.lineTo(i+512, 512); ctx.stroke();
             }
-        } else { // Triangles
+        } else { 
             for(let i=0; i<30; i++){
                 const cx = Math.random()*512, cy = Math.random()*512, s = 20+Math.random()*30;
                 ctx.beginPath(); ctx.moveTo(cx, cy-s); ctx.lineTo(cx-s, cy+s); ctx.lineTo(cx+s, cy+s); ctx.fill();
@@ -138,28 +147,40 @@
     }
 
     // --- SETUP ---
-    if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js');
+    if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').then(r=>r.update());
 
-    document.getElementById('startBtn').addEventListener('click', async () => {
-        if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-        if (audioCtx.state === 'suspended') audioCtx.resume();
-
-        if (!renderer) {
-            if (!initThreeJS()) { alert("WebGL failed."); return; }
-        }
-
-        if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
-            try {
-                const response = await DeviceOrientationEvent.requestPermission();
-                if (response === 'granted') window.addEventListener('deviceorientation', handleOrientation);
-            } catch (e) { console.error(e); }
-        } else {
-            window.addEventListener('deviceorientation', handleOrientation);
-        }
-        startGame();
+    const startBtn = document.getElementById('startBtn');
+    startBtn.addEventListener('click', () => {
+        initAudio();
+        if (!renderer) initThreeJS();
+        requestPermissionAndStart();
     });
 
-    window.addEventListener('keydown', e => keys[e.code] = true);
+    async function initAudio() {
+        if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        if (audioCtx.state === 'suspended') await audioCtx.resume();
+    }
+
+    function requestPermissionAndStart() {
+        if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
+            DeviceOrientationEvent.requestPermission()
+                .then(response => { 
+                    if (response === 'granted') window.addEventListener('deviceorientation', handleOrientation);
+                    startGame();
+                })
+                .catch(() => startGame());
+        } else {
+            window.addEventListener('deviceorientation', handleOrientation);
+            startGame();
+        }
+    }
+
+    window.addEventListener('keydown', e => {
+        keys[e.code] = true;
+        if (!isPlaying && (e.code === 'Space' || e.code === 'Enter') && (Date.now() - gameEndedTime > 500)) {
+            initAudio(); startGame();
+        }
+    });
     window.addEventListener('keyup', e => keys[e.code] = false);
     
     function onWindowResize() {
@@ -176,7 +197,7 @@
     function initThreeJS() {
         if (typeof THREE === 'undefined') return false;
         scene = new THREE.Scene(); 
-        scene.background = new THREE.Color(0x000000); // VOID BLACK BACKGROUND
+        scene.background = new THREE.Color(0x000000); 
 
         camera = new THREE.PerspectiveCamera(40, window.innerWidth/window.innerHeight, 0.1, 5000);
         renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
@@ -202,7 +223,6 @@
         ballMesh = new THREE.Mesh(ballGeo, ballMat);
         ballMesh.castShadow = true; worldContainer.add(ballMesh);
 
-        // Goal
         const goalGeo = new THREE.BoxGeometry(1, 0.1, 1);
         const goalMat = new THREE.MeshStandardMaterial({ 
             color: 0x00ff00, 
@@ -213,7 +233,6 @@
         goalMesh = new THREE.Mesh(goalGeo, goalMat);
         worldContainer.add(goalMesh);
 
-        // Floor - Init with dummy geometry, resized later
         const floorGeo = new THREE.PlaneGeometry(1, 1); 
         const floorTex = createVibrantFloorTexture();
         const floorMat = new THREE.MeshStandardMaterial({ map: floorTex, roughness: 0.8 });
@@ -221,6 +240,7 @@
         floorMesh.rotation.x = -Math.PI / 2; floorMesh.position.y = -0.5;
         floorMesh.receiveShadow = true; worldContainer.add(floorMesh);
 
+        loop();
         return true;
     }
 
@@ -229,19 +249,15 @@
         document.getElementById('overlay').style.opacity = '0';
         setTimeout(() => { document.getElementById('overlay').style.display = 'none'; }, 300);
         resizeLogic();
-        
         generateMaze(); 
         
-        // VOID EFFECT: Update Floor Size to match Maze dimensions exactly
         const mazeWidth = COLS * cellSize;
         const mazeHeight = ROWS * cellSize;
         
         floorMesh.geometry.dispose();
         floorMesh.geometry = new THREE.PlaneGeometry(mazeWidth, mazeHeight);
         
-        // Update Texture with new colors and scaling
         const newTex = createVibrantFloorTexture();
-        // Scale texture to look good (approx 1 repeat per 4 cells)
         const repX = Math.max(1, mazeWidth / 250);
         const repY = Math.max(1, mazeHeight / 250);
         newTex.repeat.set(repX, repY);
@@ -259,11 +275,11 @@
 
         const offsetX = (COLS * cellSize) / 2;
         const offsetY = (ROWS * cellSize) / 2;
-        
         goalMesh.position.set((goal.x*cellSize)+(cellSize/2)-offsetX, 0.05, (goal.y*cellSize)+(cellSize/2)-offsetY);
         goalMesh.scale.set(cellSize*0.8, 1, cellSize*0.8);
 
-        startTime = Date.now(); isPlaying = true; loop();
+        startTime = Date.now(); 
+        isPlaying = true; 
     }
 
     function resizeLogic() {
@@ -274,7 +290,6 @@
         if (COLS % 2 === 0) COLS--; if (ROWS % 2 === 0) ROWS--;
         cellSize = Math.floor(Math.min((width - 20) / COLS, (height - 20) / ROWS));
         if (cellSize < 10) cellSize = 10;
-        
         wallThicknessVal = Math.max(3, cellSize * 0.15);
     }
 
@@ -301,14 +316,11 @@
 
     function build3DMaze() {
         while(wallsGroup.children.length > 0) wallsGroup.remove(wallsGroup.children[0]);
-        
         const hue = Math.random();
         const wallColor = new THREE.Color().setHSL(hue, 0.6, 0.3);
         currentWallMaterial = new THREE.MeshStandardMaterial({ color: wallColor, roughness: 0.3, metalness: 0.2 });
-        
         const wallHeight = cellSize * 0.55; 
         const offsetX = (COLS * cellSize) / 2; const offsetY = (ROWS * cellSize) / 2;
-
         const geometryV = new THREE.BoxGeometry(wallThicknessVal, wallHeight, cellSize + wallThicknessVal);
         const geometryH = new THREE.BoxGeometry(cellSize + wallThicknessVal, wallHeight, wallThicknessVal);
 
@@ -340,74 +352,124 @@
         camera.position.z += dist * 0.1; camera.lookAt(0,0,0);
     }
 
-    // --- PHYSICS ---
+    // --- PHYSICS / INPUT ---
     function handleOrientation(event) {
         let x = event.beta, y = event.gamma;
+        if (x === null) x = 0; if (y === null) y = 0; 
         if (y > 25) y = 25; if (y < -25) y = -25;
         if (x > 25) x = 25; if (x < -25) x = -25;
         tiltX = x / 25; tiltY = -(y / 25);
     }
 
     function update() {
-        if (!isPlaying) return;
-        let keyDx = 0, keyDy = 0;
-        if (keys.ArrowUp || keys.KeyW) keyDy = -1;
-        if (keys.ArrowDown || keys.KeyS) keyDy = 1;
-        if (keys.ArrowLeft || keys.KeyA) keyDx = -1;
-        if (keys.ArrowRight || keys.KeyD) keyDx = 1;
+        try {
+            // RESTART
+            if (!isPlaying) {
+                const gamepads = navigator.getGamepads ? navigator.getGamepads() : [];
+                for (const gp of gamepads) {
+                    if (gp && gp.buttons && gp.buttons[0] && gp.buttons[0].pressed) {
+                        if (Date.now() - gameEndedTime > 500) { initAudio(); startGame(); }
+                    }
+                }
+                return;
+            }
 
-        let ax = keyDx !== 0 ? keyDx : tiltX;
-        let ay = keyDy !== 0 ? keyDy : tiltY;
+            // INPUT
+            let ax = 0, ay = 0;
+            if (tiltX) ax += tiltX; if (tiltY) ay += tiltY; // Gyro
+            if (keys.ArrowUp || keys.KeyW) ay -= 1;
+            if (keys.ArrowDown || keys.KeyS) ay += 1;
+            if (keys.ArrowLeft || keys.KeyA) ax -= 1;
+            if (keys.ArrowRight || keys.KeyD) ax += 1;
 
-        visualTiltX += ((keyDx !== 0 ? keyDx : tiltX) - visualTiltX) * 0.1;
-        visualTiltY += ((keyDy !== 0 ? keyDy : tiltY) - visualTiltY) * 0.1;
+            const gamepads = navigator.getGamepads ? navigator.getGamepads() : [];
+            for (const gp of gamepads) {
+                if (!gp) continue;
+                if (Math.abs(gp.axes[0]) > 0.15) ax += gp.axes[0];
+                if (Math.abs(gp.axes[1]) > 0.15) ay += gp.axes[1];
+            }
 
-        ball.vx += ax * 0.8; ball.vy += ay * 0.8;
-        ball.vx *= 0.92; ball.vy *= 0.92;
+            ax = Math.max(-1, Math.min(1, ax));
+            ay = Math.max(-1, Math.min(1, ay));
+            
+            // Debug HUD
+            document.getElementById('debug-hud').innerText = `X: ${ax.toFixed(2)} Y: ${ay.toFixed(2)} Ball: ${Math.round(ball.x)},${Math.round(ball.y)}`;
 
-        const steps = 8; 
-        const subVx = ball.vx / steps; 
-        const subVy = ball.vy / steps;
-        
-        for (let i = 0; i < steps; i++) {
-            ball.x += subVx; 
-            ball.y += subVy; 
-            solveCollisions(); 
+            // SMOOTH TILT
+            visualTiltX += ((ax - visualTiltX) * 0.1);
+            visualTiltY += ((ay - visualTiltY) * 0.1);
+
+            // VELOCITY
+            if (isNaN(ball.vx)) ball.vx = 0;
+            if (isNaN(ball.vy)) ball.vy = 0;
+
+            ball.vx += ax * 0.8; 
+            ball.vy += ay * 0.8;
+            ball.vx *= 0.92; 
+            ball.vy *= 0.92;
+
+            const steps = 8; 
+            const subVx = ball.vx / steps; 
+            const subVy = ball.vy / steps;
+            
+            for (let i = 0; i < steps; i++) {
+                ball.x += subVx; 
+                ball.y += subVy; 
+                solveCollisions(); 
+            }
+
+            // CHECK WIN
+            let pcx = Math.floor(ball.x / cellSize); 
+            let pcy = Math.floor(ball.y / cellSize);
+            if (pcx === goal.x && pcy === goal.y) winGame();
+
+            // SYNC VISUALS
+            const offsetX = (COLS * cellSize) / 2; const offsetY = (ROWS * cellSize) / 2;
+            ballMesh.position.x = ball.x - offsetX;
+            ballMesh.position.z = ball.y - offsetY;
+            ballMesh.position.y = ball.r;
+            ballMesh.rotation.x -= ball.vy * 0.05; 
+            ballMesh.rotation.z -= ball.vx * 0.05;
+
+            worldContainer.rotation.x = visualTiltY * 0.25;
+            worldContainer.rotation.z = -visualTiltX * 0.25; 
+        } catch(e) {
+            console.error("Physics Crash:", e);
+            document.getElementById('debug-hud').innerText = "CRASH: " + e.message;
         }
-
-        let pcx = Math.floor(ball.x / cellSize); let pcy = Math.floor(ball.y / cellSize);
-        if (pcx === goal.x && pcy === goal.y) winGame();
-
-        const offsetX = (COLS * cellSize) / 2; const offsetY = (ROWS * cellSize) / 2;
-        ballMesh.position.x = ball.x - offsetX;
-        ballMesh.position.z = ball.y - offsetY;
-        ballMesh.position.y = ball.r;
-        ballMesh.rotation.x -= ball.vy * 0.05; ballMesh.rotation.z -= ball.vx * 0.05;
-
-        worldContainer.rotation.x = visualTiltY * 0.25;
-        worldContainer.rotation.z = -visualTiltX * 0.25; 
     }
 
     function winGame() {
-        if (!isPlaying) return; isPlaying = false; playWinSound();
+        if (!isPlaying) return; 
+        isPlaying = false; 
+        gameEndedTime = Date.now();
+        playWinSound();
         const duration = ((Date.now() - startTime) / 1000).toFixed(2);
-        document.getElementById('overlay').style.display = 'flex';
+        
+        const overlay = document.getElementById('overlay');
         document.getElementById('titleText').innerText = "MAZE COMPLETE!";
         document.getElementById('stats').innerText = `Time: ${duration}s`;
+        document.getElementById('subText').innerText = "Press 'Space' or 'A' to Continue";
         document.getElementById('startBtn').innerText = "NEXT LEVEL";
-        setTimeout(() => { document.getElementById('overlay').style.opacity = '1'; }, 10);
+        
+        overlay.style.display = 'flex';
+        setTimeout(() => { overlay.style.opacity = '1'; }, 10);
     }
 
-    // --- PHYSICS ENGINE (Smooth AABB) ---
     function solveCollisions() {
-        if (ball.x - ball.r < 0) { ball.x = ball.r; bounceX(); }
-        if (ball.x + ball.r > COLS * cellSize) { ball.x = COLS * cellSize - ball.r; bounceX(); }
-        if (ball.y - ball.r < 0) { ball.y = ball.r; bounceY(); }
-        if (ball.y + ball.r > ROWS * cellSize) { ball.y = ROWS * cellSize - ball.r; bounceY(); }
+        // WORLD BOUNDS - Hard Clamp to prevent out-of-bounds array access
+        if (ball.x < ball.r) { ball.x = ball.r; bounceX(); }
+        if (ball.y < ball.r) { ball.y = ball.r; bounceY(); }
+        if (ball.x > (COLS * cellSize) - ball.r) { ball.x = (COLS * cellSize) - ball.r; bounceX(); }
+        if (ball.y > (ROWS * cellSize) - ball.r) { ball.y = (ROWS * cellSize) - ball.r; bounceY(); }
 
         let cx = Math.floor(ball.x / cellSize);
         let cy = Math.floor(ball.y / cellSize);
         
+        // Safety Clamps for Array Access
+        cx = Math.max(0, Math.min(COLS - 1, cx));
+        cy = Math.max(0, Math.min(ROWS - 1, cy));
+
         const minX = Math.max(0, cx - 1);
         const maxX = Math.min(COLS - 1, cx + 1);
         const minY = Math.max(0, cy - 1);
@@ -415,6 +477,7 @@
 
         for (let y = minY; y <= maxY; y++) {
             for (let x = minX; x <= maxX; x++) {
+                if (!maze[y] || !maze[y][x]) continue; // Prevent Crash
                 let cell = maze[y][x];
                 let tx = x * cellSize;
                 let ty = y * cellSize;
@@ -447,7 +510,7 @@
             if (dot < 0) {
                 let tx = ball.vx - nx * dot;
                 let ty = ball.vy - ny * dot;
-                tx *= 0.99; ty *= 0.99; // Friction
+                tx *= 0.99; ty *= 0.99; 
                 let restitution = 0.3;
                 let bx = nx * dot * -restitution;
                 let by = ny * dot * -restitution;
@@ -461,7 +524,6 @@
     function bounceX() { ball.vx *= -0.3; if(Math.abs(ball.vx) > 1.5) playBump(); }
     function bounceY() { ball.vy *= -0.3; if(Math.abs(ball.vy) > 1.5) playBump(); }
 
-    // --- AUDIO ---
     function playBump() {
         if (!audioCtx) return;
         const now = audioCtx.currentTime;
@@ -474,7 +536,7 @@
         gain.gain.linearRampToValueAtTime(0.8, now + 0.01);
         gain.gain.exponentialRampToValueAtTime(0.001, now + 0.12);
         osc.connect(gain); gain.connect(audioCtx.destination);
-        osc.start(); osc.stop(now + 0.15);
+        osc.start(); osc.stop(now + (i * 0.1));
     }
 
     function playWinSound() {
@@ -490,10 +552,11 @@
         });
     }
 
+    // LOOP: Resilience - If Update Fails, Keep Rendering
     function loop() {
-        if (!isPlaying) return;
-        update(); renderer.render(scene, camera);
         requestAnimationFrame(loop);
+        update(); 
+        if (renderer && scene && camera) renderer.render(scene, camera);
     }
 </script>
 </body>
