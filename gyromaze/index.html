@@ -3,11 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Gyro Maze: Silk</title>
+    <title>Gyro Maze: Void</title>
     <link rel="manifest" href="manifest.json">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <style>
-        body { margin: 0; overflow: hidden; background: #111; touch-action: none; font-family: 'Segoe UI', sans-serif; user-select: none; -webkit-user-select: none; }
+        body { margin: 0; overflow: hidden; background: #000; touch-action: none; font-family: 'Segoe UI', sans-serif; user-select: none; -webkit-user-select: none; }
         
         canvas { 
             display: block; 
@@ -134,7 +134,6 @@
         }
         const tex = new THREE.CanvasTexture(canvas);
         tex.wrapS = THREE.RepeatWrapping; tex.wrapT = THREE.RepeatWrapping;
-        tex.repeat.set(8, 8); 
         return tex;
     }
 
@@ -176,7 +175,9 @@
     // --- THREE.JS ---
     function initThreeJS() {
         if (typeof THREE === 'undefined') return false;
-        scene = new THREE.Scene(); scene.background = new THREE.Color(0x111111);
+        scene = new THREE.Scene(); 
+        scene.background = new THREE.Color(0x000000); // VOID BLACK BACKGROUND
+
         camera = new THREE.PerspectiveCamera(40, window.innerWidth/window.innerHeight, 0.1, 5000);
         renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
         renderer.setSize(window.innerWidth, window.innerHeight);
@@ -201,6 +202,7 @@
         ballMesh = new THREE.Mesh(ballGeo, ballMat);
         ballMesh.castShadow = true; worldContainer.add(ballMesh);
 
+        // Goal
         const goalGeo = new THREE.BoxGeometry(1, 0.1, 1);
         const goalMat = new THREE.MeshStandardMaterial({ 
             color: 0x00ff00, 
@@ -211,7 +213,8 @@
         goalMesh = new THREE.Mesh(goalGeo, goalMat);
         worldContainer.add(goalMesh);
 
-        const floorGeo = new THREE.PlaneGeometry(5000, 5000);
+        // Floor - Init with dummy geometry, resized later
+        const floorGeo = new THREE.PlaneGeometry(1, 1); 
         const floorTex = createVibrantFloorTexture();
         const floorMat = new THREE.MeshStandardMaterial({ map: floorTex, roughness: 0.8 });
         floorMesh = new THREE.Mesh(floorGeo, floorMat);
@@ -226,8 +229,25 @@
         document.getElementById('overlay').style.opacity = '0';
         setTimeout(() => { document.getElementById('overlay').style.display = 'none'; }, 300);
         resizeLogic();
-        floorMesh.material.map = createVibrantFloorTexture();
-        generateMaze(); build3DMaze();
+        
+        generateMaze(); 
+        
+        // VOID EFFECT: Update Floor Size to match Maze dimensions exactly
+        const mazeWidth = COLS * cellSize;
+        const mazeHeight = ROWS * cellSize;
+        
+        floorMesh.geometry.dispose();
+        floorMesh.geometry = new THREE.PlaneGeometry(mazeWidth, mazeHeight);
+        
+        // Update Texture with new colors and scaling
+        const newTex = createVibrantFloorTexture();
+        // Scale texture to look good (approx 1 repeat per 4 cells)
+        const repX = Math.max(1, mazeWidth / 250);
+        const repY = Math.max(1, mazeHeight / 250);
+        newTex.repeat.set(repX, repY);
+        floorMesh.material.map = newTex;
+
+        build3DMaze();
         
         ball.r = cellSize * 0.35; 
         ballMesh.scale.set(ball.r, ball.r, ball.r);
@@ -345,11 +365,14 @@
         ball.vx += ax * 0.8; ball.vy += ay * 0.8;
         ball.vx *= 0.92; ball.vy *= 0.92;
 
-        const steps = 8; const subVx = ball.vx / steps; const subVy = ball.vy / steps;
+        const steps = 8; 
+        const subVx = ball.vx / steps; 
+        const subVy = ball.vy / steps;
+        
         for (let i = 0; i < steps; i++) {
-            ball.x += subVx; checkCollisionX(); 
-            ball.y += subVy; checkCollisionY();
-            checkCornerCollision();
+            ball.x += subVx; 
+            ball.y += subVy; 
+            solveCollisions(); 
         }
 
         let pcx = Math.floor(ball.x / cellSize); let pcy = Math.floor(ball.y / cellSize);
@@ -375,83 +398,70 @@
         setTimeout(() => { document.getElementById('overlay').style.opacity = '1'; }, 10);
     }
 
-    const physMargin = 0.25;
-
-    function checkCollisionX() {
+    // --- PHYSICS ENGINE (Smooth AABB) ---
+    function solveCollisions() {
         if (ball.x - ball.r < 0) { ball.x = ball.r; bounceX(); }
         if (ball.x + ball.r > COLS * cellSize) { ball.x = COLS * cellSize - ball.r; bounceX(); }
-        let cx = Math.floor(ball.x / cellSize), cy = Math.floor(ball.y / cellSize);
-        cx = Math.max(0, Math.min(COLS-1, cx)); cy = Math.max(0, Math.min(ROWS-1, cy));
-        let cell = maze[cy][cx], localX = ball.x % cellSize;
-        if (cell.right && localX + ball.r + physMargin > cellSize) { bounceX(); ball.x = (cx + 1) * cellSize - ball.r - physMargin; }
-        if (cell.left && localX - ball.r - physMargin < 0) { bounceX(); ball.x = cx * cellSize + ball.r + physMargin; }
-    }
-    function bounceX() { if(Math.abs(ball.vx) > 1.5) playBump(); ball.vx *= -0.3; }
-
-    function checkCollisionY() {
         if (ball.y - ball.r < 0) { ball.y = ball.r; bounceY(); }
         if (ball.y + ball.r > ROWS * cellSize) { ball.y = ROWS * cellSize - ball.r; bounceY(); }
-        let cx = Math.floor(ball.x / cellSize), cy = Math.floor(ball.y / cellSize);
-        cx = Math.max(0, Math.min(COLS-1, cx)); cy = Math.max(0, Math.min(ROWS-1, cy));
-        let cell = maze[cy][cx], localY = ball.y % cellSize;
-        if (cell.bottom && localY + ball.r + physMargin > cellSize) { bounceY(); ball.y = (cy + 1) * cellSize - ball.r - physMargin; }
-        if (cell.top && localY - ball.r - physMargin < 0) { bounceY(); ball.y = cy * cellSize + ball.r + physMargin; }
-    }
-    function bounceY() { if(Math.abs(ball.vy) > 1.5) playBump(); ball.vy *= -0.3; }
 
-    // --- FIX: QUADRANT EXCLUSION for Ghost Walls ---
-    function checkCornerCollision() {
-        let ix = Math.round(ball.x / cellSize);
-        let iy = Math.round(ball.y / cellSize);
-        let px = ix * cellSize;
-        let py = iy * cellSize;
+        let cx = Math.floor(ball.x / cellSize);
+        let cy = Math.floor(ball.y / cellSize);
         
-        let dx = ball.x - px;
-        let dy = ball.y - py;
-        let distSq = dx*dx + dy*dy;
-        let pillarR = wallThicknessVal * 0.5;
-        let minDist = ball.r + pillarR;
-        
-        if (distSq < minDist * minDist) {
-            // Determine existing wall segments at this intersection
-            let segUp = (iy > 0 && ix > 0) ? maze[iy-1][ix-1].right : false;
-            let segDown = (iy < ROWS && ix > 0) ? maze[iy][ix-1].right : false;
-            let segLeft = (iy > 0 && ix > 0) ? maze[iy-1][ix-1].bottom : false;
-            let segRight = (iy > 0 && ix < COLS) ? maze[iy-1][ix].bottom : false;
+        const minX = Math.max(0, cx - 1);
+        const maxX = Math.min(COLS - 1, cx + 1);
+        const minY = Math.max(0, cy - 1);
+        const maxY = Math.min(ROWS - 1, cy + 1);
 
-            // QUADRANT CHECK: Only enable pillar if NO flat wall exists in that quadrant
-            let inTL = dx < 0 && dy < 0;
-            let inTR = dx > 0 && dy < 0;
-            let inBL = dx < 0 && dy > 0;
-            let inBR = dx > 0 && dy > 0;
+        for (let y = minY; y <= maxY; y++) {
+            for (let x = minX; x <= maxX; x++) {
+                let cell = maze[y][x];
+                let tx = x * cellSize;
+                let ty = y * cellSize;
 
-            let block = false;
-            // Top-Left Quadrant: Requires NO Up Wall AND NO Left Wall
-            if (inTL && !segUp && !segLeft) block = true;
-            // Top-Right Quadrant: Requires NO Up Wall AND NO Right Wall
-            if (inTR && !segUp && !segRight) block = true;
-            // Bottom-Left Quadrant: Requires NO Down Wall AND NO Left Wall
-            if (inBL && !segDown && !segLeft) block = true;
-            // Bottom-Right Quadrant: Requires NO Down Wall AND NO Right Wall
-            if (inBR && !segDown && !segRight) block = true;
-
-            if (block) {
-                let dist = Math.sqrt(distSq);
-                if (dist < 0.001) { dx = 1; dy = 0; dist = 1; }
-                let overlap = minDist - dist;
-                let nx = dx / dist; let ny = dy / dist;
-                ball.x += nx * overlap;
-                ball.y += ny * overlap;
-                let dot = ball.vx * nx + ball.vy * ny;
-                if (dot < 0) {
-                    ball.vx -= 2 * dot * nx; ball.vy -= 2 * dot * ny;
-                    ball.vx *= 0.5; ball.vy *= 0.5;
-                    if (Math.abs(dot) > 1.0) playBump();
-                }
+                if (cell.top) resolveAABB(tx + cellSize/2, ty, cellSize + wallThicknessVal, wallThicknessVal);
+                if (cell.left) resolveAABB(tx, ty + cellSize/2, wallThicknessVal, cellSize + wallThicknessVal);
+                if (y === ROWS - 1 && cell.bottom) resolveAABB(tx + cellSize/2, ty + cellSize, cellSize + wallThicknessVal, wallThicknessVal);
+                if (x === COLS - 1 && cell.right) resolveAABB(tx + cellSize, ty + cellSize/2, wallThicknessVal, cellSize + wallThicknessVal);
             }
         }
     }
 
+    function resolveAABB(wx, wy, ww, wh) {
+        let closestX = Math.max(wx - ww/2, Math.min(ball.x, wx + ww/2));
+        let closestY = Math.max(wy - wh/2, Math.min(ball.y, wy + wh/2));
+        let dx = ball.x - closestX;
+        let dy = ball.y - closestY;
+        let distSq = dx*dx + dy*dy;
+
+        if (distSq < ball.r * ball.r && distSq > 0.00001) {
+            let dist = Math.sqrt(distSq);
+            let overlap = ball.r - dist;
+            let nx = dx / dist;
+            let ny = dy / dist;
+
+            ball.x += nx * overlap;
+            ball.y += ny * overlap;
+
+            let dot = ball.vx * nx + ball.vy * ny;
+            if (dot < 0) {
+                let tx = ball.vx - nx * dot;
+                let ty = ball.vy - ny * dot;
+                tx *= 0.99; ty *= 0.99; // Friction
+                let restitution = 0.3;
+                let bx = nx * dot * -restitution;
+                let by = ny * dot * -restitution;
+                ball.vx = tx + bx;
+                ball.vy = ty + by;
+                if (Math.abs(dot) > 1.5) playBump();
+            }
+        }
+    }
+    
+    function bounceX() { ball.vx *= -0.3; if(Math.abs(ball.vx) > 1.5) playBump(); }
+    function bounceY() { ball.vy *= -0.3; if(Math.abs(ball.vy) > 1.5) playBump(); }
+
+    // --- AUDIO ---
     function playBump() {
         if (!audioCtx) return;
         const now = audioCtx.currentTime;
