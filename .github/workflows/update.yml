@@ -1,0 +1,24 @@
+name: Marathon Stats Sync
+on:
+  schedule:
+    - cron: '0 * * * *'
+  workflow_dispatch:
+jobs:
+  update-stats:
+    runs-on: ubuntu-latest
+    permissions: { contents: write }
+    steps:
+      - uses: actions/checkout@v4
+      - name: Sync Player Count
+        run: |
+          COUNT=$(curl -s "https://api.steampowered.com/ISteamUserStats/GetNumberOfCurrentPlayers/v1/?appid=3065800" | jq '.response.player_count')
+          DATE=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+          # Save to the marathon subfolder
+          jq ". += [{\"t\": \"$DATE\", \"y\": $COUNT}]" marathon/data.json > temp.json && mv temp.json marathon/data.json
+      - name: Commit data
+        run: |
+          git config user.name "RunnerBot"
+          git config user.email "bot@marathon.net"
+          git add marathon/data.json
+          git commit -m "Runner sync: $(date)"
+          git push
