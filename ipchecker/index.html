@@ -634,6 +634,17 @@
       }
     }
 
+    /* Network detail readability */
+    .metric-value {
+      line-height: 1.25;
+    }
+
+    #confidenceValue,
+    #apiUsedValue,
+    #ispValue {
+      font-size: 0.92rem;
+    }
+
     @media (prefers-reduced-motion: reduce) {
       *, *::before, *::after { animation-duration: 1ms !important; transition-duration: 1ms !important; scroll-behavior: auto !important; }
     }
@@ -658,6 +669,11 @@
           <div class="metric"><div class="metric-label">City</div><div id="cityValue" class="metric-value muted">-</div></div>
           <div class="metric"><div class="metric-label">Region / State</div><div id="regionValue" class="metric-value muted">-</div></div>
           <div class="metric span-2"><div class="metric-label">Country</div><div id="countryValue" class="metric-value muted">-</div></div>
+          <div class="metric span-2"><div class="metric-label">ISP / Network Owner</div><div id="ispValue" class="metric-value muted">-</div></div>
+          <div class="metric"><div class="metric-label">ASN</div><div id="asnValue" class="metric-value muted">-</div></div>
+          <div class="metric"><div class="metric-label">Network Type</div><div id="networkTypeValue" class="metric-value muted">-</div></div>
+          <div class="metric span-2"><div class="metric-label">API Used</div><div id="apiUsedValue" class="metric-value muted">-</div></div>
+          <div class="metric span-2"><div class="metric-label">Confidence</div><div id="confidenceValue" class="metric-value muted">-</div></div>
         </section>
 
         <p class="hint"><strong>Install:</strong> Safari on iPhone → Share → <strong>Add to Home Screen</strong>. Chrome on Windows → use the install button in the address bar.</p>
@@ -698,8 +714,11 @@
         postal: null,
         timezone: null,
         coords: null,
-        asn: null,
-        isp: null,
+        asn: $("asnValue"),
+        networkType: $("networkTypeValue"),
+        isp: $("ispValue"),
+        apiUsed: $("apiUsedValue"),
+        confidence: $("confidenceValue"),
         source: $("sourceValue"),
         time: $("timeValue"),
         button: $("recheckBtn"),
@@ -866,17 +885,76 @@
         }
       }
 
+      function normalizeText(value) {
+        return String(value || "").trim().toLowerCase();
+      }
+
+      function detectNetworkType(result) {
+        const text = `${result.isp || ""} ${result.asn || ""}`.toLowerCase();
+        if (!text.trim()) return "-";
+        if (/(vpn|proxy|privacy|hosting|cloud|server|colo|datacenter|data center|digitalocean|ovh|m247|leaseweb|choopa|vultr|amazon|aws|google|microsoft|azure|oracle|linode|akamai|cloudflare)/.test(text)) return "VPN / Hosting";
+        if (/(mobile|wireless|cellular|lte|5g|4g|verizon|t-mobile|tmobile|at&t|rogers|bell|telus|vodafone|orange)/.test(text)) return "Mobile / Wireless";
+        if (/(cable|broadband|fiber|fibre|telecom|communications|comcast|spectrum|cox|xfinity|charter)/.test(text)) return "Residential / ISP";
+        return "Network";
+      }
+
+      function distanceKm(a, b) {
+        if (!Number.isFinite(a?.latitude) || !Number.isFinite(a?.longitude) || !Number.isFinite(b?.latitude) || !Number.isFinite(b?.longitude)) return Infinity;
+        const toRad = (deg) => deg * Math.PI / 180;
+        const R = 6371;
+        const dLat = toRad(b.latitude - a.latitude);
+        const dLon = toRad(b.longitude - a.longitude);
+        const lat1 = toRad(a.latitude);
+        const lat2 = toRad(b.latitude);
+        const x = Math.sin(dLat / 2) ** 2 + Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLon / 2) ** 2;
+        return 2 * R * Math.asin(Math.min(1, Math.sqrt(x)));
+      }
+
+      function getConfidence(results, chosen) {
+        if (!results.length) return "-";
+        if (results.length === 1) return "Basic — 1 API succeeded";
+
+        const sameCountry = results.filter((item) => normalizeText(item.countryCode || item.country) === normalizeText(chosen.countryCode || chosen.country)).length;
+        const sameRegion = results.filter((item) => normalizeText(item.region) && normalizeText(item.region) === normalizeText(chosen.region)).length;
+        const nearby = results.filter((item) => distanceKm(item, chosen) <= 150).length;
+
+        if (sameCountry === results.length && nearby >= Math.max(2, results.length - 1)) {
+          return `High — ${results.length}/${results.length} APIs broadly agree`;
+        }
+
+        if (sameCountry >= 2) {
+          return `Medium — ${sameCountry}/${results.length} APIs agree on country`;
+        }
+
+        return `Low — API locations disagree`;
+      }
+
       async function getIpLocation(signal) {
         const errors = [];
-        for (const provider of providers) {
+        const successful = [];
+
+        await Promise.all(providers.map(async (provider) => {
           try {
             const raw = await fetchJson(provider.url, signal);
-            return provider.normalize(raw);
+            successful.push(provider.normalize(raw));
           } catch (error) {
             errors.push(`${provider.name}: ${error.message}`);
           }
+        }));
+
+        if (!successful.length) {
+          throw new Error(errors.join(" | "));
         }
-        throw new Error(errors.join(" | "));
+
+        const chosen = successful[0];
+        chosen.apiUsed = chosen.source;
+        chosen.successfulApiCount = successful.length;
+        chosen.totalApiCount = providers.length;
+        chosen.allSources = successful.map((item) => item.source).join(", ");
+        chosen.confidence = getConfidence(successful, chosen);
+        chosen.networkType = detectNetworkType(chosen);
+
+        return chosen;
       }
 
       function initMap() {
@@ -929,7 +1007,12 @@
         setMetric(els.city, result.city);
         setMetric(els.region, result.region);
         setMetric(els.country, result.country);
-        setMetric(els.source, result.source);
+        setMetric(els.isp, result.isp || "Unknown network");
+        setMetric(els.asn, result.asn);
+        setMetric(els.networkType, result.networkType);
+        setMetric(els.apiUsed, `${result.apiUsed} (${result.successfulApiCount}/${result.totalApiCount} APIs responded)`);
+        setMetric(els.confidence, result.confidence);
+        setMetric(els.source, result.apiUsed || result.source);
         setMetric(els.time, formatTime());
         setState("ok", "Visible", "This is the public IP location websites can currently see.");
         updateMap(result);
@@ -948,7 +1031,7 @@
         } catch (error) {
           console.error(error);
           setState("error", "Unavailable", "All IP lookup services failed. If you are testing from a local file, publish to GitHub Pages or use a local web server. Also check VPN DNS filtering, content blockers, or API rate limits.");
-          [els.ip, els.city, els.region, els.country].forEach((node) => node && setMetric(node, "-"));
+          [els.ip, els.city, els.region, els.country, els.isp, els.asn, els.networkType, els.apiUsed, els.confidence].forEach((node) => node && setMetric(node, "-"));
           setMetric(els.source, "Failed");
           setMetric(els.time, formatTime());
           showToast("Could not complete the IP check. All HTTPS IP geolocation APIs failed or were blocked. Try GitHub Pages/localhost instead of file:// and disable strict content blockers for this page.");
