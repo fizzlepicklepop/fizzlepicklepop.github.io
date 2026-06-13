@@ -3,8 +3,8 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
-  <meta name="theme-color" content="#0f172a" />
-  <meta name="color-scheme" content="dark" />
+  <meta name="theme-color" content="#eef5ff" />
+  <meta name="color-scheme" content="light" />
 
   <meta name="mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -79,13 +79,13 @@
       height: 100dvh;
       min-height: -webkit-fill-available;
       display: grid;
-      grid-template-columns: minmax(330px, 440px) minmax(0, 1fr);
-      gap: clamp(14px, 2vw, 24px);
+      grid-template-columns: minmax(300px, 390px) minmax(0, 1fr);
+      gap: clamp(12px, 1.8vw, 20px);
       padding:
-        calc(18px + var(--safe-top))
-        calc(18px + var(--safe-right))
-        calc(18px + var(--safe-bottom))
-        calc(18px + var(--safe-left));
+        calc(14px + var(--safe-top))
+        calc(14px + var(--safe-right))
+        calc(14px + var(--safe-bottom))
+        calc(14px + var(--safe-left));
     }
 
     .panel,
@@ -93,7 +93,7 @@
       min-width: 0;
       min-height: 0;
       border: 1px solid var(--line);
-      border-radius: 28px;
+      border-radius: 24px;
       background: var(--panel);
       box-shadow: var(--shadow);
       overflow: hidden;
@@ -109,50 +109,50 @@
       overflow: auto;
       display: flex;
       flex-direction: column;
-      gap: 18px;
-      padding: clamp(20px, 4vw, 30px);
+      gap: 14px;
+      padding: clamp(16px, 3vw, 22px);
       scrollbar-width: thin;
       scrollbar-color: rgba(148, 163, 184, 0.38) transparent;
     }
 
-    .brand { display: flex; align-items: center; gap: 14px; }
+    .brand { display: flex; align-items: center; gap: 12px; }
 
     .logo {
-      width: 50px;
-      height: 50px;
+      width: 42px;
+      height: 42px;
       flex: 0 0 auto;
       display: grid;
       place-items: center;
-      border-radius: 18px;
+      border-radius: 16px;
       background: linear-gradient(135deg, #38bdf8, #2563eb 60%, #1e293b);
       box-shadow: 0 16px 34px rgba(37, 99, 235, 0.34);
     }
 
-    .logo svg { width: 28px; height: 28px; }
+    .logo svg { width: 24px; height: 24px; }
 
     h1 {
       margin: 0;
-      font-size: clamp(1.35rem, 3vw, 1.9rem);
+      font-size: clamp(1.2rem, 2.4vw, 1.7rem);
       line-height: 1.04;
       letter-spacing: -0.055em;
     }
 
-    .tagline { margin: 5px 0 0; color: var(--muted); font-size: 0.92rem; }
+    .tagline { margin: 4px 0 0; color: var(--muted); font-size: 0.86rem; }
 
     .status {
-      padding: 20px;
+      padding: 16px;
       border: 1px solid var(--line);
-      border-radius: 22px;
+      border-radius: 18px;
       background:
         radial-gradient(circle at top right, rgba(56, 189, 248, 0.13), transparent 46%),
         rgba(15, 23, 42, 0.66);
     }
 
-    .status-row { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; }
+    .status-row { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
 
     .eyebrow {
       color: var(--muted);
-      font-size: 0.72rem;
+      font-size: 0.68rem;
       font-weight: 800;
       letter-spacing: 0.16em;
       text-transform: uppercase;
@@ -160,17 +160,17 @@
 
     .status-title {
       margin-top: 8px;
-      font-size: clamp(1.6rem, 5vw, 2.55rem);
+      font-size: clamp(1.35rem, 4.4vw, 2.1rem);
       line-height: 1;
       font-weight: 850;
       letter-spacing: -0.06em;
     }
 
-    .status-sub { margin-top: 10px; color: var(--muted); line-height: 1.45; font-size: 0.95rem; }
+    .status-sub { margin-top: 8px; color: var(--muted); line-height: 1.4; font-size: 0.88rem; }
 
     .pulse {
-      width: 56px;
-      height: 56px;
+      width: 46px;
+      height: 46px;
       flex: 0 0 auto;
       display: grid;
       place-items: center;
@@ -180,8 +180,8 @@
     }
 
     .pulse-dot {
-      width: 18px;
-      height: 18px;
+      width: 14px;
+      height: 14px;
       border-radius: 999px;
       background: var(--blue);
       animation: pulse 1.6s infinite;
@@ -197,38 +197,38 @@
       100% { box-shadow: 0 0 0 0 rgba(56, 189, 248, 0); }
     }
 
-    .metrics { display: grid; gap: 12px; }
+    .metrics { display: grid; gap: 10px; grid-template-columns: 1fr; }
 
     .metric {
-      padding: 16px;
+      padding: 13px 14px;
       border: 1px solid var(--line);
-      border-radius: 16px;
+      border-radius: 14px;
       background: var(--panel-2);
     }
 
     .metric-label {
       color: var(--muted-2);
-      font-size: 0.72rem;
+      font-size: 0.66rem;
       font-weight: 800;
-      letter-spacing: 0.13em;
+      letter-spacing: 0.12em;
       text-transform: uppercase;
     }
 
     .metric-value {
-      margin-top: 7px;
-      min-height: 1.35em;
+      margin-top: 6px;
+      min-height: 1.25em;
       overflow-wrap: anywhere;
-      font-size: 1.08rem;
+      font-size: 0.98rem;
       font-weight: 730;
       letter-spacing: -0.02em;
     }
 
     .muted { color: var(--muted); font-weight: 600; }
 
-    .chips { display: flex; flex-wrap: wrap; gap: 9px; color: var(--muted); font-size: 0.84rem; }
+    .chips { display: flex; flex-wrap: wrap; gap: 8px; color: var(--muted); font-size: 0.78rem; }
 
     .chip {
-      padding: 8px 10px;
+      padding: 6px 9px;
       border: 1px solid var(--line);
       border-radius: 999px;
       background: rgba(15, 23, 42, 0.62);
@@ -236,57 +236,37 @@
 
     .chip strong { color: var(--text); }
 
-    .hint { margin: auto 0 0; color: var(--muted); line-height: 1.5; font-size: 0.9rem; }
+    .hint { margin: auto 0 0; color: var(--muted); line-height: 1.45; font-size: 0.82rem; }
     .hint strong { color: #cbd5e1; }
 
     .map-card { position: relative; background: #030712; }
-    #map { width: 100%; height: 100%; min-height: 300px; background: #030712; }
-
-    .map-note {
-      position: absolute;
-      z-index: 500;
-      top: 18px;
-      right: 18px;
-      max-width: min(520px, calc(100% - 36px));
-      padding: 12px 14px;
-      border: 1px solid var(--line);
-      border-radius: 999px;
-      background: rgba(2, 6, 23, 0.72);
-      color: var(--muted);
-      box-shadow: 0 16px 44px rgba(0, 0, 0, 0.28);
-      backdrop-filter: blur(16px);
-      -webkit-backdrop-filter: blur(16px);
-      font-size: 0.88rem;
-      pointer-events: none;
-    }
-
-    .map-note strong { color: var(--text); }
+    #map { width: 100%; height: 100%; min-height: 260px; background: #030712; }
 
     .fab {
       position: fixed;
       z-index: 1000;
       right: calc(22px + var(--safe-right));
       bottom: calc(22px + var(--safe-bottom));
-      min-height: 58px;
+      min-height: 52px;
       display: inline-flex;
       align-items: center;
       justify-content: center;
       gap: 10px;
-      padding: 0 22px;
+      padding: 0 18px;
       border: 0;
       border-radius: 999px;
       color: #eff6ff;
       background: linear-gradient(135deg, #38bdf8, #2563eb);
       font-weight: 850;
       cursor: pointer;
-      box-shadow: 0 22px 60px rgba(37, 99, 235, 0.38);
+      box-shadow: 0 18px 42px rgba(37, 99, 235, 0.34);
       -webkit-tap-highlight-color: transparent;
     }
 
     .fab:hover { filter: brightness(1.06); }
     .fab:active { transform: scale(0.98); }
     .fab[disabled] { opacity: 0.72; cursor: wait; }
-    .fab svg { width: 20px; height: 20px; }
+    .fab svg { width: 18px; height: 18px; }
     .fab.loading svg { animation: spin 900ms linear infinite; }
 
     @keyframes spin { to { transform: rotate(360deg); } }
@@ -299,7 +279,7 @@
       width: min(calc(100% - 36px), 560px);
       padding: 14px 16px;
       border: 1px solid rgba(251, 113, 133, 0.35);
-      border-radius: 18px;
+      border-radius: 16px;
       background: rgba(127, 29, 29, 0.78);
       color: #ffe4e6;
       box-shadow: var(--shadow);
@@ -321,6 +301,23 @@
     .popup-title { font-weight: 850; margin-bottom: 4px; }
     .popup-sub { color: var(--muted); }
 
+    .map-card .leaflet-tile-pane {
+      filter: saturate(1.05) contrast(1.02) brightness(1.03);
+    }
+
+    .ip-pin {
+      width: 34px;
+      height: 46px;
+      filter: drop-shadow(0 8px 14px rgba(0, 0, 0, 0.48));
+    }
+
+    .ip-pin svg {
+      display: block;
+      width: 34px;
+      height: 46px;
+    }
+
+
     @media (max-width: 860px) {
       body { overflow: auto; }
       .app {
@@ -329,29 +326,312 @@
         min-height: 100svh;
         min-height: 100dvh;
         grid-template-columns: 1fr;
-        grid-template-rows: auto minmax(380px, 1fr);
-        padding-bottom: calc(92px + var(--safe-bottom));
+        grid-template-rows: auto minmax(300px, 38svh);
+        padding-bottom: calc(78px + var(--safe-bottom));
         overflow: visible;
       }
-      .panel-scroll { overflow: visible; }
-      .map-card { min-height: 46vh; min-height: 46svh; min-height: 46dvh; }
-      .map-note { left: 18px; right: 18px; border-radius: 18px; text-align: center; }
+      .panel-scroll { overflow: visible; padding: 14px; gap: 12px; }
+      .map-card { min-height: 34vh; min-height: 34svh; min-height: 34dvh; }
+      .map-note { left: 18px; right: 18px; border-radius: 16px; text-align: center; }
     }
 
     @media (max-width: 460px) {
-      .app { padding-left: calc(12px + var(--safe-left)); padding-right: calc(12px + var(--safe-right)); padding-top: calc(12px + var(--safe-top)); }
-      .panel, .map-card { border-radius: 24px; }
-      .logo { width: 44px; height: 44px; }
-      .pulse { width: 48px; height: 48px; }
-      .fab { left: calc(18px + var(--safe-left)); right: calc(18px + var(--safe-right)); width: auto; }
+      .app { padding-left: calc(10px + var(--safe-left)); padding-right: calc(10px + var(--safe-right)); padding-top: calc(10px + var(--safe-top)); }
+      .panel, .map-card { border-radius: 18px; }
+      .logo { width: 40px; height: 40px; }
+      .pulse { width: 42px; height: 42px; }
+      .fab { left: auto; right: calc(12px + var(--safe-right)); bottom: calc(12px + var(--safe-bottom)); min-height: 46px; padding: 0 14px; width: auto; font-size: 0.92rem; }
+      .fab span { display: none; }
+      .toast { bottom: calc(64px + var(--safe-bottom)); }
+      .hint { display: none; }
     }
 
     @media (orientation: landscape) and (max-height: 540px) {
-      .app { grid-template-columns: minmax(320px, 400px) minmax(0, 1fr); grid-template-rows: 1fr; height: 100vh; height: 100svh; height: 100dvh; overflow: hidden; }
-      .panel-scroll { padding: 16px; overflow: auto; }
+      .app { grid-template-columns: minmax(280px, 360px) minmax(0, 1fr); grid-template-rows: 1fr; height: 100vh; height: 100svh; height: 100dvh; overflow: hidden; }
+      .panel-scroll { padding: 14px; gap: 12px; overflow: auto; }
       .tagline, .hint { display: none; }
-      .status { padding: 16px; }
-      .metric { padding: 12px; }
+      .status { padding: 14px; }
+      .metric { padding: 11px 12px; }
+    }
+
+    @media (min-width: 560px) and (max-width: 860px) {
+      .metrics { grid-template-columns: 1fr 1fr; }
+      .metric.span-2, .metric:last-child { grid-column: 1 / -1; }
+    }
+
+    @media (max-width: 360px) {
+      .status-title { font-size: 1.24rem; }
+      .status-sub { font-size: 0.82rem; }
+      .metric-value { font-size: 0.92rem; }
+      .chips { font-size: 0.72rem; }
+    }
+
+    /* Final compact mobile layout */
+    .brand,
+    .status,
+    .map-note {
+      display: none !important;
+    }
+
+    .compact-head { display: flex; flex-direction: column; gap: 8px; }
+    .chips-top { align-items: center; }
+    .status-chip { display: inline-flex; align-items: center; gap: 8px; }
+
+    .status-chip .pulse {
+      width: 18px;
+      height: 18px;
+      flex: 0 0 auto;
+      display: grid;
+      place-items: center;
+      border-radius: 999px;
+      background: rgba(56, 189, 248, 0.12);
+      box-shadow: inset 0 0 0 1px rgba(56, 189, 248, 0.24);
+    }
+
+    .status-chip .pulse-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 999px;
+      background: var(--blue);
+      animation: pulse 1.6s infinite;
+    }
+
+    .status-chip .pulse.ok .pulse-dot { background: var(--green); animation: none; }
+    .status-chip .pulse.warn .pulse-dot { background: var(--yellow); animation: none; }
+    .status-chip .pulse.error .pulse-dot { background: var(--red); animation: none; }
+
+    .sr-only {
+      position: absolute !important;
+      width: 1px; height: 1px;
+      padding: 0; margin: -1px;
+      overflow: hidden; clip: rect(0, 0, 0, 0);
+      white-space: nowrap; border: 0;
+    }
+
+    .app {
+      grid-template-columns: minmax(280px, 360px) minmax(0, 1fr);
+      gap: clamp(10px, 1.4vw, 16px);
+      padding:
+        calc(10px + var(--safe-top))
+        calc(10px + var(--safe-right))
+        calc(10px + var(--safe-bottom))
+        calc(10px + var(--safe-left));
+    }
+
+    .panel, .map-card { border-radius: 20px; }
+    .panel-scroll { gap: 10px; padding: clamp(12px, 2vw, 16px); }
+    .metrics { grid-template-columns: 1fr 1fr; gap: 8px; }
+    .metric { padding: 11px 12px; }
+    .metric.span-2 { grid-column: 1 / -1; }
+    .metric-value { font-size: 0.96rem; }
+    .chips { gap: 6px; font-size: 0.74rem; }
+    .chip { padding: 5px 8px; }
+    .hint { font-size: 0.76rem; }
+    #map { min-height: 240px; }
+
+    .fab {
+      min-height: 46px;
+      padding: 0 14px;
+      right: calc(12px + var(--safe-right));
+      bottom: calc(12px + var(--safe-bottom));
+    }
+
+    .fab svg { width: 18px; height: 18px; }
+
+    @media (max-width: 860px) {
+      body { overflow: auto; }
+      .app {
+        height: auto;
+        min-height: 100vh;
+        min-height: 100svh;
+        min-height: 100dvh;
+        grid-template-columns: 1fr;
+        grid-template-rows: minmax(250px, 34svh) auto;
+        padding-bottom: calc(72px + var(--safe-bottom));
+        overflow: visible;
+      }
+      .panel-scroll { overflow: visible; padding: 12px; gap: 10px; }
+      .map-card { min-height: 30vh; min-height: 30svh; min-height: 30dvh; }
+    }
+
+    @media (max-width: 860px) and (orientation: portrait) {
+      .panel { order: 2; }
+      .map-card { order: 1; }
+    }
+
+    @media (max-width: 460px) {
+      .app {
+        padding-left: calc(8px + var(--safe-left));
+        padding-right: calc(8px + var(--safe-right));
+        padding-top: calc(8px + var(--safe-top));
+      }
+      .panel, .map-card { border-radius: 16px; }
+      .metrics { grid-template-columns: 1fr 1fr; }
+      .metric.span-2, .metric:last-child { grid-column: 1 / -1; }
+      .fab { width: auto; min-height: 44px; padding: 0 12px; font-size: 0.9rem; }
+      .fab span { display: none; }
+      .toast { bottom: calc(60px + var(--safe-bottom)); }
+      .hint { display: none; }
+    }
+
+    /* Polished light UI */
+    :root {
+      --bg: #eef5ff;
+      --panel: rgba(255, 255, 255, 0.86);
+      --panel-2: rgba(255, 255, 255, 0.72);
+      --line: rgba(15, 23, 42, 0.10);
+      --text: #0f172a;
+      --muted: #64748b;
+      --muted-2: #64748b;
+      --blue: #2563eb;
+      --blue-2: #1d4ed8;
+      --green: #16a34a;
+      --yellow: #ca8a04;
+      --red: #ef4444;
+      --shadow: 0 22px 60px rgba(15, 23, 42, 0.14);
+    }
+
+    html,
+    body {
+      background: #eef5ff;
+    }
+
+    body {
+      color: var(--text);
+      background:
+        radial-gradient(circle at 16% 8%, rgba(59, 130, 246, 0.18), transparent 30%),
+        radial-gradient(circle at 88% 12%, rgba(14, 165, 233, 0.18), transparent 34%),
+        linear-gradient(135deg, #f8fbff 0%, #eef5ff 42%, #eaf2ff 100%);
+    }
+
+    .panel,
+    .map-card {
+      border-color: rgba(15, 23, 42, 0.09);
+      background:
+        linear-gradient(180deg, rgba(255,255,255,0.92), rgba(248,250,252,0.84));
+      box-shadow: 0 22px 70px rgba(15, 23, 42, 0.13);
+    }
+
+    .metric {
+      background:
+        linear-gradient(180deg, rgba(255,255,255,0.94), rgba(248,250,252,0.82));
+      border-color: rgba(15, 23, 42, 0.09);
+      box-shadow:
+        inset 0 1px 0 rgba(255,255,255,0.85),
+        0 10px 28px rgba(15, 23, 42, 0.055);
+    }
+
+    .metric-label {
+      color: #64748b;
+    }
+
+    .metric-value,
+    .chip strong {
+      color: #0f172a;
+    }
+
+    .muted {
+      color: #94a3b8;
+    }
+
+    .chip {
+      background: rgba(255, 255, 255, 0.72);
+      border-color: rgba(15, 23, 42, 0.10);
+      color: #64748b;
+      box-shadow: 0 8px 22px rgba(15, 23, 42, 0.06);
+    }
+
+    .status-chip .pulse {
+      background: rgba(37, 99, 235, 0.10);
+      box-shadow: inset 0 0 0 1px rgba(37, 99, 235, 0.18);
+    }
+
+    .hint,
+    .hint strong {
+      color: #64748b;
+    }
+
+    .map-card {
+      background: #dbeafe;
+    }
+
+    .fab {
+      background: linear-gradient(135deg, #2563eb, #0284c7);
+      color: #ffffff;
+      box-shadow: 0 18px 42px rgba(37, 99, 235, 0.28);
+    }
+
+    .toast {
+      background: rgba(254, 242, 242, 0.92);
+      color: #991b1b;
+      border-color: rgba(239, 68, 68, 0.22);
+    }
+
+    .leaflet-control-zoom {
+      border-color: rgba(15, 23, 42, 0.14) !important;
+      box-shadow: 0 12px 28px rgba(15, 23, 42, 0.12) !important;
+    }
+
+    .leaflet-control-zoom a {
+      background: rgba(255,255,255,0.94) !important;
+      color: #0f172a !important;
+    }
+
+    .leaflet-control-attribution {
+      background: rgba(255,255,255,0.78) !important;
+      color: rgba(15, 23, 42, 0.65) !important;
+    }
+
+    .leaflet-control-attribution a {
+      color: #2563eb !important;
+    }
+
+    .leaflet-popup-content-wrapper,
+    .leaflet-popup-tip {
+      background: rgba(255,255,255,0.96);
+      color: #0f172a;
+      border: 1px solid rgba(15, 23, 42, 0.10);
+      box-shadow: 0 20px 55px rgba(15, 23, 42, 0.16);
+    }
+
+    .popup-sub {
+      color: #64748b;
+    }
+
+    .ip-marker-pin {
+      position: relative;
+      width: 28px;
+      height: 28px;
+      transform: rotate(-45deg);
+      border-radius: 50% 50% 50% 0;
+      background: #ef4444;
+      border: 2px solid #ffffff;
+      box-shadow:
+        0 0 0 6px rgba(239, 68, 68, 0.18),
+        0 10px 22px rgba(15, 23, 42, 0.24);
+    }
+
+    .ip-marker-pin::after {
+      content: "";
+      position: absolute;
+      width: 9px;
+      height: 9px;
+      left: 50%;
+      top: 50%;
+      border-radius: 999px;
+      background: #ffffff;
+      transform: translate(-50%, -50%);
+    }
+
+    @media (max-width: 460px) {
+      .metrics {
+        grid-template-columns: 1fr 1fr;
+      }
+
+      .metric.span-2,
+      .metric:last-child {
+        grid-column: 1 / -1;
+      }
     }
 
     @media (prefers-reduced-motion: reduce) {
@@ -364,48 +644,28 @@
   <main class="app">
     <section class="panel" aria-label="VPN verification panel">
       <div class="panel-scroll">
-        <header class="brand">
-          <div class="logo" aria-hidden="true">
-            <svg viewBox="0 0 24 24" fill="none">
-              <path d="M12 3.2 5.2 6.1v5.4c0 4.3 2.8 8.2 6.8 9.3 4-1.1 6.8-5 6.8-9.3V6.1L12 3.2Z" fill="rgba(255,255,255,.94)" />
-              <path d="m9.4 12.1 1.8 1.8 3.8-4.2" stroke="#2563eb" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
-            </svg>
+        <div class="compact-head" aria-label="Verification status">
+          <div class="chips chips-top">
+            <span class="chip status-chip"><span id="pulse" class="pulse" aria-hidden="true"><span class="pulse-dot"></span></span>Status: <strong id="statusText">Checking...</strong></span>
+            <span class="chip">Source: <strong id="sourceValue">-</strong></span>
+            <span class="chip">Last check: <strong id="timeValue">-</strong></span>
           </div>
-          <div>
-            <h1>VPN IP Check</h1>
-            <p class="tagline">Verifies your visible public IP location, not GPS.</p>
-          </div>
-        </header>
-
-        <section class="status">
-          <div class="status-row">
-            <div>
-              <div class="eyebrow">Current visible network</div>
-              <div id="statusText" class="status-title">Checking...</div>
-              <div id="statusSub" class="status-sub">Contacting IP geolocation services.</div>
-            </div>
-            <div id="pulse" class="pulse" aria-hidden="true"><div class="pulse-dot"></div></div>
-          </div>
-        </section>
-
-        <section class="metrics" aria-label="IP geolocation details">
-          <div class="metric"><div class="metric-label">Public IP</div><div id="ipValue" class="metric-value muted">-</div></div>
-          <div class="metric"><div class="metric-label">Location</div><div id="locationValue" class="metric-value muted">-</div></div>
-          <div class="metric"><div class="metric-label">Network / ISP owner</div><div id="ispValue" class="metric-value muted">-</div></div>
-        </section>
-
-        <div class="chips">
-          <span class="chip">Source: <strong id="sourceValue">-</strong></span>
-          <span class="chip">Last check: <strong id="timeValue">-</strong></span>
+          <div id="statusSub" class="sr-only" aria-live="polite">Contacting IP geolocation services.</div>
         </div>
 
-        <p class="hint"><strong>iPhone:</strong> open in Safari, tap Share, then <strong>Add to Home Screen</strong>. <strong>Windows:</strong> open in Chrome and use the install button in the address bar or Chrome menu.</p>
+        <section class="metrics" aria-label="IP geolocation details">
+          <div class="metric span-2"><div class="metric-label">Public IP</div><div id="ipValue" class="metric-value muted">-</div></div>
+          <div class="metric"><div class="metric-label">City</div><div id="cityValue" class="metric-value muted">-</div></div>
+          <div class="metric"><div class="metric-label">Region / State</div><div id="regionValue" class="metric-value muted">-</div></div>
+          <div class="metric span-2"><div class="metric-label">Country</div><div id="countryValue" class="metric-value muted">-</div></div>
+        </section>
+
+        <p class="hint"><strong>Install:</strong> Safari on iPhone → Share → <strong>Add to Home Screen</strong>. Chrome on Windows → use the install button in the address bar.</p>
       </div>
     </section>
 
     <section class="map-card" aria-label="Map showing public IP location">
       <div id="map"></div>
-      <div class="map-note">Map location is based on <strong>public IP geolocation</strong>, not device GPS.</div>
     </section>
   </main>
 
@@ -431,8 +691,15 @@
         statusSub: $("statusSub"),
         pulse: $("pulse"),
         ip: $("ipValue"),
-        location: $("locationValue"),
-        isp: $("ispValue"),
+        city: $("cityValue"),
+        region: $("regionValue"),
+        country: $("countryValue"),
+        countryCode: null,
+        postal: null,
+        timezone: null,
+        coords: null,
+        asn: null,
+        isp: null,
         source: $("sourceValue"),
         time: $("timeValue"),
         button: $("recheckBtn"),
@@ -446,22 +713,26 @@
 
       const providers = [
         {
-          name: "ipapi.co",
-          url: "https://ipapi.co/json/",
+          name: "geojs.io",
+          url: "https://get.geojs.io/v1/ip/geo.json",
           normalize(data) {
-            if (!data || data.error) throw new Error(data?.reason || "ipapi.co error");
-            const latitude = Number(data.latitude);
-            const longitude = Number(data.longitude);
-            if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) throw new Error("ipapi.co returned invalid coordinates");
+            const latitude = Number(data?.latitude);
+            const longitude = Number(data?.longitude);
+            if (!data?.ip) throw new Error("geojs.io did not return an IP address");
+            if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) throw new Error("geojs.io returned invalid coordinates");
             return {
-              source: "ipapi.co",
+              source: "geojs.io",
               ip: data.ip,
               city: data.city,
               region: data.region,
-              country: data.country_name,
+              country: data.country,
+              countryCode: data.country_code,
+              postal: data.postal_code || data.postal,
+              timezone: data.timezone,
               latitude,
               longitude,
-              isp: data.org || data.asn || "Unknown network"
+              asn: data.asn || data.organization_name || data.organization,
+              isp: data.organization_name || data.organization || data.asn || "Unknown network"
             };
           }
         },
@@ -479,9 +750,61 @@
               city: data.city,
               region: data.region,
               country: data.country,
+              countryCode: data.country_code,
+              postal: data.postal,
+              timezone: data.timezone?.id || data.timezone?.abbr,
               latitude,
               longitude,
-              isp: data.connection?.org || data.connection?.isp || data.connection?.asn || "Unknown network"
+              asn: data.connection?.asn,
+              isp: data.connection?.org || data.connection?.isp || data.connection?.domain || data.connection?.asn || "Unknown network"
+            };
+          }
+        },
+        {
+          name: "ipapi.co",
+          url: "https://ipapi.co/json/",
+          normalize(data) {
+            if (!data || data.error) throw new Error(data?.reason || "ipapi.co error");
+            const latitude = Number(data.latitude);
+            const longitude = Number(data.longitude);
+            if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) throw new Error("ipapi.co returned invalid coordinates");
+            return {
+              source: "ipapi.co",
+              ip: data.ip,
+              city: data.city,
+              region: data.region,
+              country: data.country_name,
+              countryCode: data.country_code,
+              postal: data.postal,
+              timezone: data.timezone,
+              latitude,
+              longitude,
+              asn: data.asn,
+              isp: data.org || data.network || data.asn || "Unknown network"
+            };
+          }
+        },
+        {
+          name: "ip.sb",
+          url: "https://api.ip.sb/geoip",
+          normalize(data) {
+            const latitude = Number(data?.latitude);
+            const longitude = Number(data?.longitude);
+            if (!data?.ip) throw new Error("ip.sb did not return an IP address");
+            if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) throw new Error("ip.sb returned invalid coordinates");
+            return {
+              source: "ip.sb",
+              ip: data.ip,
+              city: data.city,
+              region: data.region,
+              country: data.country,
+              countryCode: data.country_code,
+              postal: data.postal_code || data.zip_code,
+              timezone: data.timezone,
+              latitude,
+              longitude,
+              asn: data.asn,
+              isp: data.organization || data.isp || data.asn || "Unknown network"
             };
           }
         }
@@ -497,6 +820,7 @@
       }
 
       function setMetric(node, value) {
+        if (!node) return;
         const clean = value || "-";
         node.textContent = clean;
         node.classList.toggle("muted", clean === "-");
@@ -508,10 +832,9 @@
       }
 
       function setState(type, title, subtitle) {
-        els.statusText.textContent = title;
-        els.statusSub.textContent = subtitle;
-        els.pulse.classList.remove("ok", "warn", "error");
-        if (type) els.pulse.classList.add(type);
+        if (els.statusText) els.statusText.textContent = title;
+        if (els.statusSub) els.statusSub.textContent = subtitle;
+        if (els.pulse) { els.pulse.classList.remove("ok", "warn", "error"); if (type) els.pulse.classList.add(type); }
       }
 
       function showToast(message) {
@@ -564,7 +887,7 @@
         }
 
         map = L.map("map", { zoomControl: true, attributionControl: true, worldCopyJump: true }).setView(DEFAULT_CENTER, DEFAULT_ZOOM);
-        L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", {
+        L.tileLayer("https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png", {
           attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>',
           subdomains: "abcd",
           maxZoom: 20
@@ -578,18 +901,34 @@
         if (!map) return;
         const latLng = [result.latitude, result.longitude];
         const label = [result.city, result.region, result.country].filter(Boolean).join(", ");
-        if (!marker) marker = L.marker(latLng).addTo(map);
-        else marker.setLatLng(latLng);
+        if (!marker) {
+          const redIcon = L.divIcon({
+            className: "",
+            html: `<div class="ip-pin" aria-hidden="true">
+              <svg viewBox="0 0 34 46" xmlns="http://www.w3.org/2000/svg">
+                <path d="M17 45C17 45 32 26.2 32 16.6C32 7.8 25.3 1 17 1C8.7 1 2 7.8 2 16.6C2 26.2 17 45 17 45Z" fill="#ef4444" stroke="white" stroke-width="2"/>
+                <circle cx="17" cy="16.5" r="6.5" fill="white" fill-opacity="0.95"/>
+                <circle cx="17" cy="16.5" r="3.2" fill="#ef4444"/>
+              </svg>
+            </div>`,
+            iconSize: [34, 46],
+            iconAnchor: [17, 45],
+            popupAnchor: [0, -42]
+          });
+          marker = L.marker(latLng, { icon: redIcon }).addTo(map);
+        } else {
+          marker.setLatLng(latLng);
+        }
         marker.bindPopup(`<div class="popup-title">${escapeHtml(result.ip)}</div><div class="popup-sub">${escapeHtml(label || "Approximate IP location")}</div>`);
         map.flyTo(latLng, 9, { animate: true, duration: 1.1 });
         setTimeout(() => { map.invalidateSize(); marker.openPopup(); }, 350);
       }
 
       function renderResult(result) {
-        const location = [result.city, result.region, result.country].filter(Boolean).join(", ");
         setMetric(els.ip, result.ip);
-        setMetric(els.location, location || "Unknown location");
-        setMetric(els.isp, result.isp || "Unknown network");
+        setMetric(els.city, result.city);
+        setMetric(els.region, result.region);
+        setMetric(els.country, result.country);
         setMetric(els.source, result.source);
         setMetric(els.time, formatTime());
         setState("ok", "Visible", "This is the public IP location websites can currently see.");
@@ -608,10 +947,11 @@
           renderResult(result);
         } catch (error) {
           console.error(error);
-          setState("error", "Unavailable", "Both IP lookup services failed. Check your connection, VPN DNS filtering, content blocker, or API rate limits.");
+          setState("error", "Unavailable", "All IP lookup services failed. If you are testing from a local file, publish to GitHub Pages or use a local web server. Also check VPN DNS filtering, content blockers, or API rate limits.");
+          [els.ip, els.city, els.region, els.country].forEach((node) => node && setMetric(node, "-"));
           setMetric(els.source, "Failed");
           setMetric(els.time, formatTime());
-          showToast("Could not complete the IP check. Both HTTPS IP geolocation APIs failed or were blocked.");
+          showToast("Could not complete the IP check. All HTTPS IP geolocation APIs failed or were blocked. Try GitHub Pages/localhost instead of file:// and disable strict content blockers for this page.");
         } finally {
           setLoading(false);
         }

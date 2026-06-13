@@ -1,4 +1,4 @@
-const CACHE_NAME = "vpn-ip-check-v3";
+const CACHE_NAME = "vpn-ip-check-v13";
 const APP_SHELL = ["./", "./index.html", "./manifest.webmanifest", "./icons/icon-180.png", "./icons/icon-192.png", "./icons/icon-512.png"];
 
 self.addEventListener("install", (event) => {
@@ -23,7 +23,7 @@ self.addEventListener("fetch", (event) => {
 
   const url = new URL(request.url);
 
-  if (url.hostname === "ipapi.co" || url.hostname === "ipwho.is") {
+  if (["ipapi.co", "ipwho.is", "get.geojs.io", "api.ip.sb"].includes(url.hostname)) {
     event.respondWith(fetch(request));
     return;
   }
