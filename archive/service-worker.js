@@ -9,6 +9,7 @@ const APP_ASSETS = [
   './vendor/fflate.module.js',
   './vendor/libarchive.js/main.js',
   './vendor/libarchive.js/dist/worker-bundle.js',
+  './vendor/libarchive.js/dist/libarchive.wasm',
   'https://cdn.tailwindcss.com'
 ];
 

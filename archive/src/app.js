@@ -94,7 +94,7 @@ function groupSelectedFiles(files) {
     if (parts[0].part !== 1) throw new Error(`Split archive ${baseName} must include the .001 part.`);
     merged.push({
       name: baseName,
-      blob: new Blob(parts.map(p => p.file), { type: 'application/octet-stream' }),
+      blob: new File(parts.map(p => p.file), baseName, { type: 'application/octet-stream' }),
       source: `merged ${parts.length} parts`
     });
   }

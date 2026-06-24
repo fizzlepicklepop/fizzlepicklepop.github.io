@@ -21,7 +21,7 @@
       </div>
       <h1 class="text-3xl font-bold tracking-tight sm:text-4xl">Private Archive Extractor</h1>
       <p class="mt-3 text-sm leading-6 text-slate-300 sm:text-base">
-        Extract ZIP, 7z, RAR, TAR, and split archives locally in your browser. No uploads. No accounts. No tracking!
+        Extract ZIP, 7z, RAR, TAR, and split archives locally in your browser. No uploads. No accounts. No tracking.
       </p>
     </header>
 
@@ -71,6 +71,24 @@
     </footer>
   </main>
 
+
+  <script>
+    window.addEventListener('error', event => {
+      const status = document.querySelector('#status');
+      if (status) {
+        status.className = 'mt-5 rounded-2xl p-4 text-sm leading-6 bg-rose-950/60 text-rose-100';
+        status.textContent = 'App startup failed: ' + (event.message || 'unknown error') + '. Make sure the vendor files are present and the app is served over http(s), not opened as a local file.';
+      }
+    });
+    window.addEventListener('unhandledrejection', event => {
+      const status = document.querySelector('#status');
+      if (status) {
+        const reason = event.reason?.message || String(event.reason || 'unknown error');
+        status.className = 'mt-5 rounded-2xl p-4 text-sm leading-6 bg-rose-950/60 text-rose-100';
+        status.textContent = 'App startup failed: ' + reason + '. Make sure the vendor files are present and the app is served over http(s), not opened as a local file.';
+      }
+    });
+  </script>
   <script type="module" src="./src/app.js"></script>
 </body>
 </html>

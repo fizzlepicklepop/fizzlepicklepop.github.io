@@ -22,7 +22,7 @@ const fflateSrc = await findExisting([
 ]);
 await copy(fflateSrc, 'vendor/fflate.module.js');
 
-await copy('node_modules/libarchive.js/main.js', 'vendor/libarchive.js/main.js');
+await copy('node_modules/libarchive.js/dist/libarchive.js', 'vendor/libarchive.js/main.js');
 
 async function copyDir(src, dest) {
   await mkdir(dest, { recursive: true });
